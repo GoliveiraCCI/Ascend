@@ -15,6 +15,12 @@ import { useRouter } from "next/navigation"
 import { TrainingFiles } from "../new/training-files"
 import { TrainingParticipants } from "../new/training-participants"
 
+interface NewTrainingFormProps {
+  onCancel: () => void
+  onSuccess: () => void
+  departments: Department[]
+}
+
 const formSchema = z.object({
   name: z.string().min(1, "Título é obrigatório"),
   source: z.string().min(1, "Origem é obrigatória"),
@@ -27,12 +33,7 @@ const formSchema = z.object({
   category: z.string().min(1, "Categoria é obrigatória")
 })
 
-interface NewTrainingFormProps {
-  onCancel: () => void
-  onSuccess: () => void
-}
-
-export default function NewTrainingForm({ onCancel, onSuccess }: NewTrainingFormProps) {
+export default function NewTrainingForm({ onCancel, onSuccess, departments }: NewTrainingFormProps) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [files, setFiles] = useState<File[]>([])

@@ -14,6 +14,7 @@ export async function POST(request: Request) {
     const source = formData.get("source") as "INTERNAL" | "EXTERNAL"
     const instructor = formData.get("instructor") as string
     const institution = formData.get("institution") as string
+    const departmentId = formData.get("departmentId") as string
     const startDate = new Date(formData.get("startDate") as string)
     const endDate = new Date(formData.get("endDate") as string)
     const hours = Number(formData.get("hours"))
@@ -90,6 +91,7 @@ export async function POST(request: Request) {
         source,
         instructor,
         institution: institution || null,
+        departmentId,
         startDate,
         endDate,
         hours,
@@ -116,7 +118,8 @@ export async function POST(request: Request) {
             employee: true
           }
         },
-        materials: true
+        materials: true,
+        department: true
       }
     })
 

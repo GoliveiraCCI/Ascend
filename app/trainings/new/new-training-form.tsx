@@ -43,7 +43,7 @@ const formSchema = z.object({
   source: z.enum(["INTERNAL", "EXTERNAL"]),
   instructor: z.string().min(1, "O instrutor é obrigatório"),
   institution: z.string().optional(),
-  department: z.string().min(1, "O departamento é obrigatório"),
+  departmentId: z.string().min(1, "O departamento é obrigatório"),
   startDate: z.string().min(1, "A data de início é obrigatória"),
   endDate: z.string().min(1, "A data de término é obrigatória"),
   hours: z.string().min(1, "A carga horária é obrigatória"),
@@ -67,7 +67,7 @@ export default function NewTrainingForm({ departments, onSuccess }: NewTrainingF
       source: "INTERNAL",
       instructor: "",
       institution: "",
-      department: "",
+      departmentId: "",
       startDate: "",
       endDate: "",
       hours: "",
@@ -100,6 +100,9 @@ export default function NewTrainingForm({ departments, onSuccess }: NewTrainingF
         }
         formData.append("participants", JSON.stringify(selectedParticipants))
       }
+
+      // Adicionar o departmentId ao FormData
+      formData.append("departmentId", values.departmentId)
 
       const response = await fetch("/api/trainings", {
         method: "POST",
@@ -265,7 +268,7 @@ export default function NewTrainingForm({ departments, onSuccess }: NewTrainingF
 
                 <FormField
                   control={form.control}
-                  name="department"
+                  name="departmentId"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Departamento</FormLabel>

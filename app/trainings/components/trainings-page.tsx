@@ -87,6 +87,7 @@ export default function TrainingsPage({ initialTrainings, departments }: Trainin
                 // Recarregar a página para atualizar a lista
                 window.location.reload()
               }}
+              onCancel={() => setIsDialogOpen(false)}
             />
           </DialogContent>
         </Dialog>

@@ -15,14 +15,26 @@ async function main() {
   console.log('Iniciando seed...')
 
   // Limpar o banco de dados
+  await prisma.evaluationAnswer.deleteMany()
+  await prisma.evaluationQuestion.deleteMany()
+  await prisma.evaluationCategory.deleteMany()
+  await prisma.evaluation.deleteMany()
+  await prisma.evaluationTemplate.deleteMany()
+  await prisma.trainingEvaluation.deleteMany()
+  await prisma.trainingPhoto.deleteMany()
+  await prisma.trainingSession.deleteMany()
+  await prisma.trainingMaterial.deleteMany()
+  await prisma.trainingParticipant.deleteMany()
+  await prisma.training.deleteMany()
   await prisma.medicalLeave.deleteMany()
+  await prisma.medicalLeaveCategory.deleteMany()
   await prisma.employeeHistory.deleteMany()
   await prisma.employee.deleteMany()
   await prisma.positionLevel.deleteMany()
   await prisma.position.deleteMany()
   await prisma.department.deleteMany()
   await prisma.shift.deleteMany()
-  await prisma.medicalLeaveCategory.deleteMany()
+  await prisma.user.deleteMany()
 
   // Criar turnos
   const shifts = [
@@ -247,119 +259,177 @@ async function main() {
     console.log(`Licença médica ${i + 1}/50 criada`)
   }
 
-  console.log('Seed concluído com sucesso!')
+  // Criar categorias de avaliação
+  console.log('Criando categorias de avaliação...')
+  const evaluationCategories = [
+    { id: 'technical', name: 'Habilidades Técnicas', description: 'Avaliação das competências técnicas do funcionário' },
+    { id: 'communication', name: 'Comunicação', description: 'Avaliação das habilidades de comunicação' },
+    { id: 'teamwork', name: 'Trabalho em Equipe', description: 'Avaliação da capacidade de trabalho em equipe' },
+    { id: 'leadership', name: 'Liderança', description: 'Avaliação das habilidades de liderança' },
+    { id: 'problem_solving', name: 'Resolução de Problemas', description: 'Avaliação da capacidade de resolver problemas' },
+    { id: 'adaptability', name: 'Adaptabilidade', description: 'Avaliação da capacidade de adaptação' }
+  ]
 
-  // Criar treinamentos
-  console.log('Criando treinamentos...')
-  
-  const trainingCategories = ['TECHNICAL', 'SOFT_SKILLS', 'LEADERSHIP', 'COMPLIANCE']
-  const trainingTypes = ['INDIVIDUAL', 'TEAM']
-  const trainingSources = ['INTERNAL', 'EXTERNAL']
-  const trainingStatus = ['PLANNED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED']
-  
-  const trainings = []
-  for (let i = 0; i < 30; i++) {
-    const department = await prisma.department.findFirst({
-      skip: Math.floor(Math.random() * 10)
+  for (const category of evaluationCategories) {
+    await prisma.evaluationCategory.create({
+      data: category
     })
+  }
 
-    const startDate = faker.date.future({ years: 1 })
-    const endDate = new Date(startDate)
-    endDate.setDate(endDate.getDate() + Math.floor(Math.random() * 30) + 1)
+  // Criar questões de avaliação
+  console.log('Criando questões de avaliação...')
+  const evaluationQuestions = {
+    technical: [
+      { text: 'Domínio das tecnologias utilizadas', category: 'technical' },
+      { text: 'Qualidade do código produzido', category: 'technical' },
+      { text: 'Capacidade de resolver problemas técnicos', category: 'technical' },
+      { text: 'Conhecimento das melhores práticas', category: 'technical' }
+    ],
+    communication: [
+      { text: 'Clareza na comunicação', category: 'communication' },
+      { text: 'Capacidade de apresentar ideias', category: 'communication' },
+      { text: 'Escuta ativa', category: 'communication' },
+      { text: 'Comunicação escrita', category: 'communication' }
+    ],
+    teamwork: [
+      { text: 'Colaboração com colegas', category: 'teamwork' },
+      { text: 'Participação em reuniões', category: 'teamwork' },
+      { text: 'Compartilhamento de conhecimento', category: 'teamwork' },
+      { text: 'Respeito às diferenças', category: 'teamwork' }
+    ],
+    leadership: [
+      { text: 'Capacidade de tomar decisões', category: 'leadership' },
+      { text: 'Gestão de conflitos', category: 'leadership' },
+      { text: 'Mentoria de colegas', category: 'leadership' },
+      { text: 'Visão estratégica', category: 'leadership' }
+    ],
+    problem_solving: [
+      { text: 'Identificação de problemas', category: 'problem_solving' },
+      { text: 'Análise de situações', category: 'problem_solving' },
+      { text: 'Proposta de soluções', category: 'problem_solving' },
+      { text: 'Implementação de soluções', category: 'problem_solving' }
+    ],
+    adaptability: [
+      { text: 'Flexibilidade para mudanças', category: 'adaptability' },
+      { text: 'Aprendizado contínuo', category: 'adaptability' },
+      { text: 'Resiliência', category: 'adaptability' },
+      { text: 'Iniciativa', category: 'adaptability' }
+    ]
+  }
 
-    const training = await prisma.training.create({
+  for (const [category, questions] of Object.entries(evaluationQuestions)) {
+    for (const question of questions) {
+      await prisma.evaluationQuestion.create({
+        data: {
+          text: question.text,
+          category: {
+            connect: {
+              id: category
+            }
+          }
+        }
+      })
+    }
+  }
+
+  // Criar templates de avaliação
+  console.log('Criando templates de avaliação...')
+  const templates = [
+    { name: 'Avaliação Trimestral', description: 'Avaliação de desempenho trimestral' },
+    { name: 'Avaliação Semestral', description: 'Avaliação de desempenho semestral' },
+    { name: 'Avaliação Anual', description: 'Avaliação de desempenho anual' }
+  ]
+
+  for (const template of templates) {
+    await prisma.evaluationTemplate.create({
+      data: template
+    })
+  }
+
+  // Criar usuários avaliadores
+  console.log('Criando usuários avaliadores...')
+  const evaluators = []
+  for (let i = 0; i < 10; i++) {
+    const evaluator = await prisma.user.create({
       data: {
-        name: faker.company.catchPhrase(),
-        category: trainingCategories[Math.floor(Math.random() * trainingCategories.length)],
-        type: trainingTypes[Math.floor(Math.random() * trainingTypes.length)],
-        source: trainingSources[Math.floor(Math.random() * trainingSources.length)],
-        instructor: faker.person.fullName(),
-        institution: faker.company.name(),
-        startDate,
-        endDate,
-        hours: Math.floor(Math.random() * 40) + 8,
-        status: trainingStatus[Math.floor(Math.random() * trainingStatus.length)],
-        description: faker.lorem.paragraph(),
-        departmentId: department.id
+        name: faker.person.fullName(),
+        email: faker.internet.email(),
+        password: faker.internet.password(),
+        role: 'EVALUATOR'
+      }
+    })
+    evaluators.push(evaluator)
+    console.log(`Usuário avaliador ${i + 1}/10 criado`)
+  }
+
+  // Criar avaliações
+  console.log('Criando avaliações...')
+  const templatesList = await prisma.evaluationTemplate.findMany()
+  const questionsList = await prisma.evaluationQuestion.findMany()
+
+  for (let i = 0; i < 30; i++) {
+    const employee = employees[Math.floor(Math.random() * employees.length)]
+    const template = templatesList[Math.floor(Math.random() * templatesList.length)]
+    const evaluator = evaluators[Math.floor(Math.random() * evaluators.length)]
+    const date = new Date()
+    date.setDate(date.getDate() - Math.floor(Math.random() * 90))
+
+    const evaluation = await prisma.evaluation.create({
+      data: {
+        employee: {
+          connect: {
+            id: employee.id
+          }
+        },
+        evaluator: {
+          connect: {
+            id: evaluator.id
+          }
+        },
+        template: {
+          connect: {
+            id: template.id
+          }
+        },
+        date,
+        status: Math.random() > 0.5 ? 'COMPLETED' : 'IN_PROGRESS',
+        score: Math.floor(Math.random() * 5) + 5,
+        selfEvaluation: Math.random() > 0.5,
+        selfEvaluationStatus: Math.random() > 0.5 ? 'COMPLETED' : 'IN_PROGRESS',
+        selfStrengths: faker.lorem.paragraph(),
+        selfImprovements: faker.lorem.paragraph(),
+        selfGoals: faker.lorem.paragraph(),
+        managerEvaluation: Math.random() > 0.5,
+        managerEvaluationStatus: Math.random() > 0.5 ? 'COMPLETED' : 'IN_PROGRESS',
+        managerStrengths: faker.lorem.paragraph(),
+        managerImprovements: faker.lorem.paragraph(),
+        managerGoals: faker.lorem.paragraph()
       }
     })
 
-    // Adicionar participantes
-    const numParticipants = Math.floor(Math.random() * 10) + 1
-    const departmentEmployees = await prisma.employee.findMany({
-      where: { departmentId: department.id }
-    })
-
-    for (let j = 0; j < numParticipants && j < departmentEmployees.length; j++) {
-      await prisma.trainingParticipant.create({
+    // Criar respostas para cada questão
+    for (const question of questionsList) {
+      await prisma.evaluationAnswer.create({
         data: {
-          trainingId: training.id,
-          employeeId: departmentEmployees[j].id,
-          status: Math.random() > 0.3 ? 'COMPLETED' : 'ENROLLED',
-          score: Math.random() > 0.3 ? Math.floor(Math.random() * 40) + 60 : null,
-          notes: faker.lorem.sentence()
+          evaluation: {
+            connect: {
+              id: evaluation.id
+            }
+          },
+          question: {
+            connect: {
+              id: question.id
+            }
+          },
+          selfScore: Math.floor(Math.random() * 5) + 5,
+          managerScore: Math.floor(Math.random() * 5) + 5,
+          selfComment: faker.lorem.sentence(),
+          managerComment: faker.lorem.sentence()
         }
       })
     }
 
-    // Adicionar materiais
-    const numMaterials = Math.floor(Math.random() * 5) + 1
-    for (let j = 0; j < numMaterials; j++) {
-      await prisma.trainingMaterial.create({
-        data: {
-          trainingId: training.id,
-          name: `Material ${j + 1} - ${faker.commerce.productName()}`,
-          type: ['PDF', 'DOC', 'PPT', 'VIDEO'][Math.floor(Math.random() * 4)],
-          url: faker.internet.url(),
-          size: Math.floor(Math.random() * 10000000)
-        }
-      })
-    }
-
-    // Adicionar sessões
-    const numSessions = Math.floor(Math.random() * 5) + 1
-    let sessionDate = new Date(startDate)
-    for (let j = 0; j < numSessions; j++) {
-      await prisma.trainingSession.create({
-        data: {
-          trainingId: training.id,
-          date: sessionDate,
-          startTime: '09:00',
-          endTime: '17:00',
-          topic: faker.company.catchPhrase(),
-          description: faker.lorem.paragraph()
-        }
-      })
-      sessionDate.setDate(sessionDate.getDate() + 7)
-    }
-
-    // Adicionar fotos
-    const numPhotos = Math.floor(Math.random() * 3)
-    for (let j = 0; j < numPhotos; j++) {
-      await prisma.trainingPhoto.create({
-        data: {
-          trainingId: training.id,
-          url: faker.image.url(),
-          caption: faker.lorem.sentence()
-        }
-      })
-    }
-
-    // Adicionar avaliações
-    if (Math.random() > 0.5) {
-      await prisma.trainingEvaluation.create({
-        data: {
-          trainingId: training.id,
-          type: Math.random() > 0.5 ? 'PRACTICAL_TEST' : 'SATISFACTION_SURVEY',
-          date: endDate,
-          averageScore: Math.floor(Math.random() * 40) + 60,
-          notes: faker.lorem.paragraph()
-        }
-      })
-    }
-
-    trainings.push(training)
-    console.log(`Treinamento ${i + 1}/30 criado`)
+    console.log(`Avaliação ${i + 1}/30 criada`)
   }
 
   console.log('Seed concluído com sucesso!')

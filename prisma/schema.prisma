@@ -13,15 +13,15 @@ datasource db {
 // Tabela de Usuários do Sistema
 model User {
   id            String    @id @default(uuid())
-  name          String
-  email         String    @unique
-  password      String
-  role          String    // ADMIN, MANAGER, USER
-  department    String?
+  name          String?
+  email         String?   @unique
+  password      String?
+  role          String    @default("USER")
+  emailVerified DateTime?
+  image         String?
+  evaluations   Evaluation[]
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
-  isActive      Boolean   @default(true)
-  lastLogin     DateTime?
 }
 
 // Tabela de Funcionários (a serem avaliados)
@@ -118,16 +118,34 @@ model EmployeeHistory {
 
 // Tabela de Avaliações
 model Evaluation {
-  id            String    @id @default(uuid())
-  employeeId    String
-  employee      Employee  @relation(fields: [employeeId], references: [id])
-  type          String    // ANNUAL, MIDYEAR
-  template      String
-  deadline      DateTime
-  status        String    // PENDING, IN_PROGRESS, COMPLETED
-  notes         String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id                    String    @id @default(uuid())
+  employeeId            String
+  employee              Employee  @relation(fields: [employeeId], references: [id])
+  evaluatorId           String
+  evaluator            User      @relation(fields: [evaluatorId], references: [id])
+  templateId            String
+  template             EvaluationTemplate @relation(fields: [templateId], references: [id])
+  date                  DateTime
+  status                String    @default("Pendente")
+  score                 Float?
+  selfEvaluation        Boolean   @default(false)
+  selfEvaluationStatus  String?
+  selfStrengths         String?   @db.Text
+  selfImprovements      String?   @db.Text
+  selfGoals            String?   @db.Text
+  managerEvaluation     Boolean   @default(false)
+  managerEvaluationStatus String?
+  managerStrengths      String?   @db.Text
+  managerImprovements   String?   @db.Text
+  managerGoals         String?   @db.Text
+  answers              EvaluationAnswer[]
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([employeeId])
+  @@index([evaluatorId])
+  @@index([templateId])
+  @@index([status])
 }
 
 // Tabela de Treinamentos
@@ -264,11 +282,10 @@ model MedicalLeave {
 
 // Tabela de Modelos de Avaliação
 model EvaluationTemplate {
-  id          String    @id @default(uuid())
+  id          String    @id @default(cuid())
   name        String
   description String?
-  questions   Json      // Array de perguntas em formato JSON
-  categories  Json      // Array de categorias em formato JSON
+  evaluations Evaluation[]
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 }
@@ -282,4 +299,46 @@ model Shift {
   history     EmployeeHistory[]
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+}
+
+// Tabela de Categorias de Avaliação
+model EvaluationCategory {
+  id          String    @id @default(cuid())
+  name        String
+  description String?
+  questions   EvaluationQuestion[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+// Tabela de Questões de Avaliação
+model EvaluationQuestion {
+  id          String    @id @default(cuid())
+  categoryId  String
+  category    EvaluationCategory @relation(fields: [categoryId], references: [id])
+  text        String
+  answers     EvaluationAnswer[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([categoryId])
+}
+
+// Tabela de Respostas de Avaliação
+model EvaluationAnswer {
+  id            String    @id @default(cuid())
+  evaluationId  String
+  evaluation    Evaluation @relation(fields: [evaluationId], references: [id])
+  questionId    String
+  question      EvaluationQuestion @relation(fields: [questionId], references: [id])
+  selfScore     Float?
+  managerScore  Float?
+  selfComment   String?   @db.Text
+  managerComment String?  @db.Text
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([evaluationId, questionId])
+  @@index([evaluationId])
+  @@index([questionId])
 } 
