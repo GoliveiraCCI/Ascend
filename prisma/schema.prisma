@@ -1,0 +1,285 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = "mysql://root:Guil08121998*@localhost:3306/ascend"
+}
+
+// Tabela de Usuários do Sistema
+model User {
+  id            String    @id @default(uuid())
+  name          String
+  email         String    @unique
+  password      String
+  role          String    // ADMIN, MANAGER, USER
+  department    String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  isActive      Boolean   @default(true)
+  lastLogin     DateTime?
+}
+
+// Tabela de Funcionários (a serem avaliados)
+model Employee {
+  id              String    @id @default(cuid())
+  matricula       String    @unique
+  name            String
+  email           String    @unique
+  cpf             String    @unique
+  birthDate       DateTime
+  hireDate        DateTime
+  terminationDate DateTime?
+  departmentId    String
+  positionId      String
+  positionLevelId String?
+  shiftId         String?
+  phone           String?
+  address         String?
+  active          Boolean   @default(true)
+  onMedicalLeave  Boolean   @default(false)
+  department      Department @relation(fields: [departmentId], references: [id])
+  position        Position   @relation(fields: [positionId], references: [id])
+  positionLevel   PositionLevel? @relation(fields: [positionLevelId], references: [id])
+  shift           Shift?     @relation(fields: [shiftId], references: [id])
+  history         EmployeeHistory[]
+  medicalLeaves   MedicalLeave[]
+  evaluations     Evaluation[]
+  trainings       TrainingParticipant[]
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([departmentId])
+  @@index([positionId])
+  @@index([positionLevelId])
+  @@index([shiftId])
+  @@index([active])
+  @@index([terminationDate])
+}
+
+// Tabela de Departamentos
+model Department {
+  id          String    @id @default(cuid())
+  name        String
+  code        String    @unique
+  description String?
+  positions   Position[]
+  employees   Employee[]
+  history     EmployeeHistory[]
+  trainings   Training[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+// Tabela de Cargos
+model Position {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  department  Department @relation(fields: [departmentId], references: [id])
+  departmentId String
+  employees   Employee[]
+  positionLevels PositionLevel[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model PositionLevel {
+  id          String   @id @default(cuid())
+  name        String   // Ex: Júnior, Pleno, Sênior
+  salary      Float
+  position    Position @relation(fields: [positionId], references: [id])
+  positionId  String
+  employees   Employee[]
+  employeeHistory EmployeeHistory[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model EmployeeHistory {
+  id              String   @id @default(cuid())
+  employee        Employee @relation(fields: [employeeId], references: [id])
+  employeeId      String
+  positionLevel   PositionLevel? @relation(fields: [positionLevelId], references: [id])
+  positionLevelId String?
+  department      Department? @relation(fields: [departmentId], references: [id])
+  departmentId    String?
+  shift           Shift? @relation(fields: [shiftId], references: [id])
+  shiftId         String?
+  startDate       DateTime
+  endDate         DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// Tabela de Avaliações
+model Evaluation {
+  id            String    @id @default(uuid())
+  employeeId    String
+  employee      Employee  @relation(fields: [employeeId], references: [id])
+  type          String    // ANNUAL, MIDYEAR
+  template      String
+  deadline      DateTime
+  status        String    // PENDING, IN_PROGRESS, COMPLETED
+  notes         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+// Tabela de Treinamentos
+model Training {
+  id            String    @id @default(uuid())
+  name          String
+  category      String    // TECHNICAL, SOFT_SKILLS, LEADERSHIP, COMPLIANCE
+  type          String?   // INDIVIDUAL, TEAM
+  source        String    // INTERNAL, EXTERNAL
+  instructor    String?
+  institution   String?
+  startDate     DateTime
+  endDate       DateTime
+  hours         Int
+  status        String    // PLANNED, IN_PROGRESS, COMPLETED, CANCELLED
+  departmentId  String?
+  department    Department? @relation(fields: [departmentId], references: [id])
+  description   String?    @db.Text
+  participants  TrainingParticipant[]
+  materials     TrainingMaterial[]
+  sessions      TrainingSession[]
+  photos        TrainingPhoto[]
+  evaluations   TrainingEvaluation[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+// Tabela de Participantes do Treinamento
+model TrainingParticipant {
+  id          String    @id @default(uuid())
+  trainingId  String
+  training    Training  @relation(fields: [trainingId], references: [id])
+  employeeId  String
+  employee    Employee  @relation(fields: [employeeId], references: [id])
+  status      String    // ENROLLED, COMPLETED, CANCELLED
+  score       Float?
+  notes       String?   @db.Text
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([trainingId, employeeId])
+}
+
+// Tabela de Materiais do Treinamento
+model TrainingMaterial {
+  id          String    @id @default(uuid())
+  trainingId  String
+  training    Training  @relation(fields: [trainingId], references: [id])
+  name        String
+  type        String    // PDF, DOC, PPT, etc.
+  url         String
+  size        Int       // Tamanho em bytes
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+// Tabela de Sessões do Treinamento
+model TrainingSession {
+  id          String    @id @default(uuid())
+  trainingId  String
+  training    Training  @relation(fields: [trainingId], references: [id])
+  date        DateTime
+  startTime   String
+  endTime     String
+  topic       String
+  description String?   @db.Text
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+// Tabela de Fotos do Treinamento
+model TrainingPhoto {
+  id          String    @id @default(uuid())
+  trainingId  String
+  training    Training  @relation(fields: [trainingId], references: [id])
+  url         String
+  caption     String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+// Tabela de Avaliações do Treinamento
+model TrainingEvaluation {
+  id          String    @id @default(uuid())
+  trainingId  String
+  training    Training  @relation(fields: [trainingId], references: [id])
+  type        String    // PRACTICAL_TEST, SATISFACTION_SURVEY
+  date        DateTime
+  averageScore Float?
+  notes       String?   @db.Text
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+// Tabela de Arquivos
+model File {
+  id            String       @id @default(cuid())
+  name          String
+  type          String
+  url           String
+  createdAt     DateTime     @default(now())
+  medicalLeave  MedicalLeave @relation(fields: [medicalLeaveId], references: [id])
+  medicalLeaveId String
+}
+
+// Tabela de Licenças Médicas
+model MedicalLeaveCategory {
+  id          String        @id @default(cuid())
+  name        String
+  description String
+  medicalLeaves MedicalLeave[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+model MedicalLeave {
+  id          String   @id @default(cuid())
+  startDate   DateTime
+  endDate     DateTime
+  reason      String
+  status      String   @default("AFASTADO")
+  notes       String?
+  days        Int
+  doctor      String?
+  hospital    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  employee    Employee @relation(fields: [employeeId], references: [id])
+  employeeId  String
+  category    MedicalLeaveCategory? @relation(fields: [categoryId], references: [id])
+  categoryId  String?
+  files       File[]
+}
+
+// Tabela de Modelos de Avaliação
+model EvaluationTemplate {
+  id          String    @id @default(uuid())
+  name        String
+  description String?
+  questions   Json      // Array de perguntas em formato JSON
+  categories  Json      // Array de categorias em formato JSON
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+// Tabela de Turnos
+model Shift {
+  id          String    @id @default(cuid())
+  name        String
+  description String?
+  employees   Employee[]
+  history     EmployeeHistory[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+} 

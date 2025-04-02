@@ -1,0 +1,362 @@
+import { NextResponse } from "next/server"
+import { prisma } from "@/lib/prisma"
+import { Prisma } from "@prisma/client"
+
+// Função auxiliar para verificar o status do funcionário
+async function getEmployeeStatus(employee: any) {
+  if (!employee.active) return "INATIVO"
+
+  // Verificar se tem atestado médico ativo
+  const activeMedicalLeave = await prisma.medicalLeave.findFirst({
+    where: {
+      employeeId: employee.id,
+      status: "AFASTADO",
+      endDate: {
+        gte: new Date() // Data de término maior ou igual a hoje
+      }
+    }
+  })
+
+  return activeMedicalLeave ? "AFASTADO" : "ATIVO"
+}
+
+// GET - Listar todos os funcionários
+export async function GET() {
+  try {
+    console.log("=== Iniciando busca de funcionários ===")
+    console.log("Conectando ao banco de dados...")
+    
+    // Testar conexão com o banco
+    try {
+      await prisma.$connect()
+      console.log("Conexão com o banco de dados estabelecida com sucesso")
+      
+      // Verificar se o banco está acessível
+      const dbStatus = await prisma.$queryRaw`SELECT 1`
+      console.log("Banco de dados está acessível:", dbStatus)
+    } catch (dbError) {
+      console.error("Erro ao conectar com o banco de dados:", dbError)
+      throw dbError
+    }
+    
+    // Verificar se o prisma está conectado
+    const count = await prisma.employee.count()
+    console.log("Total de funcionários no banco:", count)
+
+    // Verificar outras tabelas também
+    const departmentsCount = await prisma.department.count()
+    const positionsCount = await prisma.position.count()
+    const positionLevelsCount = await prisma.positionLevel.count()
+    const shiftsCount = await prisma.shift.count()
+    
+    console.log("Contagem de registros em outras tabelas:", {
+      departments: departmentsCount,
+      positions: positionsCount,
+      positionLevels: positionLevelsCount,
+      shifts: shiftsCount
+    })
+
+    if (count === 0) {
+      console.log("Nenhum funcionário encontrado no banco de dados")
+      return NextResponse.json([])
+    }
+    
+    console.log("Executando query findMany...")
+    const employees = await prisma.employee.findMany({
+      include: {
+        department: true,
+        position: true,
+        positionLevel: true,
+        shift: true,
+        medicalLeaves: {
+          where: {
+            status: "APPROVED"
+          },
+          orderBy: {
+            startDate: 'desc'
+          }
+        }
+      },
+      orderBy: {
+        name: "asc",
+      },
+    })
+
+    // Log dos dados recebidos
+    console.log("=== Dados recebidos do Prisma ===")
+    console.log("Total de funcionários:", employees.length)
+    if (employees.length > 0) {
+      const firstEmployee = employees[0]
+      console.log("Exemplo do primeiro funcionário:", {
+        id: firstEmployee.id,
+        name: firstEmployee.name,
+        medicalLeaves: firstEmployee.medicalLeaves,
+        active: firstEmployee.active
+      })
+    }
+
+    // Adiciona o status para cada funcionário
+    const employeesWithStatus = employees.map(employee => {
+      // Primeiro verifica se tem data de demissão
+      if (employee.terminationDate && new Date(employee.terminationDate) <= new Date()) {
+        return {
+          ...employee,
+          status: "INATIVO"
+        }
+      }
+
+      // Depois verifica se tem atestado médico ativo
+      const hasActiveMedicalLeave = employee.medicalLeaves.some(leave => {
+        const today = new Date()
+        const startDate = new Date(leave.startDate)
+        const endDate = leave.endDate ? new Date(leave.endDate) : null
+        
+        // Log para debug
+        console.log(`Verificando atestado do funcionário ${employee.name}:`, {
+          startDate: startDate.toISOString(),
+          endDate: endDate?.toISOString(),
+          today: today.toISOString(),
+          status: leave.status,
+          isActive: startDate <= today && (!endDate || endDate >= today)
+        })
+        
+        return startDate <= today && (!endDate || endDate >= today)
+      })
+
+      // Log do status calculado
+      console.log(`Status calculado para ${employee.name}:`, {
+        hasActiveMedicalLeave,
+        status: hasActiveMedicalLeave ? "AFASTADO" : "ATIVO",
+        medicalLeaves: employee.medicalLeaves,
+        terminationDate: employee.terminationDate
+      })
+      
+      return {
+        ...employee,
+        status: hasActiveMedicalLeave ? "AFASTADO" : "ATIVO"
+      }
+    })
+
+    console.log("=== Resultados da busca ===")
+    console.log("Número de funcionários encontrados:", employeesWithStatus.length)
+    
+    if (employeesWithStatus.length > 0) {
+      const firstEmployee = employeesWithStatus[0]
+      console.log("Detalhes do primeiro funcionário:", {
+        id: firstEmployee.id,
+        name: firstEmployee.name,
+        matricula: firstEmployee.matricula,
+        department: firstEmployee.department,
+        position: firstEmployee.position,
+        positionLevel: firstEmployee.positionLevel,
+        shift: firstEmployee.shift,
+        active: firstEmployee.active,
+        status: firstEmployee.status,
+        medicalLeaves: firstEmployee.medicalLeaves
+      })
+    }
+    
+    console.log("=== Enviando resposta ===")
+    return NextResponse.json(employeesWithStatus)
+  } catch (error) {
+    console.error("=== Erro ao buscar funcionários ===")
+    console.error("Mensagem:", error instanceof Error ? error.message : "Erro desconhecido")
+    console.error("Stack:", error instanceof Error ? error.stack : "Stack não disponível")
+    return NextResponse.json(
+      { error: "Erro ao buscar funcionários", details: error instanceof Error ? error.message : "Erro desconhecido" },
+      { status: 500 }
+    )
+  }
+}
+
+// POST - Criar novo funcionário
+export async function POST(request: Request) {
+  try {
+    const body = await request.json()
+    const {
+      matricula,
+      name,
+      email,
+      cpf,
+      birthDate,
+      hireDate,
+      terminationDate,
+      departmentId,
+      positionId,
+      positionLevelId,
+      shiftId,
+      phone,
+      address,
+    } = body
+
+    const employee = await prisma.employee.create({
+      data: {
+        matricula,
+        name,
+        email,
+        cpf,
+        birthDate: new Date(birthDate),
+        hireDate: new Date(hireDate),
+        terminationDate: terminationDate ? new Date(terminationDate) : null,
+        departmentId,
+        positionId,
+        positionLevelId,
+        shiftId,
+        phone,
+        address,
+      },
+    })
+
+    return NextResponse.json(employee)
+  } catch (error) {
+    console.error("Erro ao criar funcionário:", error)
+    
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error.code === "P2002") {
+        return NextResponse.json(
+          { error: "P2002", message: "Este email já está cadastrado para outro funcionário" },
+          { status: 400 }
+        )
+      }
+    }
+
+    return NextResponse.json(
+      { message: "Erro ao criar funcionário" },
+      { status: 500 }
+    )
+  }
+}
+
+// PUT - Atualizar funcionário
+export async function PUT(request: Request) {
+  try {
+    const body = await request.json()
+    const {
+      id,
+      matricula,
+      name,
+      email,
+      cpf,
+        birthDate,
+        hireDate,
+        terminationDate,
+        departmentId,
+        positionId,
+      positionLevelId,
+      shiftId,
+      phone,
+      address,
+      active
+    } = body
+
+    // Buscar o cargo associado à faixa
+    const positionLevel = await prisma.positionLevel.findUnique({
+      where: { id: positionLevelId },
+      include: { position: true }
+    })
+
+    if (!positionLevel) {
+      return NextResponse.json(
+        { error: "Faixa de cargo não encontrada" },
+        { status: 404 }
+      )
+    }
+
+    // Atualizar o funcionário
+    const employee = await prisma.employee.update({
+      where: { id },
+      data: {
+        matricula,
+        name,
+        email,
+        cpf,
+        birthDate: new Date(birthDate),
+        hireDate: new Date(hireDate),
+        terminationDate: terminationDate ? new Date(terminationDate) : null,
+        departmentId,
+        positionId: positionLevel.positionId,
+        positionLevelId,
+        shiftId,
+        phone,
+        address,
+        active
+      },
+      include: {
+        department: true,
+        position: true,
+        shift: true,
+        positionLevel: true
+      }
+    })
+
+    // Verificar se houve mudança de cargo, departamento ou turno
+    const currentHistory = await prisma.employeeHistory.findFirst({
+      where: {
+        employeeId: id,
+        endDate: null
+      }
+    })
+
+    if (currentHistory) {
+      if (
+        currentHistory.positionLevelId !== positionLevelId ||
+        currentHistory.departmentId !== departmentId ||
+        currentHistory.shiftId !== shiftId
+      ) {
+        // Encerrar o histórico atual
+        await prisma.employeeHistory.update({
+          where: { id: currentHistory.id },
+          data: {
+            endDate: new Date()
+          }
+        })
+
+        // Criar novo registro de histórico
+        await prisma.employeeHistory.create({
+          data: {
+            employeeId: id,
+            positionLevelId,
+            departmentId,
+            shiftId,
+            startDate: new Date()
+          }
+        })
+      }
+    }
+
+    return NextResponse.json(employee)
+  } catch (error) {
+    console.error("Erro ao atualizar funcionário:", error)
+    return NextResponse.json(
+      { error: "Erro ao atualizar funcionário" },
+      { status: 500 }
+    )
+  }
+}
+
+// DELETE - Excluir funcionário
+export async function DELETE(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url)
+    const id = searchParams.get("id")
+
+    if (!id) {
+      return NextResponse.json(
+        { error: "ID não fornecido" },
+        { status: 400 }
+      )
+    }
+
+    await prisma.employee.delete({
+      where: { id }
+    })
+
+    return NextResponse.json({ message: "Funcionário excluído com sucesso" })
+  } catch (error) {
+    console.error("Erro ao excluir funcionário:", error)
+    return NextResponse.json(
+      { error: "Erro ao excluir funcionário" },
+      { status: 500 }
+    )
+  }
+} 
