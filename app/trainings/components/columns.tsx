@@ -111,7 +111,7 @@ export const columns: ColumnDef<Training>[] = [
     },
     cell: ({ row }) => {
       const date = row.getValue("startDate") as Date
-      return new Date(date).toLocaleDateString()
+      return new Date(date).toLocaleDateString('pt-BR', { timeZone: 'UTC' })
     },
   },
   {

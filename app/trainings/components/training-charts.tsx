@@ -55,7 +55,9 @@ export function MonthlyTrainingsChart({ trainings }: TrainingChartsProps) {
   // Preparar dados para o gráfico mensal
   const monthlyData = trainings.reduce((acc: { [key: string]: number }, training) => {
     const date = new Date(training.startDate)
-    const monthYear = `${date.getMonth() + 1}/${date.getFullYear()}`
+    // Ajustar para UTC para evitar problemas de fuso horário
+    const utcDate = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()))
+    const monthYear = `${utcDate.getUTCMonth() + 1}/${utcDate.getUTCFullYear()}`
     acc[monthYear] = (acc[monthYear] || 0) + 1
     return acc
   }, {})

@@ -370,11 +370,11 @@ export function TrainingDetailsClient({ id }: TrainingDetailsClientProps) {
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium">Início:</span>
-                <span className="text-sm">{new Date(training.startDate).toLocaleDateString()}</span>
+                <span className="text-sm">{new Date(training.startDate).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}</span>
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium">Término:</span>
-                <span className="text-sm">{new Date(training.endDate).toLocaleDateString()}</span>
+                <span className="text-sm">{new Date(training.endDate).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}</span>
               </div>
             </div>
           </CardContent>
