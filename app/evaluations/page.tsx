@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import {
   Activity,
@@ -14,6 +14,7 @@ import {
   Plus,
   Search,
   Star,
+  X,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -45,243 +46,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { toast } from "@/components/ui/use-toast"
 import { Badge } from "@/components/ui/badge"
-
-// Dados de exemplo para avaliações
-const evaluations = [
-  {
-    id: "EVAL001",
-    employeeName: "João Silva",
-    employeeId: "EMP001",
-    department: "TI",
-    position: "Desenvolvedor Senior",
-    evaluator: "Maria Santos",
-    date: "2024-03-15",
-    score: 8.5,
-    status: "Concluída",
-    type: "Avaliação Anual",
-    selfEvaluationStatus: "Concluída",
-    managerEvaluationStatus: "Concluída",
-  },
-  {
-    id: "EVAL002",
-    employeeName: "Ana Oliveira",
-    employeeId: "EMP002",
-    department: "RH",
-    position: "Analista de RH",
-    evaluator: "Carlos Mendes",
-    date: "2024-03-10",
-    score: 9.2,
-    status: "Concluída",
-    type: "Avaliação Anual",
-    selfEvaluationStatus: "Concluída",
-    managerEvaluationStatus: "Concluída",
-  },
-  {
-    id: "EVAL003",
-    employeeName: "Pedro Santos",
-    employeeId: "EMP003",
-    department: "Vendas",
-    position: "Gerente de Vendas",
-    evaluator: "Mariana Costa",
-    date: "2024-03-05",
-    score: 7.8,
-    status: "Concluída",
-    type: "Avaliação Anual",
-    selfEvaluationStatus: "Concluída",
-    managerEvaluationStatus: "Concluída",
-  },
-  {
-    id: "EVAL004",
-    employeeName: "Carla Ferreira",
-    employeeId: "EMP004",
-    department: "Marketing",
-    position: "Especialista em Marketing",
-    evaluator: "Roberto Alves",
-    date: "2024-02-28",
-    score: 8.9,
-    status: "Concluída",
-    type: "Avaliação Anual",
-    selfEvaluationStatus: "Concluída",
-    managerEvaluationStatus: "Concluída",
-  },
-  {
-    id: "EVAL005",
-    employeeName: "Lucas Mendes",
-    employeeId: "EMP005",
-    department: "Financeiro",
-    position: "Analista Financeiro",
-    evaluator: "Juliana Ribeiro",
-    date: "2024-02-20",
-    score: 8.1,
-    status: "Concluída",
-    type: "Avaliação Anual",
-    selfEvaluationStatus: "Concluída",
-    managerEvaluationStatus: "Concluída",
-  },
-  {
-    id: "EVAL006",
-    employeeName: "Fernanda Lima",
-    employeeId: "EMP006",
-    department: "TI",
-    position: "Analista de Sistemas",
-    evaluator: "Maria Santos",
-    date: "2024-04-15",
-    score: null,
-    status: "Em Progresso",
-    type: "Avaliação Anual",
-    selfEvaluationStatus: "Concluída",
-    managerEvaluationStatus: "Pendente",
-  },
-  {
-    id: "EVAL007",
-    employeeName: "Ricardo Oliveira",
-    employeeId: "EMP007",
-    department: "RH",
-    position: "Assistente de RH",
-    evaluator: "Carlos Mendes",
-    date: "2024-04-20",
-    score: null,
-    status: "Pendente",
-    type: "Avaliação Anual",
-    selfEvaluationStatus: "Pendente",
-    managerEvaluationStatus: "Pendente",
-  },
-  {
-    id: "EVAL008",
-    employeeName: "Camila Sousa",
-    employeeId: "EMP008",
-    department: "Vendas",
-    position: "Representante de Vendas",
-    evaluator: "Mariana Costa",
-    date: "2024-04-25",
-    score: null,
-    status: "Pendente",
-    type: "Avaliação Anual",
-    selfEvaluationStatus: "Pendente",
-    managerEvaluationStatus: "Pendente",
-  },
-]
-
-// Dados para gráficos
-const scoreDistribution = [
-  { range: "9-10", count: 12 },
-  { range: "8-8.9", count: 25 },
-  { range: "7-7.9", count: 18 },
-  { range: "6-6.9", count: 8 },
-  { range: "0-5.9", count: 3 },
-]
-
-const departmentScores = [
-  { department: "TI", score: 8.7 },
-  { department: "RH", score: 8.5 },
-  { department: "Vendas", score: 7.9 },
-  { department: "Marketing", score: 8.4 },
-  { department: "Financeiro", score: 8.2 },
-]
-
-const evaluationsByStatus = [
-  { name: "Concluídas", value: 66 },
-  { name: "Pendentes", value: 23 },
-  { name: "Em Progresso", value: 11 },
-]
-
-// Categorias de avaliação
-const evaluationCategories = [
-  {
-    id: "technical",
-    name: "Habilidades Técnicas",
-    description: "Avaliação das competências técnicas específicas da função",
-  },
-  {
-    id: "communication",
-    name: "Comunicação",
-    description: "Capacidade de comunicação escrita e verbal",
-  },
-  {
-    id: "teamwork",
-    name: "Trabalho em Equipe",
-    description: "Colaboração e trabalho eficaz com colegas",
-  },
-  {
-    id: "leadership",
-    name: "Liderança",
-    description: "Capacidade de liderar e influenciar positivamente",
-  },
-  {
-    id: "problem_solving",
-    name: "Resolução de Problemas",
-    description: "Capacidade de identificar e resolver problemas",
-  },
-  {
-    id: "adaptability",
-    name: "Adaptabilidade",
-    description: "Capacidade de se adaptar a mudanças e novos desafios",
-  },
-]
-
-// Perguntas de exemplo para avaliação
-const sampleQuestions = [
-  {
-    id: "q1",
-    category: "technical",
-    text: "Demonstra conhecimento técnico adequado para a função",
-  },
-  {
-    id: "q2",
-    category: "technical",
-    text: "Mantém-se atualizado com as novas tecnologias e práticas",
-  },
-  {
-    id: "q3",
-    category: "communication",
-    text: "Comunica-se de forma clara e eficaz com a equipe",
-  },
-  {
-    id: "q4",
-    category: "communication",
-    text: "Apresenta ideias e informações de maneira organizada",
-  },
-  {
-    id: "q5",
-    category: "teamwork",
-    text: "Colabora efetivamente com os membros da equipe",
-  },
-  {
-    id: "q6",
-    category: "teamwork",
-    text: "Contribui positivamente para o ambiente de trabalho",
-  },
-  {
-    id: "q7",
-    category: "leadership",
-    text: "Demonstra iniciativa e proatividade",
-  },
-  {
-    id: "q8",
-    category: "leadership",
-    text: "Inspira e motiva os colegas de trabalho",
-  },
-  {
-    id: "q9",
-    category: "problem_solving",
-    text: "Identifica problemas e propõe soluções eficazes",
-  },
-  {
-    id: "q10",
-    category: "problem_solving",
-    text: "Toma decisões de forma lógica e fundamentada",
-  },
-  {
-    id: "q11",
-    category: "adaptability",
-    text: "Adapta-se bem a mudanças e novas situações",
-  },
-  {
-    id: "q12",
-    category: "adaptability",
-    text: "Aprende rapidamente novas habilidades e processos",
-  },
-]
 
 // Cores modernas para gráficos
 const MODERN_COLORS = [
@@ -339,6 +103,31 @@ export default function EvaluationsPage() {
   const [newQuestionText, setNewQuestionText] = useState("")
   const [newQuestionCategory, setNewQuestionCategory] = useState("technical")
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null)
+  const [templates, setTemplates] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [isEditing, setIsEditing] = useState(false)
+  const [isDuplicating, setIsDuplicating] = useState(false)
+  const [editingTemplate, setEditingTemplate] = useState(null)
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [isDuplicateDialogOpen, setIsDuplicateDialogOpen] = useState(false)
+  const [evaluations, setEvaluations] = useState([])
+  const [evaluationCategories, setEvaluationCategories] = useState([])
+  const [stats, setStats] = useState({
+    statusStats: [
+      { name: "Concluídas", value: 0 },
+      { name: "Pendentes", value: 0 },
+      { name: "Em Progresso", value: 0 }
+    ],
+    scoreDistribution: [
+      { range: "9-10", count: 0 },
+      { range: "8-8.9", count: 0 },
+      { range: "7-7.9", count: 0 },
+      { range: "6-6.9", count: 0 },
+      { range: "0-5.9", count: 0 }
+    ],
+    departmentScores: []
+  })
   const router = useRouter()
 
   // Filtrar e ordenar avaliações
@@ -391,11 +180,13 @@ export default function EvaluationsPage() {
 
   // Alternar seleção de pergunta
   const toggleQuestionSelection = (questionId: string) => {
-    if (selectedQuestions.includes(questionId)) {
-      setSelectedQuestions(selectedQuestions.filter((id) => id !== questionId))
-    } else {
-      setSelectedQuestions([...selectedQuestions, questionId])
-    }
+    setSelectedQuestions(prev => {
+      if (prev.includes(questionId)) {
+        return prev.filter(id => id !== questionId)
+      } else {
+        return [...prev, questionId]
+      }
+    })
   }
 
   // Atualizar pontuação de questão
@@ -421,17 +212,118 @@ export default function EvaluationsPage() {
     return scores.reduce((sum, score) => sum + score, 0) / scores.length
   }
 
+  // Buscar avaliações
+  const fetchEvaluations = async () => {
+    try {
+      const response = await fetch('/api/evaluations')
+      if (!response.ok) {
+        throw new Error('Erro ao buscar avaliações')
+      }
+      const data = await response.json()
+      setEvaluations(data)
+    } catch (error) {
+      console.error('Erro ao buscar avaliações:', error)
+      toast({
+        title: "Erro",
+        description: "Não foi possível carregar as avaliações.",
+        variant: "destructive",
+      })
+    }
+  }
+
+  // Efeito para carregar avaliações quando a página carregar
+  useEffect(() => {
+    if (activeTab === 'list') {
+      fetchEvaluations()
+    }
+  }, [activeTab])
+
+  // Buscar modelos de avaliação
+  const fetchTemplates = async () => {
+    try {
+      const response = await fetch('/api/evaluations/templates')
+      const data = await response.json()
+      setTemplates(data)
+    } catch (error) {
+      console.error('Erro ao buscar modelos de avaliação:', error)
+      toast({
+        title: "Erro",
+        description: "Não foi possível carregar os modelos de avaliação.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // Efeito para carregar modelos de avaliação
+  useEffect(() => {
+    if (activeTab === 'templates') {
+      fetchTemplates()
+    }
+  }, [activeTab])
+
+  // Buscar categorias de avaliação
+  const fetchCategories = async () => {
+    try {
+      const response = await fetch('/api/evaluations/categories')
+      if (!response.ok) {
+        throw new Error('Erro ao buscar categorias')
+      }
+      const data = await response.json()
+      setEvaluationCategories(data)
+    } catch (error) {
+      console.error('Erro ao buscar categorias:', error)
+      toast({
+        title: "Erro",
+        description: "Não foi possível carregar as categorias de avaliação.",
+        variant: "destructive",
+      })
+    }
+  }
+
+  // Efeito para carregar categorias quando a página carregar
+  useEffect(() => {
+    if (activeTab === 'templates') {
+      fetchCategories()
+    }
+  }, [activeTab])
+
   // Salvar novo modelo de avaliação
-  const saveTemplate = () => {
-    // Aqui você implementaria a lógica para salvar o modelo
-    toast({
-      title: "Modelo de avaliação criado",
-      description: `O modelo "${newTemplateName}" foi criado com sucesso.`,
-    })
-    setIsTemplateDialogOpen(false)
-    setNewTemplateName("")
-    setNewTemplateDescription("")
-    setSelectedQuestions([])
+  const saveTemplate = async () => {
+    try {
+      const response = await fetch('/api/evaluations/templates', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: newTemplateName,
+          description: newTemplateDescription,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Erro ao criar modelo de avaliação')
+      }
+
+      await fetchTemplates()
+      toast({
+        title: "Modelo de avaliação criado",
+        description: `O modelo "${newTemplateName}" foi criado com sucesso.`,
+      })
+      setIsTemplateDialogOpen(false)
+      setNewTemplateName("")
+      setNewTemplateDescription("")
+      setSelectedQuestions([])
+    } catch (error) {
+      console.error('Erro ao criar modelo de avaliação:', error)
+      toast({
+        title: "Erro",
+        description: "Não foi possível criar o modelo de avaliação.",
+        variant: "destructive",
+      })
+    }
   }
 
   // Criar nova avaliação
@@ -461,41 +353,156 @@ export default function EvaluationsPage() {
     setQuestionComments({})
   }
 
-  // Exportar dados
-  const exportData = (format: string) => {
-    // Implementação real exportaria os dados para o formato especificado
-    console.log(`Exportando dados em formato ${format}`)
-
-    // Simulação de download
-    const element = document.createElement("a")
-    const file = new Blob([JSON.stringify(filteredEvaluations, null, 2)], { type: "text/plain" })
-    element.href = URL.createObjectURL(file)
-    element.download = `avaliacoes_${new Date().toISOString().split("T")[0]}.${format}`
-    document.body.appendChild(element)
-    element.click()
-    document.body.removeChild(element)
-
-    toast({
-      title: "Exportação concluída",
-      description: `Os dados foram exportados em formato ${format.toUpperCase()}.`,
-    })
-  }
-
-  // Exportar formulário em branco para PDF
-  const exportBlankFormToPDF = () => {
-    toast({
-      title: "Exportação iniciada",
-      description: "O formulário de avaliação está sendo gerado em PDF.",
-    })
-
-    // Aqui você implementaria a lógica para exportar o formulário em branco
-    setTimeout(() => {
-      toast({
-        title: "PDF gerado",
-        description: "O formulário de avaliação foi exportado para PDF com sucesso.",
+  // Função para excluir modelo de avaliação
+  const deleteTemplate = async (templateId: string) => {
+    try {
+      setIsDeleting(true)
+      const response = await fetch(`/api/evaluations/templates/${templateId}`, {
+        method: 'DELETE',
       })
-    }, 1500)
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || 'Erro ao excluir modelo de avaliação')
+      }
+
+      await fetchTemplates()
+      toast({
+        title: "Modelo excluído",
+        description: "O modelo de avaliação foi excluído com sucesso.",
+      })
+    } catch (error) {
+      console.error('Erro ao excluir modelo de avaliação:', error)
+      toast({
+        title: "Erro",
+        description: error instanceof Error ? error.message : "Não foi possível excluir o modelo de avaliação.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsDeleting(false)
+    }
   }
+
+  // Função para editar modelo de avaliação
+  const editTemplate = async (templateId: string) => {
+    try {
+      setIsEditing(true)
+      const response = await fetch(`/api/evaluations/templates/${templateId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: newTemplateName,
+          description: newTemplateDescription,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Erro ao atualizar modelo de avaliação')
+      }
+
+      await fetchTemplates()
+      toast({
+        title: "Modelo atualizado",
+        description: "O modelo de avaliação foi atualizado com sucesso.",
+      })
+      setIsEditDialogOpen(false)
+      setNewTemplateName("")
+      setNewTemplateDescription("")
+      setEditingTemplate(null)
+    } catch (error) {
+      console.error('Erro ao atualizar modelo de avaliação:', error)
+      toast({
+        title: "Erro",
+        description: "Não foi possível atualizar o modelo de avaliação.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsEditing(false)
+    }
+  }
+
+  // Função para abrir diálogo de edição
+  const openEditDialog = (template) => {
+    setEditingTemplate(template)
+    setNewTemplateName(template.name)
+    setNewTemplateDescription(template.description)
+    setIsEditDialogOpen(true)
+  }
+
+  // Função para duplicar modelo de avaliação
+  const duplicateTemplate = async (templateId: string) => {
+    try {
+      setIsDuplicating(true)
+      const response = await fetch(`/api/evaluations/templates/${templateId}/duplicate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: newTemplateName,
+          description: newTemplateDescription,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Erro ao duplicar modelo de avaliação')
+      }
+
+      await fetchTemplates()
+      toast({
+        title: "Modelo duplicado",
+        description: "O modelo de avaliação foi duplicado com sucesso.",
+      })
+      setIsDuplicateDialogOpen(false)
+      setNewTemplateName("")
+      setNewTemplateDescription("")
+      setEditingTemplate(null)
+    } catch (error) {
+      console.error('Erro ao duplicar modelo de avaliação:', error)
+      toast({
+        title: "Erro",
+        description: "Não foi possível duplicar o modelo de avaliação.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsDuplicating(false)
+    }
+  }
+
+  // Função para abrir diálogo de duplicação
+  const openDuplicateDialog = (template) => {
+    setEditingTemplate(template)
+    setNewTemplateName(`${template.name} (Cópia)`)
+    setNewTemplateDescription(template.description)
+    setIsDuplicateDialogOpen(true)
+  }
+
+  // Adicionar função para remover pergunta personalizada
+  const removeCustomQuestion = (questionId: string) => {
+    setCustomQuestions(customQuestions.filter(q => q.id !== questionId))
+    setSelectedQuestions(selectedQuestions.filter(id => id !== questionId))
+  }
+
+  // Função para buscar estatísticas
+  const fetchStats = async () => {
+    try {
+      const response = await fetch('/api/evaluations/stats')
+      if (!response.ok) {
+        throw new Error('Erro ao buscar estatísticas')
+      }
+      const data = await response.json()
+      setStats(data)
+    } catch (error) {
+      console.error('Erro ao buscar estatísticas:', error)
+    }
+  }
+
+  // Buscar estatísticas quando a página carregar
+  useEffect(() => {
+    fetchStats()
+  }, [])
 
   return (
     <div className="animate-in flex flex-col gap-8 p-4 md:p-8">
@@ -511,213 +518,221 @@ export default function EvaluationsPage() {
             <TabsTrigger value="templates">Modelos de Avaliação</TabsTrigger>
           </TabsList>
           <div className="flex flex-wrap items-center gap-2">
-            <Dialog open={isNewEvaluationOpen} onOpenChange={setIsNewEvaluationOpen}>
-              <DialogTrigger asChild>
-                <Button>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Nova Avaliação
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-[600px]">
-                <DialogHeader>
-                  <DialogTitle>Nova Avaliação de Desempenho</DialogTitle>
-                  <DialogDescription>Criar uma nova avaliação para um funcionário</DialogDescription>
-                </DialogHeader>
-                <div className="grid gap-4 py-4">
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="employee" className="text-right">
-                      Funcionário
-                    </Label>
-                    <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
-                      <SelectTrigger className="col-span-3">
-                        <SelectValue placeholder="Selecione o funcionário" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="emp001">João Silva</SelectItem>
-                        <SelectItem value="emp002">Ana Oliveira</SelectItem>
-                        <SelectItem value="emp003">Pedro Santos</SelectItem>
-                        <SelectItem value="emp004">Carla Ferreira</SelectItem>
-                        <SelectItem value="emp005">Lucas Mendes</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="evaluation-type" className="text-right">
-                      Tipo de Avaliação
-                    </Label>
-                    <Select value={selectedEvaluationType} onValueChange={setSelectedEvaluationType}>
-                      <SelectTrigger className="col-span-3">
-                        <SelectValue placeholder="Selecione o tipo" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="annual">Avaliação Anual</SelectItem>
-                        <SelectItem value="midyear">Avaliação Semestral</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="template" className="text-right">
-                      Modelo
-                    </Label>
-                    <Select>
-                      <SelectTrigger className="col-span-3">
-                        <SelectValue placeholder="Selecione o modelo" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="general">Avaliação Geral</SelectItem>
-                        <SelectItem value="technical">Avaliação Técnica</SelectItem>
-                        <SelectItem value="leadership">Avaliação de Liderança</SelectItem>
-                        <SelectItem value="custom">Modelo Personalizado</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="deadline" className="text-right">
-                      Prazo
-                    </Label>
-                    <Input
-                      id="deadline"
-                      type="date"
-                      className="col-span-3"
-                      defaultValue={new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]}
-                    />
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="notes" className="text-right">
-                      Observações
-                    </Label>
-                    <Textarea id="notes" placeholder="Observações adicionais" className="col-span-3" />
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button type="submit" onClick={createNewEvaluation}>
-                    Criar Avaliação
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-            <Dialog open={isTemplateDialogOpen} onOpenChange={setIsTemplateDialogOpen}>
-              <DialogTrigger asChild>
-                <Button variant="outline">
-                  <Plus className="mr-2 h-4 w-4" />
-                  Novo Modelo
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-[700px]">
-                <DialogHeader>
-                  <DialogTitle>Criar Modelo de Avaliação</DialogTitle>
-                  <DialogDescription>
-                    Crie um novo modelo de avaliação personalizado selecionando as perguntas desejadas.
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="grid gap-4 py-4">
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="template-name" className="text-right">
-                      Nome do Modelo
-                    </Label>
-                    <Input
-                      id="template-name"
-                      value={newTemplateName}
-                      onChange={(e) => setNewTemplateName(e.target.value)}
-                      placeholder="Ex: Avaliação Técnica"
-                      className="col-span-3"
-                    />
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="template-description" className="text-right">
-                      Descrição
-                    </Label>
-                    <Textarea
-                      id="template-description"
-                      value={newTemplateDescription}
-                      onChange={(e) => setNewTemplateDescription(e.target.value)}
-                      placeholder="Descreva o propósito deste modelo de avaliação"
-                      className="col-span-3"
-                    />
-                  </div>
-                  <div className="grid grid-cols-4 gap-4">
-                    <Label className="text-right pt-2">Perguntas</Label>
-                    <div className="col-span-3 space-y-4">
-                      <div className="flex items-center gap-2">
-                        <Input
-                          placeholder="Nova pergunta personalizada"
-                          value={newQuestionText}
-                          onChange={(e) => setNewQuestionText(e.target.value)}
-                        />
-                        <Select value={newQuestionCategory} onValueChange={setNewQuestionCategory}>
-                          <SelectTrigger className="w-[180px]">
-                            <SelectValue placeholder="Categoria" />
+            {activeTab === 'list' && (
+              <>
+                <Dialog open={isNewEvaluationOpen} onOpenChange={setIsNewEvaluationOpen}>
+                  <DialogTrigger asChild>
+                    <Button>
+                      <Plus className="mr-2 h-4 w-4" />
+                      Nova Avaliação
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Nova Avaliação</DialogTitle>
+                      <DialogDescription>
+                        Crie uma nova avaliação de desempenho para um funcionário.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="employee" className="text-right">
+                          Funcionário
+                        </Label>
+                        <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
+                          <SelectTrigger className="col-span-3">
+                            <SelectValue placeholder="Selecione o funcionário" />
                           </SelectTrigger>
                           <SelectContent>
-                            {evaluationCategories.map((category) => (
-                              <SelectItem key={category.id} value={category.id}>
-                                {category.name}
-                              </SelectItem>
-                            ))}
+                            <SelectItem value="1">João Silva</SelectItem>
+                            <SelectItem value="2">Maria Santos</SelectItem>
+                            <SelectItem value="3">Pedro Oliveira</SelectItem>
                           </SelectContent>
                         </Select>
-                        <Button type="button" onClick={handleAddCustomQuestion}>
-                          Adicionar
-                        </Button>
                       </div>
-                      <ScrollArea className="h-[300px] rounded-md border p-4">
-                        {evaluationCategories.map((category) => (
-                          <Collapsible key={category.id} className="mb-4">
-                            <CollapsibleTrigger className="flex w-full items-center justify-between rounded-md bg-secondary p-2 text-left font-medium hover:bg-secondary/80">
-                              {category.name}
-                              <ChevronDown className="h-4 w-4" />
-                            </CollapsibleTrigger>
-                            <CollapsibleContent className="pt-2">
-                              {[
-                                ...sampleQuestions.filter((q) => q.category === category.id),
-                                ...customQuestions.filter((q) => q.category === category.id),
-                              ].map((question) => (
-                                <div key={question.id} className="flex items-center gap-2 py-2">
-                                  <input
-                                    type="checkbox"
-                                    id={question.id}
-                                    checked={selectedQuestions.includes(question.id)}
-                                    onChange={() => toggleQuestionSelection(question.id)}
-                                    className="h-4 w-4 rounded border-gray-300"
-                                  />
-                                  <label htmlFor={question.id} className="text-sm">
-                                    {question.text}
-                                  </label>
-                                </div>
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="evaluation-type" className="text-right">
+                          Tipo de Avaliação
+                        </Label>
+                        <Select value={selectedEvaluationType} onValueChange={setSelectedEvaluationType}>
+                          <SelectTrigger className="col-span-3">
+                            <SelectValue placeholder="Selecione o tipo" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="annual">Avaliação Anual</SelectItem>
+                            <SelectItem value="midyear">Avaliação Semestral</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="template" className="text-right">
+                          Modelo
+                        </Label>
+                        <Select>
+                          <SelectTrigger className="col-span-3">
+                            <SelectValue placeholder="Selecione o modelo" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="general">Avaliação Geral</SelectItem>
+                            <SelectItem value="technical">Avaliação Técnica</SelectItem>
+                            <SelectItem value="leadership">Avaliação de Liderança</SelectItem>
+                            <SelectItem value="custom">Modelo Personalizado</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="deadline" className="text-right">
+                          Prazo
+                        </Label>
+                        <Input
+                          id="deadline"
+                          type="date"
+                          className="col-span-3"
+                          defaultValue={new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]}
+                        />
+                      </div>
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="notes" className="text-right">
+                          Observações
+                        </Label>
+                        <Textarea id="notes" placeholder="Observações adicionais" className="col-span-3" />
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button type="submit" onClick={createNewEvaluation}>
+                        Criar Avaliação
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </>
+            )}
+            {activeTab === 'templates' && (
+              <Dialog open={isTemplateDialogOpen} onOpenChange={(open) => {
+                setIsTemplateDialogOpen(open)
+                if (!open) {
+                  setNewTemplateName("")
+                  setNewTemplateDescription("")
+                  setSelectedQuestions([])
+                  setCustomQuestions([])
+                  setNewQuestionText("")
+                  setNewQuestionCategory("technical")
+                }
+              }}>
+                <DialogTrigger asChild>
+                  <Button variant="outline">
+                    <Plus className="mr-2 h-4 w-4" />
+                    Novo Modelo
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[700px]">
+                  <DialogHeader>
+                    <DialogTitle>Criar Modelo de Avaliação</DialogTitle>
+                    <DialogDescription>
+                      Crie um novo modelo de avaliação personalizado selecionando as perguntas desejadas.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="grid gap-4 py-4">
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="template-name" className="text-right">
+                        Nome do Modelo
+                      </Label>
+                      <Input
+                        id="template-name"
+                        value={newTemplateName}
+                        onChange={(e) => setNewTemplateName(e.target.value)}
+                        placeholder="Ex: Avaliação Técnica"
+                        className="col-span-3"
+                      />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="template-description" className="text-right">
+                        Descrição
+                      </Label>
+                      <Textarea
+                        id="template-description"
+                        value={newTemplateDescription}
+                        onChange={(e) => setNewTemplateDescription(e.target.value)}
+                        placeholder="Descreva o propósito deste modelo de avaliação"
+                        className="col-span-3"
+                      />
+                    </div>
+                    <div className="grid grid-cols-4 gap-4">
+                      <Label className="text-right pt-2">Perguntas</Label>
+                      <div className="col-span-3 space-y-4">
+                        <div className="flex items-center gap-2">
+                          <Input
+                            placeholder="Nova pergunta personalizada"
+                            value={newQuestionText}
+                            onChange={(e) => setNewQuestionText(e.target.value)}
+                          />
+                          <Select value={newQuestionCategory} onValueChange={setNewQuestionCategory}>
+                            <SelectTrigger className="w-[180px]">
+                              <SelectValue placeholder="Categoria" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {evaluationCategories.map((category) => (
+                                <SelectItem key={category.id} value={category.id}>
+                                  {typeof category.name === 'string' ? category.name : 'Categoria sem nome'}
+                                </SelectItem>
                               ))}
-                            </CollapsibleContent>
-                          </Collapsible>
-                        ))}
-                      </ScrollArea>
+                            </SelectContent>
+                          </Select>
+                          <Button type="button" onClick={handleAddCustomQuestion}>
+                            Adicionar
+                          </Button>
+                        </div>
+                        <ScrollArea className="h-[300px] rounded-md border p-4">
+                          {evaluationCategories.map((category) => (
+                            <Collapsible key={category.id} className="mb-4">
+                              <CollapsibleTrigger className="flex w-full items-center justify-between rounded-md bg-secondary p-2 text-left font-medium hover:bg-secondary/80">
+                                {typeof category.name === 'string' ? category.name : 'Categoria sem nome'}
+                                <ChevronDown className="h-4 w-4" />
+                              </CollapsibleTrigger>
+                              <CollapsibleContent className="pt-2">
+                                {customQuestions
+                                  .filter((q) => q.category === category.id)
+                                  .map((question) => (
+                                    <div key={question.id} className="flex items-center gap-2 py-2">
+                                      <input
+                                        type="checkbox"
+                                        id={question.id}
+                                        checked={selectedQuestions.includes(question.id)}
+                                        onChange={() => toggleQuestionSelection(question.id)}
+                                        className="h-4 w-4 rounded border-gray-300"
+                                      />
+                                      <label htmlFor={question.id} className="text-sm flex-1">
+                                        {typeof question.text === 'string' ? question.text : 'Pergunta sem texto'}
+                                      </label>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-6 w-6 text-red-500 hover:text-red-600 hover:bg-red-50"
+                                        onClick={() => removeCustomQuestion(question.id)}
+                                      >
+                                        <X className="h-4 w-4" />
+                                      </Button>
+                                    </div>
+                                  ))}
+                              </CollapsibleContent>
+                            </Collapsible>
+                          ))}
+                        </ScrollArea>
+                      </div>
                     </div>
                   </div>
-                </div>
-                <DialogFooter>
-                  <Button
-                    type="submit"
-                    onClick={saveTemplate}
-                    disabled={!newTemplateName || selectedQuestions.length === 0}
-                  >
-                    Salvar Modelo
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline">
-                  <FileSpreadsheet className="mr-2 h-4 w-4" />
-                  Exportar
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                <DropdownMenuItem onClick={() => exportData("xlsx")}>Exportar como Excel</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => exportData("csv")}>Exportar como CSV</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => exportData("json")}>Exportar como JSON</DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => exportData("pdf")}>Exportar como PDF</DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                  <DialogFooter>
+                    <Button
+                      type="submit"
+                      onClick={saveTemplate}
+                      disabled={!newTemplateName || selectedQuestions.length === 0}
+                    >
+                      Salvar Modelo
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            )}
           </div>
         </div>
 
@@ -843,10 +858,10 @@ export default function EvaluationsPage() {
                     <TableRow key={evaluation.id} className="animate-fade">
                       <TableCell className="font-medium">{evaluation.id}</TableCell>
                       <TableCell>
-                        <div className="font-medium">{evaluation.employeeName}</div>
-                        <div className="text-xs text-muted-foreground">{evaluation.position}</div>
+                        <div className="font-medium">{typeof evaluation.employeeName === 'string' ? evaluation.employeeName : 'Funcionário sem nome'}</div>
+                        <div className="text-xs text-muted-foreground">{typeof evaluation.position === 'string' ? evaluation.position : 'Cargo não definido'}</div>
                       </TableCell>
-                      <TableCell>{evaluation.department}</TableCell>
+                      <TableCell>{typeof evaluation.department === 'string' ? evaluation.department : 'Departamento não definido'}</TableCell>
                       <TableCell>{new Date(evaluation.date).toLocaleDateString()}</TableCell>
                       <TableCell className="text-center">
                         <span
@@ -856,7 +871,7 @@ export default function EvaluationsPage() {
                               : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100"
                           }`}
                         >
-                          {evaluation.selfEvaluationStatus}
+                          {typeof evaluation.selfEvaluationStatus === 'string' ? evaluation.selfEvaluationStatus : 'Pendente'}
                         </span>
                       </TableCell>
                       <TableCell className="text-center">
@@ -867,7 +882,7 @@ export default function EvaluationsPage() {
                               : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100"
                           }`}
                         >
-                          {evaluation.managerEvaluationStatus}
+                          {typeof evaluation.managerEvaluationStatus === 'string' ? evaluation.managerEvaluationStatus : 'Pendente'}
                         </span>
                       </TableCell>
                       <TableCell className="text-center">
@@ -927,215 +942,37 @@ export default function EvaluationsPage() {
         </TabsContent>
 
         <TabsContent value="templates" className="animate-fade">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            <Card className="lg:col-span-2">
+          <div className="grid gap-4 md:grid-cols-3">
+            <Card className="md:col-span-2">
               <CardHeader>
                 <CardTitle>Modelos de Avaliação</CardTitle>
                 <CardDescription>Modelos disponíveis para avaliações de desempenho</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {[
-                    {
-                      id: "template1",
-                      name: "Avaliação Geral",
-                      description: "Modelo padrão para avaliação de desempenho geral",
-                      questions: 12,
-                      categories: ["Habilidades Técnicas", "Comunicação", "Trabalho em Equipe", "Liderança"],
-                      lastUpdated: "2024-02-15",
-                    },
-                    {
-                      id: "template2",
-                      name: "Avaliação Técnica",
-                      description: "Modelo focado em habilidades técnicas para equipes de desenvolvimento",
-                      questions: 15,
-                      categories: ["Habilidades Técnicas", "Resolução de Problemas", "Adaptabilidade"],
-                      lastUpdated: "2024-01-20",
-                    },
-                    {
-                      id: "template3",
-                      name: "Avaliação de Liderança",
-                      description: "Modelo para avaliação de habilidades de liderança e gestão",
-                      questions: 10,
-                      categories: ["Liderança", "Comunicação", "Tomada de Decisão", "Gestão de Equipe"],
-                      lastUpdated: "2024-03-05",
-                    },
-                    {
-                      id: "template4",
-                      name: "Avaliação de Período Probatório",
-                      description: "Modelo para avaliação de funcionários em período probatório",
-                      questions: 8,
-                      categories: ["Adaptabilidade", "Aprendizado", "Trabalho em Equipe", "Pontualidade"],
-                      lastUpdated: "2024-02-28",
-                    },
-                  ].map((template) => (
-                    <div
-                      key={template.id}
-                      className="flex flex-col rounded-lg border p-4 transition-colors hover:bg-muted sm:flex-row sm:items-center sm:justify-between"
-                    >
-                      <div>
-                        <h3 className="font-medium">{template.name}</h3>
-                        <p className="text-sm text-muted-foreground">{template.description}</p>
-                        <div className="mt-2 flex flex-wrap gap-1">
-                          {template.categories.map((category) => (
-                            <span
-                              key={category}
-                              className="inline-block rounded-full bg-secondary px-2 py-0.5 text-xs font-medium"
-                            >
-                              {category}
-                            </span>
-                          ))}
+                  {isLoading ? (
+                    <div className="flex items-center justify-center h-32">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                    </div>
+                  ) : templates.length === 0 ? (
+                    <div className="text-center text-muted-foreground py-8">
+                      Nenhum modelo de avaliação encontrado.
+                    </div>
+                  ) : (
+                    templates.map((template) => (
+                      <div
+                        key={template.id}
+                        className="flex items-start justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                      >
+                        <div className="space-y-1">
+                          <h3 className="font-medium">{template.name}</h3>
+                          <p className="text-sm text-muted-foreground">{template.description}</p>
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <span>{template._count.evaluations} avaliações</span>
+                            <span>•</span>
+                            <span>Última atualização: {new Date(template.updatedAt).toLocaleDateString()}</span>
+                          </div>
                         </div>
-                      </div>
-                      <div className="mt-4 flex items-center gap-4 sm:mt-0">
-                        <div className="text-sm text-muted-foreground">
-                          {template.questions} perguntas • Atualizado em{" "}
-                          {new Date(template.lastUpdated).toLocaleDateString()}
-                        </div>
-                        <Dialog
-                          open={isApplyEvaluationOpen && selectedTemplate === template.id}
-                          onOpenChange={(open) => {
-                            setIsApplyEvaluationOpen(open)
-                            if (open) setSelectedTemplate(template.id)
-                          }}
-                        >
-                          <DialogTrigger asChild>
-                            <Button variant="default" size="sm">
-                              Aplicar
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent className="sm:max-w-[700px]">
-                            <DialogHeader>
-                              <DialogTitle>Aplicar Avaliação</DialogTitle>
-                              <DialogDescription>
-                                Preencha o formulário de avaliação para o funcionário selecionado
-                              </DialogDescription>
-                            </DialogHeader>
-                            <div className="grid gap-4 py-4">
-                              <div className="grid grid-cols-4 items-center gap-4">
-                                <Label htmlFor="apply-employee" className="text-right">
-                                  Funcionário
-                                </Label>
-                                <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
-                                  <SelectTrigger className="col-span-3">
-                                    <SelectValue placeholder="Selecione o funcionário" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="emp001">João Silva</SelectItem>
-                                    <SelectItem value="emp002">Ana Oliveira</SelectItem>
-                                    <SelectItem value="emp003">Pedro Santos</SelectItem>
-                                    <SelectItem value="emp004">Carla Ferreira</SelectItem>
-                                    <SelectItem value="emp005">Lucas Mendes</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                              <div className="grid grid-cols-4 items-center gap-4">
-                                <Label htmlFor="apply-evaluator-type" className="text-right">
-                                  Tipo de Avaliação
-                                </Label>
-                                <div className="col-span-3">
-                                  <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100">Autoavaliação</Badge>
-                                  <p className="text-xs text-muted-foreground mt-1">
-                                    Primeiro o funcionário realiza sua autoavaliação, depois o gestor fará sua
-                                    avaliação.
-                                  </p>
-                                </div>
-                              </div>
-
-                              <div className="col-span-4 mt-4">
-                                <h3 className="font-medium mb-4">Formulário de Avaliação</h3>
-                                <ScrollArea className="h-[400px] rounded-md border p-4">
-                                  {evaluationCategories.slice(0, 3).map((category) => (
-                                    <div key={category.id} className="mb-6">
-                                      <h4 className="font-medium mb-3 border-b pb-1">{category.name}</h4>
-                                      <div className="space-y-6">
-                                        {sampleQuestions
-                                          .filter((q) => q.category === category.id)
-                                          .slice(0, 2)
-                                          .map((question) => (
-                                            <div key={question.id} className="space-y-2 border p-3 rounded-md">
-                                              <Label className="text-sm font-medium">{question.text}</Label>
-
-                                              <div className="pt-2">
-                                                <Label className="text-sm mb-1 block">Pontuação:</Label>
-                                                <RadioGroup
-                                                  value={(questionScores[question.id] || "5").toString()}
-                                                  onValueChange={(value) =>
-                                                    updateQuestionScore(question.id, Number.parseInt(value))
-                                                  }
-                                                  className="flex flex-wrap gap-2"
-                                                >
-                                                  {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((value) => (
-                                                    <div key={value} className="flex items-center space-x-1">
-                                                      <RadioGroupItem
-                                                        value={value.toString()}
-                                                        id={`${question.id}-${value}`}
-                                                      />
-                                                      <Label htmlFor={`${question.id}-${value}`} className="text-sm">
-                                                        {value}
-                                                      </Label>
-                                                    </div>
-                                                  ))}
-                                                </RadioGroup>
-                                              </div>
-
-                                              <div className="pt-3">
-                                                <Label
-                                                  htmlFor={`comment-${question.id}`}
-                                                  className="text-sm mb-1 block"
-                                                >
-                                                  Comentário:
-                                                </Label>
-                                                <Textarea
-                                                  id={`comment-${question.id}`}
-                                                  placeholder="Adicione um comentário sobre esta questão"
-                                                  value={questionComments[question.id] || ""}
-                                                  onChange={(e) => updateQuestionComment(question.id, e.target.value)}
-                                                  className="min-h-[80px]"
-                                                />
-                                              </div>
-                                            </div>
-                                          ))}
-                                      </div>
-                                    </div>
-                                  ))}
-
-                                  <div className="space-y-4 mt-6">
-                                    <h4 className="font-medium mb-3 border-b pb-1">Comentários Gerais</h4>
-                                    <div>
-                                      <Label htmlFor="strengths" className="text-sm">
-                                        Pontos Fortes
-                                      </Label>
-                                      <Textarea
-                                        id="strengths"
-                                        placeholder="Descreva os pontos fortes do funcionário"
-                                        className="mt-1"
-                                      />
-                                    </div>
-                                    <div>
-                                      <Label htmlFor="improvements" className="text-sm">
-                                        Áreas para Melhoria
-                                      </Label>
-                                      <Textarea
-                                        id="improvements"
-                                        placeholder="Descreva as áreas que precisam de melhoria"
-                                        className="mt-1"
-                                      />
-                                    </div>
-                                  </div>
-                                </ScrollArea>
-                              </div>
-                            </div>
-                            <DialogFooter>
-                              <Button variant="outline" onClick={() => exportBlankFormToPDF()}>
-                                Imprimir Formulário
-                              </Button>
-                              <Button onClick={applyEvaluation} disabled={!selectedEmployee}>
-                                Salvar Avaliação
-                              </Button>
-                            </DialogFooter>
-                          </DialogContent>
-                        </Dialog>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="icon">
@@ -1144,117 +981,255 @@ export default function EvaluationsPage() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem>Ver detalhes</DropdownMenuItem>
-                            <DropdownMenuItem>Editar modelo</DropdownMenuItem>
-                            <DropdownMenuItem>Duplicar modelo</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => openEditDialog(template)}>
+                              Editar modelo
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => openDuplicateDialog(template)}>
+                              Duplicar modelo
+                            </DropdownMenuItem>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem className="text-destructive">Excluir modelo</DropdownMenuItem>
+                            <DropdownMenuItem 
+                              className="text-red-600"
+                              onClick={() => deleteTemplate(template.id)}
+                              disabled={isDeleting}
+                            >
+                              {isDeleting ? (
+                                <>
+                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600 mr-2"></div>
+                                  Excluindo...
+                                </>
+                              ) : (
+                                'Excluir modelo'
+                              )}
+                            </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </div>
-                    </div>
-                  ))}
+                    ))
+                  )}
                 </div>
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Estatísticas de Avaliações</CardTitle>
-                <CardDescription>Distribuição de pontuações e status</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="rounded-lg border p-4">
-                    <h3 className="text-sm font-medium mb-2">Status das Avaliações</h3>
-                    <div className="grid grid-cols-3 gap-4">
-                      <div className="flex flex-col items-center justify-center p-3 bg-green-50 rounded-lg dark:bg-green-900/20">
-                        <span className="text-2xl font-bold text-green-600 dark:text-green-400">66%</span>
-                        <span className="text-sm text-muted-foreground">Concluídas</span>
-                      </div>
-                      <div className="flex flex-col items-center justify-center p-3 bg-yellow-50 rounded-lg dark:bg-yellow-900/20">
-                        <span className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">23%</span>
-                        <span className="text-sm text-muted-foreground">Pendentes</span>
-                      </div>
-                      <div className="flex flex-col items-center justify-center p-3 bg-blue-50 rounded-lg dark:bg-blue-900/20">
-                        <span className="text-2xl font-bold text-blue-600 dark:text-blue-400">11%</span>
-                        <span className="text-sm text-muted-foreground">Em Progresso</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="rounded-lg border p-4">
-                    <h3 className="text-sm font-medium mb-2">Distribuição de Pontuações</h3>
-                    <div className="space-y-2">
-                      {[
-                        { range: "9-10", count: 12, label: "Excelente", color: "bg-green-100 dark:bg-green-900/50" },
-                        { range: "8-8.9", count: 25, label: "Muito Bom", color: "bg-blue-100 dark:bg-blue-900/50" },
-                        { range: "7-7.9", count: 18, label: "Bom", color: "bg-yellow-100 dark:bg-yellow-900/50" },
-                        {
-                          range: "6-6.9",
-                          count: 8,
-                          label: "Satisfatório",
-                          color: "bg-orange-100 dark:bg-orange-900/50",
-                        },
-                        { range: "0-5.9", count: 3, label: "Precisa Melhorar", color: "bg-red-100 dark:bg-red-900/50" },
-                      ].map((item) => (
-                        <div
-                          key={item.range}
-                          className={`flex items-center justify-between p-2 rounded-md ${item.color}`}
-                        >
-                          <div>
-                            <span className="font-medium">{item.range}</span>
-                            <span className="ml-2 text-sm text-muted-foreground">{item.label}</span>
-                          </div>
-                          <div className="font-medium">{item.count} avaliações</div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="mt-4">
-              <CardHeader>
-                <CardTitle>Pontuação Média por Departamento</CardTitle>
-                <CardDescription>Comparação de desempenho entre departamentos</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {departmentScores.map((dept, index) => (
-                    <div key={index} className="flex items-center justify-between p-3 rounded-md border">
-                      <div className="font-medium">{dept.department}</div>
-                      <div className="flex items-center gap-2">
-                        <div className="w-32 h-2 bg-gray-200 rounded-full overflow-hidden">
+            <div className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Estatísticas de Avaliações</CardTitle>
+                  <CardDescription>Distribuição de pontuações e status</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="rounded-lg border p-4">
+                      <h3 className="text-sm font-medium mb-2">Status das Avaliações</h3>
+                      <div className="grid grid-cols-3 gap-4">
+                        {stats.statusStats.map((stat) => (
                           <div
-                            className="h-full rounded-full"
-                            style={{
-                              width: `${(dept.score / 10) * 100}%`,
-                              backgroundColor: MODERN_COLORS[index % MODERN_COLORS.length],
-                            }}
-                          />
-                        </div>
-                        <span
-                          className={`inline-block rounded-full px-2 py-1 text-xs font-medium ${
-                            dept.score >= 8.5
-                              ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100"
-                              : dept.score >= 8
-                                ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100"
-                                : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100"
-                          }`}
-                        >
-                          {dept.score.toFixed(1)}
-                        </span>
+                            key={stat.name}
+                            className="flex flex-col items-center justify-center p-3 bg-green-50 rounded-lg dark:bg-green-900/20"
+                          >
+                            <span className="text-2xl font-bold text-green-600 dark:text-green-400">
+                              {typeof stat.value === 'number' ? `${stat.value}%` : '0%'}
+                            </span>
+                            <span className="text-sm text-muted-foreground">{typeof stat.name === 'string' ? stat.name : 'Status não definido'}</span>
+                          </div>
+                        ))}
                       </div>
                     </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+
+                    <div className="rounded-lg border p-4">
+                      <h3 className="text-sm font-medium mb-2">Distribuição de Pontuações</h3>
+                      <div className="space-y-2">
+                        {stats.scoreDistribution.map((item) => (
+                          <div
+                            key={item.range}
+                            className={`flex items-center justify-between p-2 rounded-md ${
+                              item.range === "9-10"
+                                ? "bg-green-100 dark:bg-green-900/50"
+                                : item.range === "8-8.9"
+                                  ? "bg-blue-100 dark:bg-blue-900/50"
+                                  : item.range === "7-7.9"
+                                    ? "bg-yellow-100 dark:bg-yellow-900/50"
+                                    : item.range === "6-6.9"
+                                      ? "bg-orange-100 dark:bg-orange-900/50"
+                                      : "bg-red-100 dark:bg-red-900/50"
+                            }`}
+                          >
+                            <div>
+                              <span className="font-medium">{typeof item.range === 'string' ? item.range : '0-0'}</span>
+                              <span className="ml-2 text-sm text-muted-foreground">
+                                {typeof item.range === 'string' ? (
+                                  item.range === "9-10"
+                                    ? "Excelente"
+                                    : item.range === "8-8.9"
+                                      ? "Muito Bom"
+                                      : item.range === "7-7.9"
+                                        ? "Bom"
+                                        : item.range === "6-6.9"
+                                          ? "Satisfatório"
+                                          : "Precisa Melhorar"
+                                ) : "Não definido"}
+                              </span>
+                            </div>
+                            <div className="font-medium">{typeof item.count === 'number' ? `${item.count} avaliações` : '0 avaliações'}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Pontuação Média por Departamento</CardTitle>
+                  <CardDescription>Comparação de desempenho entre departamentos</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {stats.departmentScores.map((dept, index) => (
+                      <div key={index} className="flex items-center justify-between p-3 rounded-md border">
+                        <div className="font-medium">{typeof dept.department === 'string' ? dept.department : 'Departamento não definido'}</div>
+                        <div className="flex items-center gap-2">
+                          <div className="w-32 h-2 bg-gray-200 rounded-full overflow-hidden">
+                            <div
+                              className="h-full rounded-full"
+                              style={{
+                                width: `${(typeof dept.score === 'number' ? dept.score : 0) / 10 * 100}%`,
+                                backgroundColor: MODERN_COLORS[index % MODERN_COLORS.length],
+                              }}
+                            />
+                          </div>
+                          <span
+                            className={`inline-block rounded-full px-2 py-1 text-xs font-medium ${
+                              (typeof dept.score === 'number' ? dept.score : 0) >= 8.5
+                                ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100"
+                                : (typeof dept.score === 'number' ? dept.score : 0) >= 8
+                                  ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100"
+                                  : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100"
+                            }`}
+                          >
+                            {(typeof dept.score === 'number' ? dept.score : 0).toFixed(1)}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </div>
         </TabsContent>
       </Tabs>
+
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-[700px]">
+          <DialogHeader>
+            <DialogTitle>Editar Modelo de Avaliação</DialogTitle>
+            <DialogDescription>
+              Edite as informações do modelo de avaliação
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-template-name" className="text-right">
+                Nome do Modelo
+              </Label>
+              <Input
+                id="edit-template-name"
+                value={newTemplateName}
+                onChange={(e) => setNewTemplateName(e.target.value)}
+                placeholder="Ex: Avaliação Técnica"
+                className="col-span-3"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-template-description" className="text-right">
+                Descrição
+              </Label>
+              <Textarea
+                id="edit-template-description"
+                value={newTemplateDescription}
+                onChange={(e) => setNewTemplateDescription(e.target.value)}
+                placeholder="Descreva o propósito deste modelo de avaliação"
+                className="col-span-3"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button 
+              onClick={() => editTemplate(editingTemplate.id)}
+              disabled={isEditing || !newTemplateName.trim()}
+            >
+              {isEditing ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Salvando...
+                </>
+              ) : (
+                'Salvar Alterações'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isDuplicateDialogOpen} onOpenChange={setIsDuplicateDialogOpen}>
+        <DialogContent className="sm:max-w-[700px]">
+          <DialogHeader>
+            <DialogTitle>Duplicar Modelo de Avaliação</DialogTitle>
+            <DialogDescription>
+              Crie uma cópia do modelo de avaliação selecionado
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="duplicate-template-name" className="text-right">
+                Nome do Modelo
+              </Label>
+              <Input
+                id="duplicate-template-name"
+                value={newTemplateName}
+                onChange={(e) => setNewTemplateName(e.target.value)}
+                placeholder="Ex: Avaliação Técnica"
+                className="col-span-3"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="duplicate-template-description" className="text-right">
+                Descrição
+              </Label>
+              <Textarea
+                id="duplicate-template-description"
+                value={newTemplateDescription}
+                onChange={(e) => setNewTemplateDescription(e.target.value)}
+                placeholder="Descreva o propósito deste modelo de avaliação"
+                className="col-span-3"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDuplicateDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button 
+              onClick={() => duplicateTemplate(editingTemplate.id)}
+              disabled={isDuplicating || !newTemplateName.trim()}
+            >
+              {isDuplicating ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Duplicando...
+                </>
+              ) : (
+                'Duplicar Modelo'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
