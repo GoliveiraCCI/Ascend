@@ -10,7 +10,7 @@ import { SelectTrigger } from "@/components/ui/select"
 
 import { Select } from "@/components/ui/select"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { ArrowLeft, Download, FileText, Printer, Send, User } from "lucide-react"
 import html2canvas from "html2canvas"
@@ -236,6 +236,30 @@ export default function EvaluationPage({ params }: EvaluationPageProps) {
   const [isLoading, setIsLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
+  useEffect(() => {
+    const fetchEvaluation = async () => {
+      try {
+        const response = await fetch(`/api/evaluations/${params.id}`)
+        if (!response.ok) {
+          throw new Error("Erro ao carregar avaliação")
+        }
+        const data = await response.json()
+        setEvaluation(data)
+      } catch (error) {
+        console.error("Erro ao carregar avaliação:", error)
+        toast({
+          title: "Erro",
+          description: "Erro ao carregar avaliação",
+          variant: "destructive",
+        })
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchEvaluation()
+  }, [params.id])
+
   const handleSubmit = async () => {
     try {
       setIsSubmitting(true)
@@ -300,6 +324,48 @@ export default function EvaluationPage({ params }: EvaluationPageProps) {
       ...prev,
       [field]: value,
     }))
+  }
+
+  const getStatusBadgeVariant = (status: string) => {
+    switch (status) {
+      case "Finalizado":
+        return "success"
+      case "Pendente":
+        return "destructive"
+      default:
+        return "default"
+    }
+  }
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case "Finalizado":
+        return <CheckCircle className="h-4 w-4" />
+      case "Pendente":
+        return <Clock className="h-4 w-4" />
+      default:
+        return <Circle className="h-4 w-4" />
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="container mx-auto py-6">
+        <div className="flex items-center justify-center h-96">
+          <p className="text-muted-foreground">Carregando avaliação...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!evaluation) {
+    return (
+      <div className="container mx-auto py-6">
+        <div className="flex items-center justify-center h-96">
+          <p className="text-muted-foreground">Avaliação não encontrada</p>
+        </div>
+      </div>
+    )
   }
 
   return (
