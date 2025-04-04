@@ -189,9 +189,9 @@ const evaluationData = {
 const getScoreClass = (score: number | null) => {
   if (score === null) return "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100"
   if (score >= 9) return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100"
-  if (score >= 8) return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100"
-  if (score >= 7) return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100"
-  if (score >= 6) return "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-100"
+  if (score >= 6) return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100"
+  if (score >= 4) return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100"
+  if (score >= 2) return "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-100"
   return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100"
 }
 
@@ -199,10 +199,10 @@ const getScoreClass = (score: number | null) => {
 const getScoreLabel = (score: number | null) => {
   if (score === null) return "Pendente"
   if (score >= 9) return "Excelente"
-  if (score >= 8) return "Muito Bom"
-  if (score >= 7) return "Bom"
-  if (score >= 6) return "Satisfatório"
-  return "Precisa Melhorar"
+  if (score >= 6) return "Bom"
+  if (score >= 4) return "Médio"
+  if (score >= 2) return "Ruim"
+  return "Péssimo"
 }
 
 // Calcular pontuação média
@@ -453,14 +453,20 @@ export default function EvaluationPage({ params }: EvaluationPageProps) {
                     <div>
                       <h3 className="font-medium mb-2">Autoavaliação</h3>
                       <div className="space-y-2">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-sm font-medium">Nota:</span>
+                          <span className={`px-2 py-1 rounded-md text-sm ${getScoreClass(answer?.selfScore)}`}>
+                            {answer?.selfScore !== null ? `${answer.selfScore} - ${getScoreLabel(answer.selfScore)}` : "Pendente"}
+                          </span>
+                        </div>
                         <RadioGroup
                           value={answer?.selfScore?.toString()}
                           onValueChange={(value) =>
                             handleAnswerChange(answer.id, "selfScore", parseInt(value))
                           }
-                          className="flex gap-4"
+                          className="flex gap-4 flex-wrap"
                         >
-                          {[1, 2, 3, 4, 5].map((score) => (
+                          {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((score) => (
                             <div key={score} className="flex items-center space-x-2">
                               <RadioGroupItem value={score.toString()} id={`self-${question.id}-${score}`} />
                               <Label htmlFor={`self-${question.id}-${score}`}>{score}</Label>
@@ -480,14 +486,20 @@ export default function EvaluationPage({ params }: EvaluationPageProps) {
                     <div>
                       <h3 className="font-medium mb-2">Avaliação do Gestor</h3>
                       <div className="space-y-2">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-sm font-medium">Nota:</span>
+                          <span className={`px-2 py-1 rounded-md text-sm ${getScoreClass(answer?.managerScore)}`}>
+                            {answer?.managerScore !== null ? `${answer.managerScore} - ${getScoreLabel(answer.managerScore)}` : "Pendente"}
+                          </span>
+                        </div>
                         <RadioGroup
                           value={answer?.managerScore?.toString()}
                           onValueChange={(value) =>
                             handleAnswerChange(answer.id, "managerScore", parseInt(value))
                           }
-                          className="flex gap-4"
+                          className="flex gap-4 flex-wrap"
                         >
-                          {[1, 2, 3, 4, 5].map((score) => (
+                          {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((score) => (
                             <div key={score} className="flex items-center space-x-2">
                               <RadioGroupItem value={score.toString()} id={`manager-${question.id}-${score}`} />
                               <Label htmlFor={`manager-${question.id}-${score}`}>{score}</Label>
