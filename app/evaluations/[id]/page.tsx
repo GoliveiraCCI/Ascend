@@ -348,6 +348,46 @@ export default function EvaluationPage({ params }: EvaluationPageProps) {
     }
   }
 
+  const handleExportPDF = async () => {
+    try {
+      const element = document.getElementById("evaluation-content")
+      if (!element) return
+
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+      })
+
+      const imgData = canvas.toDataURL("image/png")
+      const pdf = new jsPDF("p", "mm", "a4")
+      const imgWidth = 210
+      const pageHeight = 297
+      const imgHeight = (canvas.height * imgWidth) / canvas.width
+      let heightLeft = imgHeight
+      let position = 0
+
+      pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight)
+      heightLeft -= pageHeight
+
+      while (heightLeft >= 0) {
+        position = heightLeft - imgHeight
+        pdf.addPage()
+        pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight)
+        heightLeft -= pageHeight
+      }
+
+      pdf.save(`avaliacao-${evaluation.employee.name}-${format(new Date(), "dd-MM-yyyy")}.pdf`)
+    } catch (error) {
+      console.error("Erro ao exportar PDF:", error)
+      toast({
+        title: "Erro",
+        description: "Erro ao exportar avaliação para PDF",
+        variant: "destructive",
+      })
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="container mx-auto py-6">
@@ -378,6 +418,10 @@ export default function EvaluationPage({ params }: EvaluationPageProps) {
           </p>
         </div>
         <div className="flex gap-4">
+          <Button variant="outline" onClick={handleExportPDF}>
+            <FileText className="mr-2 h-4 w-4" />
+            Exportar PDF
+          </Button>
           <Badge variant={getStatusBadgeVariant(evaluation.selfEvaluationStatus)}>
             {getStatusIcon(evaluation.selfEvaluationStatus)}
             Autoavaliação: {evaluation.selfEvaluationStatus}
