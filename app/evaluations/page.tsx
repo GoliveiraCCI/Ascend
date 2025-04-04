@@ -20,7 +20,11 @@ import {
   FileDown,
   Clock,
   HelpCircle,
+  CheckCircle,
+  Circle,
+  Trash2,
 } from "lucide-react"
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -66,6 +70,52 @@ const MODERN_COLORS = [
   "#00bbf9",
 ]
 
+interface Evaluation {
+  id: string;
+  employee: {
+    id: string;
+    name: string;
+    matricula: string;
+  };
+  evaluator: {
+    id: string;
+    name: string;
+  };
+  template: {
+    id: string;
+    name: string;
+    description: string;
+  };
+  date: string;
+  status: string;
+  selfEvaluation: boolean;
+  selfEvaluationStatus: string;
+  selfStrengths: string | null;
+  selfImprovements: string | null;
+  selfGoals: string | null;
+  selfScore: number | null;
+  selfEvaluationDate: string | null;
+  managerEvaluation: boolean;
+  managerEvaluationStatus: string;
+  managerStrengths: string | null;
+  managerImprovements: string | null;
+  managerGoals: string | null;
+  managerScore: number | null;
+  managerEvaluationDate: string | null;
+  finalScore: number | null;
+  answers: {
+    id: string;
+    question: {
+      id: string;
+      text: string;
+    };
+    selfScore: number | null;
+    managerScore: number | null;
+    selfComment: string | null;
+    managerComment: string | null;
+  }[];
+}
+
 // Função para classificar pontuações
 const getScoreClass = (score: number | null) => {
   if (score === null) return "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100"
@@ -88,37 +138,27 @@ const getScoreLabel = (score: number | null) => {
 
 // Função para determinar a variante do Badge com base no status
 const getStatusBadgeVariant = (status: string) => {
-  if (!status) return "default"
-  
-  const statusLower = status.toLowerCase()
-  if (statusLower === "completed" || statusLower === "concluída" || statusLower === "finalizado") {
-    return "success"
+  switch (status) {
+    case "Finalizado":
+      return "success";
+    case "Pendente":
+      return "destructive";
+    default:
+      return "default";
   }
-  if (statusLower === "in_progress" || statusLower === "em progresso") {
-    return "warning"
-  }
-  if (statusLower === "pendente") {
-    return "destructive"
-  }
-  return "default"
-}
+};
 
 // Função para obter a cor do ícone com base no status
 const getStatusIcon = (status: string) => {
-  if (!status) return <HelpCircle className="h-3 w-3 mr-1" />
-  
-  const statusLower = status.toLowerCase()
-  if (statusLower === "completed" || statusLower === "concluída" || statusLower === "finalizado") {
-    return <Check className="h-3 w-3 mr-1" />
+  switch (status) {
+    case "Finalizado":
+      return <CheckCircle className="h-4 w-4" />;
+    case "Pendente":
+      return <Clock className="h-4 w-4" />;
+    default:
+      return <Circle className="h-4 w-4" />;
   }
-  if (statusLower === "in_progress" || statusLower === "em progresso") {
-    return <Activity className="h-3 w-3 mr-1" />
-  }
-  if (statusLower === "pendente") {
-    return <Clock className="h-3 w-3 mr-1" />
-  }
-  return <HelpCircle className="h-3 w-3 mr-1" />
-}
+};
 
 export default function EvaluationsPage() {
   const [searchTerm, setSearchTerm] = useState("")
@@ -148,7 +188,7 @@ export default function EvaluationsPage() {
   const [editingTemplate, setEditingTemplate] = useState(null)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isDuplicateDialogOpen, setIsDuplicateDialogOpen] = useState(false)
-  const [evaluations, setEvaluations] = useState([])
+  const [evaluations, setEvaluations] = useState<Evaluation[]>([])
   const [evaluationCategories, setEvaluationCategories] = useState([])
   const [stats, setStats] = useState({
     statusStats: [
@@ -436,10 +476,9 @@ export default function EvaluationsPage() {
           employeeId: selectedEmployee,
           evaluatorId: evaluatorId,
           templateId: selectedTemplate,
-          date: new Date(),
-          status: 'Pendente',
-          selfEvaluationStatus: 'Pendente',
-          managerEvaluationStatus: 'Pendente'
+          date: new Date().toISOString(),
+          selfEvaluation: true,
+          managerEvaluation: true,
         }),
       })
 
@@ -448,17 +487,17 @@ export default function EvaluationsPage() {
         throw new Error(errorData.error || 'Erro ao criar avaliação')
       }
 
-      toast({
-        title: "Sucesso",
-        description: "Avaliação criada com sucesso!",
-      })
-
-      router.refresh()
+      const newEvaluation = await response.json()
+      setEvaluations([...evaluations, newEvaluation])
       setIsNewEvaluationOpen(false)
       setSelectedEmployee('')
       setSelectedTemplate('')
       setDeadline('')
       setNotes('')
+      toast({
+        title: "Sucesso",
+        description: "Avaliação criada com sucesso!",
+      })
     } catch (error) {
       console.error('Erro:', error)
       toast({
@@ -989,95 +1028,99 @@ export default function EvaluationsPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="cursor-pointer" onClick={() => handleSort("template")}>
-                      Modelo
-                      {sortField === "template" && <ArrowUpDown className="ml-2 inline h-4 w-4" />}
-                    </TableHead>
-                    <TableHead className="cursor-pointer" onClick={() => handleSort("employeeName")}>
-                      Funcionário
-                      {sortField === "employeeName" && <ArrowUpDown className="ml-2 inline h-4 w-4" />}
-                    </TableHead>
-                    <TableHead className="cursor-pointer" onClick={() => handleSort("date")}>
-                      Data
-                      {sortField === "date" && <ArrowUpDown className="ml-2 inline h-4 w-4" />}
-                    </TableHead>
-                    <TableHead className="cursor-pointer text-center">Autoavaliação</TableHead>
-                    <TableHead className="cursor-pointer text-center">Avaliação Gestor</TableHead>
-                    <TableHead className="cursor-pointer text-center" onClick={() => handleSort("score")}>
-                      Pontuação
-                      {sortField === "score" && <ArrowUpDown className="ml-2 inline h-4 w-4" />}
-                    </TableHead>
-                    <TableHead className="w-[80px]">Ações</TableHead>
+                    <TableHead>Funcionário</TableHead>
+                    <TableHead>Avaliador</TableHead>
+                    <TableHead>Template</TableHead>
+                    <TableHead>Data</TableHead>
+                    <TableHead>Autoavaliação</TableHead>
+                    <TableHead>Avaliação do Gestor</TableHead>
+                    <TableHead>Nota Final</TableHead>
+                    <TableHead>Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredEvaluations.map((evaluation) => (
-                    <TableRow key={evaluation.id} className="animate-fade">
+                  {evaluations.map((evaluation) => (
+                    <TableRow key={evaluation.id}>
                       <TableCell>
-                        <div className="font-medium">{evaluation.template?.name || 'Modelo não definido'}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {evaluation.template?.description || 'Sem descrição'}
+                        <div className="flex items-center gap-2">
+                          <Avatar>
+                            <AvatarImage src={`https://ui-avatars.com/api/?name=${evaluation.employee.name}`} />
+                            <AvatarFallback>{evaluation.employee.name.charAt(0)}</AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <div className="font-medium">{evaluation.employee.name}</div>
+                            <div className="text-sm text-muted-foreground">
+                              {evaluation.employee.matricula}
+                            </div>
+                          </div>
                         </div>
+                      </TableCell>
+                      <TableCell>{evaluation.evaluator.name}</TableCell>
+                      <TableCell>{evaluation.template.name}</TableCell>
+                      <TableCell>
+                        {new Date(evaluation.date).toLocaleDateString('pt-BR')}
                       </TableCell>
                       <TableCell>
-                        <div className="font-medium">{evaluation.employee.name}</div>
-                        <div className="text-xs text-muted-foreground">
-                          Matrícula: {evaluation.employee.matricula || 'Não definida'}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {evaluation.employee.department}
-                        </div>
+                        <Badge variant={getStatusBadgeVariant(evaluation.selfEvaluationStatus)}>
+                          {getStatusIcon(evaluation.selfEvaluationStatus)}
+                          {evaluation.selfEvaluationStatus}
+                        </Badge>
+                        {evaluation.selfScore !== null && (
+                          <div className="text-sm text-muted-foreground mt-1">
+                            Nota: {evaluation.selfScore}
+                          </div>
+                        )}
                       </TableCell>
-                      <TableCell>{new Date(evaluation.date).toLocaleDateString()}</TableCell>
-                      <TableCell className="text-center">
-                        <div className="flex flex-col items-center">
-                          <Badge variant={getStatusBadgeVariant(evaluation.selfEvaluationStatus)} className="mb-1">
-                            {getStatusIcon(evaluation.selfEvaluationStatus)}
-                            {evaluation.selfEvaluationStatus}
-                          </Badge>
-                        </div>
+                      <TableCell>
+                        <Badge variant={getStatusBadgeVariant(evaluation.managerEvaluationStatus)}>
+                          {getStatusIcon(evaluation.managerEvaluationStatus)}
+                          {evaluation.managerEvaluationStatus}
+                        </Badge>
+                        {evaluation.managerScore !== null && (
+                          <div className="text-sm text-muted-foreground mt-1">
+                            Nota: {evaluation.managerScore}
+                          </div>
+                        )}
                       </TableCell>
-                      <TableCell className="text-center">
-                        <div className="flex flex-col items-center">
-                          <Badge variant={getStatusBadgeVariant(evaluation.managerEvaluationStatus)} className="mb-1">
-                            {getStatusIcon(evaluation.managerEvaluationStatus)}
-                            {evaluation.managerEvaluationStatus}
-                          </Badge>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        {evaluation.score !== null ? (
-                          <span
-                            className={`inline-block rounded-full px-2 py-1 text-xs font-medium ${getScoreClass(
-                              evaluation.score,
-                            )}`}
-                          >
-                            {evaluation.score.toFixed(1)}
-                          </span>
+                      <TableCell>
+                        {evaluation.finalScore !== null ? (
+                          <div className="flex items-center gap-2">
+                            <div className="text-lg font-semibold">{evaluation.finalScore}</div>
+                            <Badge variant="outline">
+                              {getScoreLabel(evaluation.finalScore)}
+                            </Badge>
+                          </div>
                         ) : (
-                          <span className="text-muted-foreground">-</span>
+                          <div className="text-muted-foreground">-</div>
                         )}
                       </TableCell>
                       <TableCell>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                              <MoreHorizontal className="h-4 w-4" />
+                            <Button variant="ghost" className="h-8 w-8 p-0">
                               <span className="sr-only">Abrir menu</span>
+                              <MoreHorizontal className="h-4 w-4" />
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => router.push(`/evaluations/${evaluation.id}`)}>
+                            <DropdownMenuItem
+                              onClick={() => router.push(`/evaluations/${evaluation.id}`)}
+                            >
                               <Eye className="mr-2 h-4 w-4" />
-                              Ver Detalhes
+                              Visualizar
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleEditEvaluation(evaluation)}>
+                            <DropdownMenuItem
+                              onClick={() => handleEditEvaluation(evaluation)}
+                            >
                               <Pencil className="mr-2 h-4 w-4" />
                               Editar
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleExportToPDF(evaluation)}>
-                              <FileDown className="mr-2 h-4 w-4" />
-                              Exportar PDF
+                            <DropdownMenuItem
+                              onClick={() => handleDeleteEvaluation(evaluation.id)}
+                              className="text-red-600"
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Excluir
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
