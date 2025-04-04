@@ -182,8 +182,10 @@ const getStatusBadgeVariant = (status: string) => {
       return "default";
     case "Pendente":
       return "destructive";
-    default:
+    case "Em Progresso":
       return "outline";
+    default:
+      return "secondary";
   }
 };
 
@@ -194,8 +196,10 @@ const getStatusIcon = (status: string) => {
       return <CheckCircle className="h-4 w-4" />;
     case "Pendente":
       return <Clock className="h-4 w-4" />;
-    default:
+    case "Em Progresso":
       return <Circle className="h-4 w-4" />;
+    default:
+      return <HelpCircle className="h-4 w-4" />;
   }
 };
 
@@ -1160,31 +1164,45 @@ export default function EvaluationsPage() {
                         {new Date(evaluation.date).toLocaleDateString('pt-BR')}
                       </TableCell>
                       <TableCell>
-                        <Badge variant={getStatusBadgeVariant(evaluation.selfEvaluationStatus)}>
-                          {getStatusIcon(evaluation.selfEvaluationStatus)}
-                          {evaluation.selfEvaluationStatus}
-                        </Badge>
-                        {evaluation.selfScore !== null && (
-                          <div className="text-sm text-muted-foreground mt-1">
-                            Nota: {evaluation.selfScore}
-                          </div>
-                        )}
+                        <div className="flex flex-col gap-1">
+                          <Badge variant={getStatusBadgeVariant(evaluation.selfEvaluationStatus)}>
+                            {getStatusIcon(evaluation.selfEvaluationStatus)}
+                            <span className="ml-1">
+                              {evaluation.selfEvaluationStatus === "Finalizado" ? "Finalizado" :
+                               evaluation.selfEvaluationStatus === "Pendente" ? "Pendente" :
+                               evaluation.selfEvaluationStatus === "Em Progresso" ? "Em Progresso" :
+                               evaluation.selfEvaluationStatus}
+                            </span>
+                          </Badge>
+                          {evaluation.selfScore !== null && (
+                            <div className="text-sm text-muted-foreground">
+                              Nota: {evaluation.selfScore.toFixed(1)}
+                            </div>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>
-                        <Badge variant={getStatusBadgeVariant(evaluation.managerEvaluationStatus)}>
-                          {getStatusIcon(evaluation.managerEvaluationStatus)}
-                          {evaluation.managerEvaluationStatus}
-                        </Badge>
-                        {evaluation.managerScore !== null && (
-                          <div className="text-sm text-muted-foreground mt-1">
-                            Nota: {evaluation.managerScore}
-                          </div>
-                        )}
+                        <div className="flex flex-col gap-1">
+                          <Badge variant={getStatusBadgeVariant(evaluation.managerEvaluationStatus)}>
+                            {getStatusIcon(evaluation.managerEvaluationStatus)}
+                            <span className="ml-1">
+                              {evaluation.managerEvaluationStatus === "Finalizado" ? "Finalizado" :
+                               evaluation.managerEvaluationStatus === "Pendente" ? "Pendente" :
+                               evaluation.managerEvaluationStatus === "Em Progresso" ? "Em Progresso" :
+                               evaluation.managerEvaluationStatus}
+                            </span>
+                          </Badge>
+                          {evaluation.managerScore !== null && (
+                            <div className="text-sm text-muted-foreground">
+                              Nota: {evaluation.managerScore.toFixed(1)}
+                            </div>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>
                         {evaluation.finalScore !== null ? (
                           <div className="flex items-center gap-2">
-                            <div className="text-lg font-semibold">{evaluation.finalScore}</div>
+                            <div className="text-lg font-semibold">{evaluation.finalScore.toFixed(1)}</div>
                             <Badge variant="outline">
                               {getScoreLabel(evaluation.finalScore)}
                             </Badge>
