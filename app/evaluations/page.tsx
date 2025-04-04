@@ -70,22 +70,47 @@ const MODERN_COLORS = [
   "#00bbf9",
 ]
 
+interface Department {
+  id: string;
+  name: string;
+}
+
+interface Employee {
+  id: string;
+  name: string;
+  matricula: string;
+  department: Department;
+}
+
+interface Template {
+  id: string;
+  name: string;
+  description: string;
+  questions: {
+    id: string;
+    text: string;
+    category: string;
+  }[];
+  _count?: {
+    evaluations: number;
+  };
+  updatedAt?: string;
+}
+
+interface CustomQuestion {
+  id: string
+  text: string
+  category: string
+}
+
 interface Evaluation {
   id: string;
-  employee: {
-    id: string;
-    name: string;
-    matricula: string;
-  };
+  employee: Employee;
   evaluator: {
     id: string;
     name: string;
   };
-  template: {
-    id: string;
-    name: string;
-    description: string;
-  };
+  template: Template;
   date: string;
   status: string;
   selfEvaluation: boolean;
@@ -103,6 +128,7 @@ interface Evaluation {
   managerScore: number | null;
   managerEvaluationDate: string | null;
   finalScore: number | null;
+  score?: number;
   answers: {
     id: string;
     question: {
@@ -113,6 +139,21 @@ interface Evaluation {
     managerScore: number | null;
     selfComment: string | null;
     managerComment: string | null;
+  }[];
+}
+
+interface Stats {
+  statusStats: {
+    name: string;
+    value: number;
+  }[];
+  scoreDistribution: {
+    range: string;
+    count: number;
+  }[];
+  departmentScores: {
+    department: string;
+    score: number;
   }[];
 }
 
@@ -140,11 +181,11 @@ const getScoreLabel = (score: number | null) => {
 const getStatusBadgeVariant = (status: string) => {
   switch (status) {
     case "Finalizado":
-      return "success";
+      return "default";
     case "Pendente":
       return "destructive";
     default:
-      return "default";
+      return "outline";
   }
 };
 
@@ -163,7 +204,7 @@ const getStatusIcon = (status: string) => {
 export default function EvaluationsPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [employeeSearch, setEmployeeSearch] = useState("")
-  const [filteredEmployees, setFilteredEmployees] = useState([])
+  const [filteredEmployees, setFilteredEmployees] = useState<Employee[]>([])
   const [isEmployeeComboboxOpen, setIsEmployeeComboboxOpen] = useState(false)
   const [departmentFilter, setDepartmentFilter] = useState("all")
   const [statusFilter, setStatusFilter] = useState("all")
@@ -180,17 +221,23 @@ export default function EvaluationsPage() {
   const [newTemplateDescription, setNewTemplateDescription] = useState("")
   const [selectedEmployee, setSelectedEmployee] = useState("")
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null)
-  const [templates, setTemplates] = useState([])
+  const [templates, setTemplates] = useState<Template[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isDeleting, setIsDeleting] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [isDuplicating, setIsDuplicating] = useState(false)
-  const [editingTemplate, setEditingTemplate] = useState(null)
+  const [editingTemplate, setEditingTemplate] = useState<Template | null>(null)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isDuplicateDialogOpen, setIsDuplicateDialogOpen] = useState(false)
   const [evaluations, setEvaluations] = useState<Evaluation[]>([])
-  const [evaluationCategories, setEvaluationCategories] = useState([])
-  const [stats, setStats] = useState({
+  const [evaluationCategories, setEvaluationCategories] = useState<Department[]>([])
+  const [newQuestionText, setNewQuestionText] = useState("")
+  const [newQuestionCategory, setNewQuestionCategory] = useState("")
+  const [customQuestions, setCustomQuestions] = useState<CustomQuestion[]>([])
+  const [employees, setEmployees] = useState<Employee[]>([])
+  const [deadline, setDeadline] = useState("")
+  const [notes, setNotes] = useState("")
+  const [stats, setStats] = useState<Stats>({
     statusStats: [
       { name: "Concluídas", value: 0 },
       { name: "Pendentes", value: 0 },
@@ -205,9 +252,6 @@ export default function EvaluationsPage() {
     ],
     departmentScores: []
   })
-  const [employees, setEmployees] = useState([])
-  const [deadline, setDeadline] = useState("")
-  const [notes, setNotes] = useState("")
   const router = useRouter()
 
   // Filtrar e ordenar avaliações
@@ -218,7 +262,7 @@ export default function EvaluationsPage() {
         evaluation.evaluator.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         evaluation.id.toLowerCase().includes(searchTerm.toLowerCase()),
     )
-    .filter((evaluation) => departmentFilter === "all" || evaluation.employee.department === departmentFilter)
+    .filter((evaluation) => departmentFilter === "all" || evaluation.employee.department.id === departmentFilter)
     .filter((evaluation) => statusFilter === "all" || evaluation.status === statusFilter)
     .sort((a, b) => {
       const aValue = a[sortField as keyof typeof a]
@@ -249,13 +293,14 @@ export default function EvaluationsPage() {
     if (newQuestionText.trim() === "") return
 
     const newQuestion = {
-      id: `custom_${Date.now()}`,
+      id: Date.now().toString(),
       text: newQuestionText,
       category: newQuestionCategory,
     }
 
     setCustomQuestions([...customQuestions, newQuestion])
     setNewQuestionText("")
+    setNewQuestionCategory("")
   }
 
   // Alternar seleção de pergunta
@@ -554,8 +599,10 @@ export default function EvaluationsPage() {
 
   // Função para editar modelo de avaliação
   const editTemplate = async (templateId: string) => {
+    if (!editingTemplate) return;
+    
     try {
-      setIsEditing(true)
+      setIsEditing(true);
       const response = await fetch(`/api/evaluations/templates/${templateId}`, {
         method: 'PUT',
         headers: {
@@ -565,45 +612,45 @@ export default function EvaluationsPage() {
           name: newTemplateName,
           description: newTemplateDescription,
         }),
-      })
+      });
 
       if (!response.ok) {
-        throw new Error('Erro ao atualizar modelo de avaliação')
+        throw new Error('Erro ao atualizar modelo de avaliação');
       }
 
-      await fetchTemplates()
+      await fetchTemplates();
       toast({
         title: "Modelo atualizado",
         description: "O modelo de avaliação foi atualizado com sucesso.",
-      })
-      setIsEditDialogOpen(false)
-      setNewTemplateName("")
-      setNewTemplateDescription("")
-      setEditingTemplate(null)
+      });
+      setIsEditDialogOpen(false);
+      setNewTemplateName("");
+      setNewTemplateDescription("");
+      setEditingTemplate(null);
     } catch (error) {
-      console.error('Erro ao atualizar modelo de avaliação:', error)
+      console.error('Erro ao atualizar modelo de avaliação:', error);
       toast({
         title: "Erro",
         description: "Não foi possível atualizar o modelo de avaliação.",
         variant: "destructive",
-      })
+      });
     } finally {
-      setIsEditing(false)
+      setIsEditing(false);
     }
-  }
+  };
 
   // Função para abrir diálogo de edição
-  const openEditDialog = (template) => {
+  const openEditDialog = (template: Template) => {
     setEditingTemplate(template)
-    setNewTemplateName(template.name)
-    setNewTemplateDescription(template.description)
     setIsEditDialogOpen(true)
   }
 
   // Função para duplicar modelo de avaliação
   const duplicateTemplate = async (templateId: string) => {
+    if (!editingTemplate) return;
+    
     try {
-      setIsDuplicating(true)
+      setIsDuplicating(true);
       const response = await fetch(`/api/evaluations/templates/${templateId}/duplicate`, {
         method: 'POST',
         headers: {
@@ -613,38 +660,36 @@ export default function EvaluationsPage() {
           name: newTemplateName,
           description: newTemplateDescription,
         }),
-      })
+      });
 
       if (!response.ok) {
-        throw new Error('Erro ao duplicar modelo de avaliação')
+        throw new Error('Erro ao duplicar modelo de avaliação');
       }
 
-      await fetchTemplates()
+      await fetchTemplates();
       toast({
         title: "Modelo duplicado",
         description: "O modelo de avaliação foi duplicado com sucesso.",
-      })
-      setIsDuplicateDialogOpen(false)
-      setNewTemplateName("")
-      setNewTemplateDescription("")
-      setEditingTemplate(null)
+      });
+      setIsDuplicateDialogOpen(false);
+      setNewTemplateName("");
+      setNewTemplateDescription("");
+      setEditingTemplate(null);
     } catch (error) {
-      console.error('Erro ao duplicar modelo de avaliação:', error)
+      console.error('Erro ao duplicar modelo de avaliação:', error);
       toast({
         title: "Erro",
         description: "Não foi possível duplicar o modelo de avaliação.",
         variant: "destructive",
-      })
+      });
     } finally {
-      setIsDuplicating(false)
+      setIsDuplicating(false);
     }
-  }
+  };
 
   // Função para abrir diálogo de duplicação
-  const openDuplicateDialog = (template) => {
+  const openDuplicateDialog = (template: Template) => {
     setEditingTemplate(template)
-    setNewTemplateName(`${template.name} (Cópia)`)
-    setNewTemplateDescription(template.description)
     setIsDuplicateDialogOpen(true)
   }
 
@@ -687,6 +732,32 @@ export default function EvaluationsPage() {
       document.removeEventListener('mousedown', handleClickOutside)
     }
   }, [])
+
+  // Adicionar a função handleDeleteEvaluation
+  const handleDeleteEvaluation = async (evaluationId: string) => {
+    try {
+      const response = await fetch(`/api/evaluations/${evaluationId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('Erro ao excluir avaliação');
+      }
+
+      setEvaluations(evaluations.filter(e => e.id !== evaluationId));
+      toast({
+        title: "Sucesso",
+        description: "Avaliação excluída com sucesso!",
+      });
+    } catch (error) {
+      console.error('Erro ao excluir avaliação:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível excluir a avaliação.",
+        variant: "destructive",
+      });
+    }
+  };
 
   return (
     <div className="animate-in flex flex-col gap-8 p-4 md:p-8">
@@ -1010,8 +1081,8 @@ export default function EvaluationsPage() {
               <CardContent>
                 <div className="text-2xl font-bold">
                   {(
-                    evaluations.filter((e) => e.score !== null).reduce((sum, e) => sum + (e.score || 0), 0) /
-                    evaluations.filter((e) => e.score !== null).length
+                    evaluations.filter((e) => e.finalScore !== null).reduce((sum, e) => sum + (e.finalScore || 0), 0) /
+                    evaluations.filter((e) => e.finalScore !== null).length
                   ).toFixed(1)}
                 </div>
                 <p className="text-xs text-muted-foreground">+0.3 em relação ao mês anterior</p>
@@ -1050,8 +1121,13 @@ export default function EvaluationsPage() {
                           <div>
                             <div className="font-medium">{evaluation.employee.name}</div>
                             <div className="text-sm text-muted-foreground">
-                              {evaluation.employee.matricula}
+                              {evaluation.employee.matricula || 'Sem matrícula'}
                             </div>
+                            {evaluation.employee.department && (
+                              <div className="text-xs text-gray-500 dark:text-gray-400">
+                                {evaluation.employee.department.name}
+                              </div>
+                            )}
                           </div>
                         </div>
                       </TableCell>
@@ -1110,7 +1186,7 @@ export default function EvaluationsPage() {
                               Visualizar
                             </DropdownMenuItem>
                             <DropdownMenuItem
-                              onClick={() => handleEditEvaluation(evaluation)}
+                              onClick={() => openEditDialog(evaluation.template)}
                             >
                               <Pencil className="mr-2 h-4 w-4" />
                               Editar
@@ -1173,9 +1249,9 @@ export default function EvaluationsPage() {
                           <h3 className="font-medium">{template.name}</h3>
                           <p className="text-sm text-muted-foreground">{template.description}</p>
                           <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <span>{template._count.evaluations} avaliações</span>
+                            <span>{template._count?.evaluations} avaliações</span>
                             <span>•</span>
-                            <span>Última atualização: {new Date(template.updatedAt).toLocaleDateString()}</span>
+                            <span>Última atualização: {template.updatedAt ? new Date(template.updatedAt).toLocaleDateString() : 'N/A'}</span>
                           </div>
                         </div>
                         <DropdownMenu>
@@ -1365,8 +1441,8 @@ export default function EvaluationsPage() {
               Cancelar
             </Button>
             <Button 
-              onClick={() => editTemplate(editingTemplate.id)}
-              disabled={isEditing || !newTemplateName.trim()}
+              onClick={() => editingTemplate && editTemplate(editingTemplate.id)}
+              disabled={isEditing || !newTemplateName.trim() || !editingTemplate}
             >
               {isEditing ? (
                 <>
@@ -1420,8 +1496,12 @@ export default function EvaluationsPage() {
               Cancelar
             </Button>
             <Button 
-              onClick={() => duplicateTemplate(editingTemplate.id)}
-              disabled={isDuplicating || !newTemplateName.trim()}
+              onClick={() => {
+                if (editingTemplate) {
+                  duplicateTemplate(editingTemplate.id);
+                }
+              }}
+              disabled={isDuplicating || !newTemplateName.trim() || !editingTemplate}
             >
               {isDuplicating ? (
                 <>
