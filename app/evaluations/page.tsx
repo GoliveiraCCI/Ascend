@@ -24,8 +24,6 @@ import {
   Circle,
   Trash2,
 } from "lucide-react"
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
-
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
@@ -499,18 +497,27 @@ export default function EvaluationsPage() {
 
   // Criar nova avaliação
   const createNewEvaluation = async () => {
+    if (!selectedEmployee || !selectedTemplate) {
+      toast({
+        title: "Erro",
+        description: "Por favor, selecione um funcionário e um modelo de avaliação.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       // Primeiro, buscar um avaliador válido
-      const evaluatorsResponse = await fetch('/api/users?role=EVALUATOR')
-      if (!evaluatorsResponse.ok) throw new Error('Erro ao buscar avaliadores')
-      const evaluators = await evaluatorsResponse.json()
+      const evaluatorsResponse = await fetch('/api/users?role=EVALUATOR');
+      if (!evaluatorsResponse.ok) throw new Error('Erro ao buscar avaliadores');
+      const evaluators = await evaluatorsResponse.json();
       
       if (!evaluators || evaluators.length === 0) {
-        throw new Error('Nenhum avaliador encontrado')
+        throw new Error('Nenhum avaliador encontrado');
       }
 
       // Usar o primeiro avaliador disponível
-      const evaluatorId = evaluators[0].id
+      const evaluatorId = evaluators[0].id;
 
       const response = await fetch('/api/evaluations', {
         method: 'POST',
@@ -525,33 +532,33 @@ export default function EvaluationsPage() {
           selfEvaluation: true,
           managerEvaluation: true,
         }),
-      })
+      });
 
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Erro ao criar avaliação')
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Erro ao criar avaliação');
       }
 
-      const newEvaluation = await response.json()
-      setEvaluations([...evaluations, newEvaluation])
-      setIsNewEvaluationOpen(false)
-      setSelectedEmployee('')
-      setSelectedTemplate('')
-      setDeadline('')
-      setNotes('')
+      const newEvaluation = await response.json();
+      setEvaluations([...evaluations, newEvaluation]);
+      setIsNewEvaluationOpen(false);
+      setSelectedEmployee('');
+      setSelectedTemplate(null);
+      setDeadline('');
+      setNotes('');
       toast({
         title: "Sucesso",
         description: "Avaliação criada com sucesso!",
-      })
+      });
     } catch (error) {
-      console.error('Erro:', error)
+      console.error('Erro:', error);
       toast({
         title: "Erro",
         description: error instanceof Error ? error.message : "Erro ao criar avaliação. Tente novamente.",
         variant: "destructive",
-      })
+      });
     }
-  }
+  };
 
   // Aplicar avaliação
   const applyEvaluation = () => {
@@ -851,6 +858,28 @@ export default function EvaluationsPage() {
                         </div>
                       </div>
                       <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="template" className="text-right">
+                          Modelo de Avaliação
+                        </Label>
+                        <div className="col-span-3">
+                          <Select
+                            value={selectedTemplate || ""}
+                            onValueChange={setSelectedTemplate}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecione um modelo de avaliação" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {templates.map((template) => (
+                                <SelectItem key={template.id} value={template.id}>
+                                  {template.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="deadline" className="text-right">
                           Prazo
                         </Label>
@@ -1113,22 +1142,16 @@ export default function EvaluationsPage() {
                   {evaluations.map((evaluation) => (
                     <TableRow key={evaluation.id}>
                       <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Avatar>
-                            <AvatarImage src={`https://ui-avatars.com/api/?name=${evaluation.employee.name}`} />
-                            <AvatarFallback>{evaluation.employee.name.charAt(0)}</AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <div className="font-medium">{evaluation.employee.name}</div>
-                            <div className="text-sm text-muted-foreground">
-                              {evaluation.employee.matricula || 'Sem matrícula'}
-                            </div>
-                            {evaluation.employee.department && (
-                              <div className="text-xs text-gray-500 dark:text-gray-400">
-                                {evaluation.employee.department.name}
-                              </div>
-                            )}
+                        <div>
+                          <div className="font-medium">{evaluation.employee.name}</div>
+                          <div className="text-sm text-muted-foreground">
+                            {evaluation.employee.matricula || 'Sem matrícula'}
                           </div>
+                          {evaluation.employee.department && (
+                            <div className="text-xs text-gray-500 dark:text-gray-400">
+                              {evaluation.employee.department.name}
+                            </div>
+                          )}
                         </div>
                       </TableCell>
                       <TableCell>{evaluation.evaluator.name}</TableCell>
