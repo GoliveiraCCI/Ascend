@@ -53,11 +53,13 @@ export async function PUT(
       where: { id: params.id },
       include: {
         answers: true,
+        employee: true,
+        evaluator: true,
       },
     })
 
     if (!currentEvaluation) {
-      return NextResponse.json({ error: 'Avaliação não encontrada' }, { status: 404 })
+      return NextResponse.json({ error: "Avaliação não encontrada" }, { status: 404 })
     }
 
     // Atualiza as respostas
@@ -105,6 +107,12 @@ export async function PUT(
       ? (selfScore * 0.3) + (managerScore * 0.7)
       : null
 
+    // Verifica se houve mudança de status
+    const wasSelfPending = currentEvaluation.selfEvaluationStatus === "Pendente"
+    const wasManagerPending = currentEvaluation.managerEvaluationStatus === "Pendente"
+    const isSelfCompleted = selfScore !== null
+    const isManagerCompleted = managerScore !== null
+
     // Atualiza a avaliação
     const updatedEvaluation = await prisma.evaluation.update({
       where: { id: params.id },
@@ -118,10 +126,10 @@ export async function PUT(
         selfScore,
         managerScore,
         finalScore,
-        selfEvaluationDate: selfScore !== null ? new Date() : null,
-        managerEvaluationDate: managerScore !== null ? new Date() : null,
-        selfEvaluationStatus: selfScore !== null ? "Finalizado" : "Pendente",
-        managerEvaluationStatus: managerScore !== null ? "Finalizado" : "Pendente",
+        selfEvaluationDate: isSelfCompleted ? new Date() : null,
+        managerEvaluationDate: isManagerCompleted ? new Date() : null,
+        selfEvaluationStatus: isSelfCompleted ? "Finalizado" : "Pendente",
+        managerEvaluationStatus: isManagerCompleted ? "Finalizado" : "Pendente",
       },
       include: {
         employee: true,
@@ -138,6 +146,29 @@ export async function PUT(
         },
       },
     })
+
+    // Criar notificações se houver mudança de status
+    if (wasSelfPending && isSelfCompleted) {
+      await prisma.notification.create({
+        data: {
+          userId: currentEvaluation.evaluatorId,
+          type: "evaluation_completed",
+          message: `Autoavaliação finalizada: ${currentEvaluation.employee.name}`,
+          evaluationId: params.id,
+        },
+      })
+    }
+
+    if (wasManagerPending && isManagerCompleted) {
+      await prisma.notification.create({
+        data: {
+          userId: currentEvaluation.employeeId,
+          type: "evaluation_completed",
+          message: `Avaliação do gestor finalizada`,
+          evaluationId: params.id,
+        },
+      })
+    }
 
     return NextResponse.json(updatedEvaluation)
   } catch (error) {
