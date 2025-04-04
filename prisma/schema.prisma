@@ -129,15 +129,20 @@ model Evaluation {
   status                String    @default("Pendente")
   score                 Float?
   selfEvaluation        Boolean   @default(false)
-  selfEvaluationStatus  String?
+  selfEvaluationStatus  String?   @default("Pendente")
   selfStrengths         String?   @db.Text
   selfImprovements      String?   @db.Text
   selfGoals            String?   @db.Text
+  selfScore            Float?    // Nova: Nota da autoavaliação
+  selfEvaluationDate   DateTime? // Nova: Data da autoavaliação
   managerEvaluation     Boolean   @default(false)
-  managerEvaluationStatus String?
+  managerEvaluationStatus String? @default("Pendente")
   managerStrengths      String?   @db.Text
   managerImprovements   String?   @db.Text
   managerGoals         String?   @db.Text
+  managerScore         Float?    // Nova: Nota da avaliação do gestor
+  managerEvaluationDate DateTime? // Nova: Data da avaliação do gestor
+  finalScore           Float?    // Nova: Nota final calculada
   answers              EvaluationAnswer[]
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt

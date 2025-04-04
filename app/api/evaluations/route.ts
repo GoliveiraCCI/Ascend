@@ -8,48 +8,67 @@ export async function GET() {
   try {
     const evaluations = await prisma.evaluation.findMany({
       include: {
-        employee: {
-          include: {
-            department: true,
-          },
-        },
+        employee: true,
         evaluator: true,
         template: {
           select: {
             id: true,
             name: true,
-            description: true
-          }
+            description: true,
+          },
         },
-      },
-      orderBy: {
-        date: 'desc',
+        answers: {
+          include: {
+            question: true,
+          },
+        },
       },
     })
 
     const formattedEvaluations = evaluations.map((evaluation) => ({
       id: evaluation.id,
-      date: evaluation.date,
-      status: evaluation.status === "COMPLETED" ? "Finalizado" : 
-             evaluation.status === "IN_PROGRESS" ? "Em Progresso" : "Pendente",
-      score: evaluation.score,
-      selfEvaluationStatus: evaluation.selfEvaluationStatus === "COMPLETED" ? "Finalizado" : 
-                            evaluation.selfEvaluationStatus === "IN_PROGRESS" ? "Em Progresso" : "Pendente",
-      managerEvaluationStatus: evaluation.managerEvaluationStatus === "COMPLETED" ? "Finalizado" : 
-                              evaluation.managerEvaluationStatus === "IN_PROGRESS" ? "Em Progresso" : "Pendente",
       employee: {
+        id: evaluation.employee.id,
         name: evaluation.employee.name,
         matricula: evaluation.employee.matricula,
-        department: evaluation.employee.department.name,
       },
       evaluator: {
+        id: evaluation.evaluator.id,
         name: evaluation.evaluator.name,
       },
       template: {
         id: evaluation.template.id,
         name: evaluation.template.name,
-        description: evaluation.template.description
-      }
+        description: evaluation.template.description,
+      },
+      date: evaluation.date,
+      status: evaluation.status,
+      selfEvaluation: evaluation.selfEvaluation,
+      selfEvaluationStatus: evaluation.selfEvaluationStatus,
+      selfStrengths: evaluation.selfStrengths,
+      selfImprovements: evaluation.selfImprovements,
+      selfGoals: evaluation.selfGoals,
+      selfScore: evaluation.selfScore,
+      selfEvaluationDate: evaluation.selfEvaluationDate,
+      managerEvaluation: evaluation.managerEvaluation,
+      managerEvaluationStatus: evaluation.managerEvaluationStatus,
+      managerStrengths: evaluation.managerStrengths,
+      managerImprovements: evaluation.managerImprovements,
+      managerGoals: evaluation.managerGoals,
+      managerScore: evaluation.managerScore,
+      managerEvaluationDate: evaluation.managerEvaluationDate,
+      finalScore: evaluation.finalScore,
+      answers: evaluation.answers.map((answer) => ({
+        id: answer.id,
+        question: {
+          id: answer.question.id,
+          text: answer.question.text,
+        },
+        selfScore: answer.selfScore,
+        managerScore: answer.managerScore,
+        selfComment: answer.selfComment,
+        managerComment: answer.managerComment,
+      })),
     }))
 
     return NextResponse.json(formattedEvaluations)
@@ -72,23 +91,83 @@ export async function POST(request: Request) {
         employeeId: data.employeeId,
         evaluatorId: data.evaluatorId,
         templateId: data.templateId,
-        date: new Date(),
-        status: 'Pendente',
-        selfEvaluationStatus: 'Pendente',
-        managerEvaluationStatus: 'Pendente'
+        date: new Date(data.date),
+        status: "Pendente",
+        selfEvaluation: data.selfEvaluation || false,
+        selfEvaluationStatus: "Pendente",
+        managerEvaluation: data.managerEvaluation || false,
+        managerEvaluationStatus: "Pendente",
+        selfScore: null,
+        selfEvaluationDate: null,
+        managerScore: null,
+        managerEvaluationDate: null,
+        finalScore: null,
       },
       include: {
-        employee: {
-          include: {
-            department: true
-          }
-        },
+        employee: true,
         evaluator: true,
-        template: true
-      }
+        template: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+          },
+        },
+        answers: {
+          include: {
+            question: true,
+          },
+        },
+      },
     })
 
-    return NextResponse.json(evaluation)
+    const formattedEvaluation = {
+      id: evaluation.id,
+      employee: {
+        id: evaluation.employee.id,
+        name: evaluation.employee.name,
+        matricula: evaluation.employee.matricula,
+      },
+      evaluator: {
+        id: evaluation.evaluator.id,
+        name: evaluation.evaluator.name,
+      },
+      template: {
+        id: evaluation.template.id,
+        name: evaluation.template.name,
+        description: evaluation.template.description,
+      },
+      date: evaluation.date,
+      status: evaluation.status,
+      selfEvaluation: evaluation.selfEvaluation,
+      selfEvaluationStatus: evaluation.selfEvaluationStatus,
+      selfStrengths: evaluation.selfStrengths,
+      selfImprovements: evaluation.selfImprovements,
+      selfGoals: evaluation.selfGoals,
+      selfScore: evaluation.selfScore,
+      selfEvaluationDate: evaluation.selfEvaluationDate,
+      managerEvaluation: evaluation.managerEvaluation,
+      managerEvaluationStatus: evaluation.managerEvaluationStatus,
+      managerStrengths: evaluation.managerStrengths,
+      managerImprovements: evaluation.managerImprovements,
+      managerGoals: evaluation.managerGoals,
+      managerScore: evaluation.managerScore,
+      managerEvaluationDate: evaluation.managerEvaluationDate,
+      finalScore: evaluation.finalScore,
+      answers: evaluation.answers.map((answer) => ({
+        id: answer.id,
+        question: {
+          id: answer.question.id,
+          text: answer.question.text,
+        },
+        selfScore: answer.selfScore,
+        managerScore: answer.managerScore,
+        selfComment: answer.selfComment,
+        managerComment: answer.managerComment,
+      })),
+    }
+
+    return NextResponse.json(formattedEvaluation)
   } catch (error) {
     console.error('Erro ao criar avaliação:', error)
     return NextResponse.json(
