@@ -15,6 +15,11 @@ import {
   Search,
   Star,
   X,
+  Eye,
+  Pencil,
+  FileDown,
+  Clock,
+  HelpCircle,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -81,8 +86,45 @@ const getScoreLabel = (score: number | null) => {
   return "Precisa Melhorar"
 }
 
+// Função para determinar a variante do Badge com base no status
+const getStatusBadgeVariant = (status: string) => {
+  if (!status) return "default"
+  
+  const statusLower = status.toLowerCase()
+  if (statusLower === "completed" || statusLower === "concluída" || statusLower === "finalizado") {
+    return "success"
+  }
+  if (statusLower === "in_progress" || statusLower === "em progresso") {
+    return "warning"
+  }
+  if (statusLower === "pendente") {
+    return "destructive"
+  }
+  return "default"
+}
+
+// Função para obter a cor do ícone com base no status
+const getStatusIcon = (status: string) => {
+  if (!status) return <HelpCircle className="h-3 w-3 mr-1" />
+  
+  const statusLower = status.toLowerCase()
+  if (statusLower === "completed" || statusLower === "concluída" || statusLower === "finalizado") {
+    return <Check className="h-3 w-3 mr-1" />
+  }
+  if (statusLower === "in_progress" || statusLower === "em progresso") {
+    return <Activity className="h-3 w-3 mr-1" />
+  }
+  if (statusLower === "pendente") {
+    return <Clock className="h-3 w-3 mr-1" />
+  }
+  return <HelpCircle className="h-3 w-3 mr-1" />
+}
+
 export default function EvaluationsPage() {
   const [searchTerm, setSearchTerm] = useState("")
+  const [employeeSearch, setEmployeeSearch] = useState("")
+  const [filteredEmployees, setFilteredEmployees] = useState([])
+  const [isEmployeeComboboxOpen, setIsEmployeeComboboxOpen] = useState(false)
   const [departmentFilter, setDepartmentFilter] = useState("all")
   const [statusFilter, setStatusFilter] = useState("all")
   const [sortField, setSortField] = useState("date")
@@ -97,11 +139,6 @@ export default function EvaluationsPage() {
   const [newTemplateName, setNewTemplateName] = useState("")
   const [newTemplateDescription, setNewTemplateDescription] = useState("")
   const [selectedEmployee, setSelectedEmployee] = useState("")
-  const [selectedEvaluationType, setSelectedEvaluationType] = useState("")
-  const [selectedEvaluator, setSelectedEvaluator] = useState("self")
-  const [customQuestions, setCustomQuestions] = useState<Array<{ id: string; text: string; category: string }>>([])
-  const [newQuestionText, setNewQuestionText] = useState("")
-  const [newQuestionCategory, setNewQuestionCategory] = useState("technical")
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null)
   const [templates, setTemplates] = useState([])
   const [isLoading, setIsLoading] = useState(true)
@@ -128,17 +165,20 @@ export default function EvaluationsPage() {
     ],
     departmentScores: []
   })
+  const [employees, setEmployees] = useState([])
+  const [deadline, setDeadline] = useState("")
+  const [notes, setNotes] = useState("")
   const router = useRouter()
 
   // Filtrar e ordenar avaliações
   const filteredEvaluations = evaluations
     .filter(
       (evaluation) =>
-        evaluation.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        evaluation.evaluator.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        evaluation.employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        evaluation.evaluator.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         evaluation.id.toLowerCase().includes(searchTerm.toLowerCase()),
     )
-    .filter((evaluation) => departmentFilter === "all" || evaluation.department === departmentFilter)
+    .filter((evaluation) => departmentFilter === "all" || evaluation.employee.department === departmentFilter)
     .filter((evaluation) => statusFilter === "all" || evaluation.status === statusFilter)
     .sort((a, b) => {
       const aValue = a[sortField as keyof typeof a]
@@ -289,6 +329,52 @@ export default function EvaluationsPage() {
     }
   }, [activeTab])
 
+  // Buscar funcionários
+  const fetchEmployees = async () => {
+    try {
+      const response = await fetch('/api/employees')
+      if (!response.ok) throw new Error('Erro ao buscar funcionários')
+      const data = await response.json()
+      setEmployees(data)
+    } catch (error) {
+      console.error('Erro ao buscar funcionários:', error)
+      toast({
+        title: "Erro",
+        description: "Não foi possível carregar a lista de funcionários.",
+        variant: "destructive",
+      })
+    }
+  }
+
+  // Carregar dados ao abrir o modal
+  useEffect(() => {
+    if (isNewEvaluationOpen) {
+      fetchEmployees()
+      fetchTemplates()
+    }
+  }, [isNewEvaluationOpen])
+
+  // Filtrar funcionários baseado na busca
+  useEffect(() => {
+    if (employees.length > 0) {
+      const filtered = employees.filter((employee) =>
+        employee.name.toLowerCase().includes(employeeSearch.toLowerCase()) ||
+        employee.matricula.toLowerCase().includes(employeeSearch.toLowerCase())
+      )
+      setFilteredEmployees(filtered)
+    }
+  }, [employeeSearch, employees])
+
+  // Atualizar funcionário selecionado
+  const handleEmployeeSelect = (employeeId: string) => {
+    setSelectedEmployee(employeeId)
+    setIsEmployeeComboboxOpen(false)
+    const selected = employees.find(emp => emp.id === employeeId)
+    if (selected) {
+      setEmployeeSearch(selected.name)
+    }
+  }
+
   // Salvar novo modelo de avaliação
   const saveTemplate = async () => {
     try {
@@ -327,15 +413,60 @@ export default function EvaluationsPage() {
   }
 
   // Criar nova avaliação
-  const createNewEvaluation = () => {
-    // Aqui você implementaria a lógica para criar a avaliação
-    toast({
-      title: "Avaliação criada",
-      description: "A nova avaliação foi criada e atribuída com sucesso.",
-    })
-    setIsNewEvaluationOpen(false)
-    setSelectedEmployee("")
-    setSelectedEvaluationType("")
+  const createNewEvaluation = async () => {
+    try {
+      // Primeiro, buscar um avaliador válido
+      const evaluatorsResponse = await fetch('/api/users?role=EVALUATOR')
+      if (!evaluatorsResponse.ok) throw new Error('Erro ao buscar avaliadores')
+      const evaluators = await evaluatorsResponse.json()
+      
+      if (!evaluators || evaluators.length === 0) {
+        throw new Error('Nenhum avaliador encontrado')
+      }
+
+      // Usar o primeiro avaliador disponível
+      const evaluatorId = evaluators[0].id
+
+      const response = await fetch('/api/evaluations', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          employeeId: selectedEmployee,
+          evaluatorId: evaluatorId,
+          templateId: selectedTemplate,
+          date: new Date(),
+          status: 'Pendente',
+          selfEvaluationStatus: 'Pendente',
+          managerEvaluationStatus: 'Pendente'
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Erro ao criar avaliação')
+      }
+
+      toast({
+        title: "Sucesso",
+        description: "Avaliação criada com sucesso!",
+      })
+
+      router.refresh()
+      setIsNewEvaluationOpen(false)
+      setSelectedEmployee('')
+      setSelectedTemplate('')
+      setDeadline('')
+      setNotes('')
+    } catch (error) {
+      console.error('Erro:', error)
+      toast({
+        title: "Erro",
+        description: error instanceof Error ? error.message : "Erro ao criar avaliação. Tente novamente.",
+        variant: "destructive",
+      })
+    }
   }
 
   // Aplicar avaliação
@@ -348,7 +479,6 @@ export default function EvaluationsPage() {
     setIsApplyEvaluationOpen(false)
     setSelectedEmployee("")
     setSelectedTemplate(null)
-    setSelectedEvaluator("self")
     setQuestionScores({})
     setQuestionComments({})
   }
@@ -504,6 +634,21 @@ export default function EvaluationsPage() {
     fetchStats()
   }, [])
 
+  // Efeito para fechar o combobox quando clicar fora
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement
+      if (!target.closest('.employee-combobox')) {
+        setIsEmployeeComboboxOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [])
+
   return (
     <div className="animate-in flex flex-col gap-8 p-4 md:p-8">
       <div className="flex flex-col gap-2">
@@ -539,46 +684,61 @@ export default function EvaluationsPage() {
                         <Label htmlFor="employee" className="text-right">
                           Funcionário
                         </Label>
-                        <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
-                          <SelectTrigger className="col-span-3">
-                            <SelectValue placeholder="Selecione o funcionário" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="1">João Silva</SelectItem>
-                            <SelectItem value="2">Maria Santos</SelectItem>
-                            <SelectItem value="3">Pedro Oliveira</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="evaluation-type" className="text-right">
-                          Tipo de Avaliação
-                        </Label>
-                        <Select value={selectedEvaluationType} onValueChange={setSelectedEvaluationType}>
-                          <SelectTrigger className="col-span-3">
-                            <SelectValue placeholder="Selecione o tipo" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="annual">Avaliação Anual</SelectItem>
-                            <SelectItem value="midyear">Avaliação Semestral</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="template" className="text-right">
-                          Modelo
-                        </Label>
-                        <Select>
-                          <SelectTrigger className="col-span-3">
-                            <SelectValue placeholder="Selecione o modelo" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="general">Avaliação Geral</SelectItem>
-                            <SelectItem value="technical">Avaliação Técnica</SelectItem>
-                            <SelectItem value="leadership">Avaliação de Liderança</SelectItem>
-                            <SelectItem value="custom">Modelo Personalizado</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        <div className="col-span-3 relative employee-combobox">
+                          <div className="relative">
+                            <Input
+                              id="employee"
+                              placeholder="Buscar funcionário..."
+                              value={employeeSearch}
+                              onChange={(e) => {
+                                setEmployeeSearch(e.target.value)
+                                setIsEmployeeComboboxOpen(true)
+                              }}
+                              onFocus={() => setIsEmployeeComboboxOpen(true)}
+                              className="w-full"
+                            />
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                              onClick={() => setIsEmployeeComboboxOpen(!isEmployeeComboboxOpen)}
+                            >
+                              <ChevronDown className={`h-4 w-4 transition-transform ${isEmployeeComboboxOpen ? 'transform rotate-180' : ''}`} />
+                            </Button>
+                          </div>
+                          {isEmployeeComboboxOpen && (
+                            <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 border rounded-md shadow-lg max-h-60 overflow-auto">
+                              {filteredEmployees.length === 0 ? (
+                                <div className="p-2 text-sm text-gray-500 dark:text-gray-400">
+                                  Nenhum funcionário encontrado
+                                </div>
+                              ) : (
+                                filteredEmployees.map((employee) => (
+                                  <div
+                                    key={employee.id}
+                                    className={`p-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 ${
+                                      selectedEmployee === employee.id ? 'bg-gray-100 dark:bg-gray-700' : ''
+                                    }`}
+                                    onClick={() => handleEmployeeSelect(employee.id)}
+                                  >
+                                    <div className="font-medium">
+                                      {employee.name}
+                                    </div>
+                                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                                      {employee.matricula || 'Sem matrícula'}
+                                    </div>
+                                    {employee.department && (
+                                      <div className="text-xs text-gray-500 dark:text-gray-400">
+                                        {employee.department.name}
+                                      </div>
+                                    )}
+                                  </div>
+                                ))
+                              )}
+                            </div>
+                          )}
+                        </div>
                       </div>
                       <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="deadline" className="text-right">
@@ -588,14 +748,15 @@ export default function EvaluationsPage() {
                           id="deadline"
                           type="date"
                           className="col-span-3"
-                          defaultValue={new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]}
+                          value={deadline}
+                          onChange={(e) => setDeadline(e.target.value)}
                         />
                       </div>
                       <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="notes" className="text-right">
                           Observações
                         </Label>
-                        <Textarea id="notes" placeholder="Observações adicionais" className="col-span-3" />
+                        <Textarea id="notes" placeholder="Observações adicionais" className="col-span-3" value={notes} onChange={(e) => setNotes(e.target.value)} />
                       </div>
                     </div>
                     <DialogFooter>
@@ -770,7 +931,7 @@ export default function EvaluationsPage() {
                   <SelectItem value="all">Todos os Status</SelectItem>
                   <SelectItem value="Pendente">Pendente</SelectItem>
                   <SelectItem value="Em Progresso">Em Progresso</SelectItem>
-                  <SelectItem value="Concluída">Concluída</SelectItem>
+                  <SelectItem value="Finalizado">Finalizado</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -828,17 +989,13 @@ export default function EvaluationsPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="cursor-pointer" onClick={() => handleSort("id")}>
-                      ID
-                      {sortField === "id" && <ArrowUpDown className="ml-2 inline h-4 w-4" />}
+                    <TableHead className="cursor-pointer" onClick={() => handleSort("template")}>
+                      Modelo
+                      {sortField === "template" && <ArrowUpDown className="ml-2 inline h-4 w-4" />}
                     </TableHead>
                     <TableHead className="cursor-pointer" onClick={() => handleSort("employeeName")}>
                       Funcionário
                       {sortField === "employeeName" && <ArrowUpDown className="ml-2 inline h-4 w-4" />}
-                    </TableHead>
-                    <TableHead className="cursor-pointer" onClick={() => handleSort("department")}>
-                      Departamento
-                      {sortField === "department" && <ArrowUpDown className="ml-2 inline h-4 w-4" />}
                     </TableHead>
                     <TableHead className="cursor-pointer" onClick={() => handleSort("date")}>
                       Data
@@ -856,34 +1013,37 @@ export default function EvaluationsPage() {
                 <TableBody>
                   {filteredEvaluations.map((evaluation) => (
                     <TableRow key={evaluation.id} className="animate-fade">
-                      <TableCell className="font-medium">{evaluation.id}</TableCell>
                       <TableCell>
-                        <div className="font-medium">{typeof evaluation.employeeName === 'string' ? evaluation.employeeName : 'Funcionário sem nome'}</div>
-                        <div className="text-xs text-muted-foreground">{typeof evaluation.position === 'string' ? evaluation.position : 'Cargo não definido'}</div>
+                        <div className="font-medium">{evaluation.template?.name || 'Modelo não definido'}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {evaluation.template?.description || 'Sem descrição'}
+                        </div>
                       </TableCell>
-                      <TableCell>{typeof evaluation.department === 'string' ? evaluation.department : 'Departamento não definido'}</TableCell>
+                      <TableCell>
+                        <div className="font-medium">{evaluation.employee.name}</div>
+                        <div className="text-xs text-muted-foreground">
+                          Matrícula: {evaluation.employee.matricula || 'Não definida'}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {evaluation.employee.department}
+                        </div>
+                      </TableCell>
                       <TableCell>{new Date(evaluation.date).toLocaleDateString()}</TableCell>
                       <TableCell className="text-center">
-                        <span
-                          className={`inline-block rounded-full px-2 py-1 text-xs font-medium ${
-                            evaluation.selfEvaluationStatus === "Concluída"
-                              ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100"
-                              : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100"
-                          }`}
-                        >
-                          {typeof evaluation.selfEvaluationStatus === 'string' ? evaluation.selfEvaluationStatus : 'Pendente'}
-                        </span>
+                        <div className="flex flex-col items-center">
+                          <Badge variant={getStatusBadgeVariant(evaluation.selfEvaluationStatus)} className="mb-1">
+                            {getStatusIcon(evaluation.selfEvaluationStatus)}
+                            {evaluation.selfEvaluationStatus}
+                          </Badge>
+                        </div>
                       </TableCell>
                       <TableCell className="text-center">
-                        <span
-                          className={`inline-block rounded-full px-2 py-1 text-xs font-medium ${
-                            evaluation.managerEvaluationStatus === "Concluída"
-                              ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100"
-                              : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100"
-                          }`}
-                        >
-                          {typeof evaluation.managerEvaluationStatus === 'string' ? evaluation.managerEvaluationStatus : 'Pendente'}
-                        </span>
+                        <div className="flex flex-col items-center">
+                          <Badge variant={getStatusBadgeVariant(evaluation.managerEvaluationStatus)} className="mb-1">
+                            {getStatusIcon(evaluation.managerEvaluationStatus)}
+                            {evaluation.managerEvaluationStatus}
+                          </Badge>
+                        </div>
                       </TableCell>
                       <TableCell className="text-center">
                         {evaluation.score !== null ? (
@@ -908,13 +1068,15 @@ export default function EvaluationsPage() {
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem onClick={() => router.push(`/evaluations/${evaluation.id}`)}>
-                              Ver detalhes
+                              <Eye className="mr-2 h-4 w-4" />
+                              Ver Detalhes
                             </DropdownMenuItem>
-                            <DropdownMenuItem>Editar avaliação</DropdownMenuItem>
-                            <DropdownMenuItem>Enviar lembrete</DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem>
-                              <Download className="mr-2 h-4 w-4" />
+                            <DropdownMenuItem onClick={() => handleEditEvaluation(evaluation)}>
+                              <Pencil className="mr-2 h-4 w-4" />
+                              Editar
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleExportToPDF(evaluation)}>
+                              <FileDown className="mr-2 h-4 w-4" />
                               Exportar PDF
                             </DropdownMenuItem>
                           </DropdownMenuContent>

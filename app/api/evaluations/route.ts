@@ -9,41 +9,47 @@ export async function GET() {
     const evaluations = await prisma.evaluation.findMany({
       include: {
         employee: {
-          select: {
-            name: true,
+          include: {
             department: true,
-            position: true,
           },
         },
-        evaluator: {
-          select: {
-            name: true,
-          },
-        },
+        evaluator: true,
         template: {
           select: {
+            id: true,
             name: true,
-          },
+            description: true
+          }
         },
       },
       orderBy: {
-        createdAt: 'desc',
+        date: 'desc',
       },
     })
 
-    const formattedEvaluations = evaluations.map(evaluation => ({
+    const formattedEvaluations = evaluations.map((evaluation) => ({
       id: evaluation.id,
-      employeeName: evaluation.employee.name,
-      employeeId: evaluation.employeeId,
-      department: evaluation.employee.department,
-      position: evaluation.employee.position,
-      evaluator: evaluation.evaluator.name,
-      date: evaluation.date.toISOString(),
+      date: evaluation.date,
+      status: evaluation.status === "COMPLETED" ? "Finalizado" : 
+             evaluation.status === "IN_PROGRESS" ? "Em Progresso" : "Pendente",
       score: evaluation.score,
-      status: evaluation.status,
-      type: evaluation.type,
-      selfEvaluationStatus: evaluation.selfEvaluationStatus,
-      managerEvaluationStatus: evaluation.managerEvaluationStatus,
+      selfEvaluationStatus: evaluation.selfEvaluationStatus === "COMPLETED" ? "Finalizado" : 
+                            evaluation.selfEvaluationStatus === "IN_PROGRESS" ? "Em Progresso" : "Pendente",
+      managerEvaluationStatus: evaluation.managerEvaluationStatus === "COMPLETED" ? "Finalizado" : 
+                              evaluation.managerEvaluationStatus === "IN_PROGRESS" ? "Em Progresso" : "Pendente",
+      employee: {
+        name: evaluation.employee.name,
+        matricula: evaluation.employee.matricula,
+        department: evaluation.employee.department.name,
+      },
+      evaluator: {
+        name: evaluation.evaluator.name,
+      },
+      template: {
+        id: evaluation.template.id,
+        name: evaluation.template.name,
+        description: evaluation.template.description
+      }
     }))
 
     return NextResponse.json(formattedEvaluations)
@@ -68,8 +74,8 @@ export async function POST(request: Request) {
         templateId: data.templateId,
         date: new Date(),
         status: 'Pendente',
-        selfEvaluation: data.selfEvaluation || false,
-        managerEvaluation: data.managerEvaluation || false
+        selfEvaluationStatus: 'Pendente',
+        managerEvaluationStatus: 'Pendente'
       },
       include: {
         employee: {
@@ -77,11 +83,7 @@ export async function POST(request: Request) {
             department: true
           }
         },
-        evaluator: {
-          select: {
-            name: true
-          }
-        },
+        evaluator: true,
         template: true
       }
     })

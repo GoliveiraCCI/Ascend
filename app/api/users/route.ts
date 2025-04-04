@@ -1,24 +1,32 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { PrismaClient } from '@prisma/client'
 
-export async function GET() {
+const prisma = new PrismaClient()
+
+export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url)
+    const role = searchParams.get('role')
+
     const users = await prisma.user.findMany({
+      where: role ? {
+        role: role
+      } : undefined,
       select: {
         id: true,
         name: true,
         email: true,
-        role: true,
-        department: true,
-        isActive: true,
-        lastLogin: true,
-      },
+        role: true
+      }
     })
 
     return NextResponse.json(users)
   } catch (error) {
     console.error('Erro ao buscar usuários:', error)
-    return NextResponse.json({ error: 'Erro ao buscar usuários' }, { status: 500 })
+    return NextResponse.json(
+      { error: 'Erro ao buscar usuários' },
+      { status: 500 }
+    )
   }
 }
 
