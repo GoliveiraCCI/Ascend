@@ -229,50 +229,78 @@ interface EvaluationPageProps {
   };
 }
 
-export default async function EvaluationPage({ params }: EvaluationPageProps) {
-  const evaluation = await prisma.evaluation.findUnique({
-    where: { id: params.id },
-    include: {
-      employee: true,
-      evaluator: true,
-      template: {
-        include: {
-          questions: true,
-        },
-      },
-      answers: {
-        include: {
-          question: true,
-        },
-      },
-    },
-  });
+export default function EvaluationPage({ params }: EvaluationPageProps) {
+  const router = useRouter()
+  const [activeTab, setActiveTab] = useState("questions")
+  const [evaluation, setEvaluation] = useState<any>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  if (!evaluation) {
-    notFound();
+  const handleSubmit = async () => {
+    try {
+      setIsSubmitting(true)
+
+      const response = await fetch(`/api/evaluations/${params.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          answers: evaluation.answers.map((answer: any) => ({
+            id: answer.id,
+            questionId: answer.questionId,
+            selfScore: answer.selfScore,
+            selfComment: answer.selfComment,
+            managerScore: answer.managerScore,
+            managerComment: answer.managerComment,
+          })),
+          selfStrengths: evaluation.selfStrengths,
+          selfImprovements: evaluation.selfImprovements,
+          selfGoals: evaluation.selfGoals,
+          managerStrengths: evaluation.managerStrengths,
+          managerImprovements: evaluation.managerImprovements,
+          managerGoals: evaluation.managerGoals,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error("Erro ao salvar avaliação")
+      }
+
+      const updatedEvaluation = await response.json()
+      setEvaluation(updatedEvaluation)
+
+      toast({
+        title: "Sucesso",
+        description: "Avaliação salva com sucesso",
+      })
+    } catch (error) {
+      console.error("Erro ao salvar avaliação:", error)
+      toast({
+        title: "Erro",
+        description: "Erro ao salvar avaliação",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
-  const getStatusBadgeVariant = (status: string) => {
-    switch (status) {
-      case "Finalizado":
-        return "success";
-      case "Pendente":
-        return "destructive";
-      default:
-        return "default";
-    }
-  };
+  const handleAnswerChange = (answerId: string, field: string, value: any) => {
+    setEvaluation((prev: any) => ({
+      ...prev,
+      answers: prev.answers.map((answer: any) =>
+        answer.id === answerId ? { ...answer, [field]: value } : answer
+      ),
+    }))
+  }
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case "Finalizado":
-        return <CheckCircle className="h-4 w-4" />;
-      case "Pendente":
-        return <Clock className="h-4 w-4" />;
-      default:
-        return <Circle className="h-4 w-4" />;
-    }
-  };
+  const handleEvaluationChange = (field: string, value: string) => {
+    setEvaluation((prev: any) => ({
+      ...prev,
+      [field]: value,
+    }))
+  }
 
   return (
     <div className="container mx-auto py-6 space-y-6">
@@ -336,7 +364,7 @@ export default async function EvaluationPage({ params }: EvaluationPageProps) {
         </Card>
       </div>
 
-      <Tabs defaultValue="questions" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList>
           <TabsTrigger value="questions">Questões</TabsTrigger>
           <TabsTrigger value="self">Autoavaliação</TabsTrigger>
@@ -344,10 +372,10 @@ export default async function EvaluationPage({ params }: EvaluationPageProps) {
         </TabsList>
 
         <TabsContent value="questions" className="space-y-4">
-          {evaluation.template.questions.map((question) => {
+          {evaluation?.template.questions.map((question: any) => {
             const answer = evaluation.answers.find(
-              (a) => a.questionId === question.id
-            );
+              (a: any) => a.questionId === question.id
+            )
 
             return (
               <Card key={question.id}>
@@ -358,45 +386,61 @@ export default async function EvaluationPage({ params }: EvaluationPageProps) {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <h3 className="font-medium mb-2">Autoavaliação</h3>
-                      {answer?.selfScore !== null ? (
-                        <div className="space-y-2">
-                          <Progress value={answer.selfScore * 20} className="h-2" />
-                          <p className="text-sm text-muted-foreground">
-                            Nota: {answer.selfScore}
-                          </p>
-                          {answer.selfComment && (
-                            <p className="text-sm">{answer.selfComment}</p>
-                          )}
-                        </div>
-                      ) : (
-                        <p className="text-sm text-muted-foreground">
-                          Pendente
-                        </p>
-                      )}
+                      <div className="space-y-2">
+                        <RadioGroup
+                          value={answer?.selfScore?.toString()}
+                          onValueChange={(value) =>
+                            handleAnswerChange(answer.id, "selfScore", parseInt(value))
+                          }
+                          className="flex gap-4"
+                        >
+                          {[1, 2, 3, 4, 5].map((score) => (
+                            <div key={score} className="flex items-center space-x-2">
+                              <RadioGroupItem value={score.toString()} id={`self-${question.id}-${score}`} />
+                              <Label htmlFor={`self-${question.id}-${score}`}>{score}</Label>
+                            </div>
+                          ))}
+                        </RadioGroup>
+                        <Textarea
+                          placeholder="Comentários"
+                          value={answer?.selfComment || ""}
+                          onChange={(e) =>
+                            handleAnswerChange(answer.id, "selfComment", e.target.value)
+                          }
+                        />
+                      </div>
                     </div>
 
                     <div>
                       <h3 className="font-medium mb-2">Avaliação do Gestor</h3>
-                      {answer?.managerScore !== null ? (
-                        <div className="space-y-2">
-                          <Progress value={answer.managerScore * 20} className="h-2" />
-                          <p className="text-sm text-muted-foreground">
-                            Nota: {answer.managerScore}
-                          </p>
-                          {answer.managerComment && (
-                            <p className="text-sm">{answer.managerComment}</p>
-                          )}
-                        </div>
-                      ) : (
-                        <p className="text-sm text-muted-foreground">
-                          Pendente
-                        </p>
-                      )}
+                      <div className="space-y-2">
+                        <RadioGroup
+                          value={answer?.managerScore?.toString()}
+                          onValueChange={(value) =>
+                            handleAnswerChange(answer.id, "managerScore", parseInt(value))
+                          }
+                          className="flex gap-4"
+                        >
+                          {[1, 2, 3, 4, 5].map((score) => (
+                            <div key={score} className="flex items-center space-x-2">
+                              <RadioGroupItem value={score.toString()} id={`manager-${question.id}-${score}`} />
+                              <Label htmlFor={`manager-${question.id}-${score}`}>{score}</Label>
+                            </div>
+                          ))}
+                        </RadioGroup>
+                        <Textarea
+                          placeholder="Comentários"
+                          value={answer?.managerComment || ""}
+                          onChange={(e) =>
+                            handleAnswerChange(answer.id, "managerComment", e.target.value)
+                          }
+                        />
+                      </div>
                     </div>
                   </div>
                 </CardContent>
               </Card>
-            );
+            )
           })}
         </TabsContent>
 
@@ -406,11 +450,11 @@ export default async function EvaluationPage({ params }: EvaluationPageProps) {
               <CardTitle>Pontos Fortes</CardTitle>
             </CardHeader>
             <CardContent>
-              {evaluation.selfStrengths ? (
-                <p>{evaluation.selfStrengths}</p>
-              ) : (
-                <p className="text-muted-foreground">Não informado</p>
-              )}
+              <Textarea
+                placeholder="Descreva seus pontos fortes"
+                value={evaluation?.selfStrengths || ""}
+                onChange={(e) => handleEvaluationChange("selfStrengths", e.target.value)}
+              />
             </CardContent>
           </Card>
 
@@ -419,11 +463,11 @@ export default async function EvaluationPage({ params }: EvaluationPageProps) {
               <CardTitle>Pontos de Melhoria</CardTitle>
             </CardHeader>
             <CardContent>
-              {evaluation.selfImprovements ? (
-                <p>{evaluation.selfImprovements}</p>
-              ) : (
-                <p className="text-muted-foreground">Não informado</p>
-              )}
+              <Textarea
+                placeholder="Descreva seus pontos de melhoria"
+                value={evaluation?.selfImprovements || ""}
+                onChange={(e) => handleEvaluationChange("selfImprovements", e.target.value)}
+              />
             </CardContent>
           </Card>
 
@@ -432,11 +476,11 @@ export default async function EvaluationPage({ params }: EvaluationPageProps) {
               <CardTitle>Metas</CardTitle>
             </CardHeader>
             <CardContent>
-              {evaluation.selfGoals ? (
-                <p>{evaluation.selfGoals}</p>
-              ) : (
-                <p className="text-muted-foreground">Não informado</p>
-              )}
+              <Textarea
+                placeholder="Descreva suas metas"
+                value={evaluation?.selfGoals || ""}
+                onChange={(e) => handleEvaluationChange("selfGoals", e.target.value)}
+              />
             </CardContent>
           </Card>
         </TabsContent>
@@ -447,11 +491,11 @@ export default async function EvaluationPage({ params }: EvaluationPageProps) {
               <CardTitle>Pontos Fortes</CardTitle>
             </CardHeader>
             <CardContent>
-              {evaluation.managerStrengths ? (
-                <p>{evaluation.managerStrengths}</p>
-              ) : (
-                <p className="text-muted-foreground">Não informado</p>
-              )}
+              <Textarea
+                placeholder="Descreva os pontos fortes do funcionário"
+                value={evaluation?.managerStrengths || ""}
+                onChange={(e) => handleEvaluationChange("managerStrengths", e.target.value)}
+              />
             </CardContent>
           </Card>
 
@@ -460,11 +504,11 @@ export default async function EvaluationPage({ params }: EvaluationPageProps) {
               <CardTitle>Pontos de Melhoria</CardTitle>
             </CardHeader>
             <CardContent>
-              {evaluation.managerImprovements ? (
-                <p>{evaluation.managerImprovements}</p>
-              ) : (
-                <p className="text-muted-foreground">Não informado</p>
-              )}
+              <Textarea
+                placeholder="Descreva os pontos de melhoria do funcionário"
+                value={evaluation?.managerImprovements || ""}
+                onChange={(e) => handleEvaluationChange("managerImprovements", e.target.value)}
+              />
             </CardContent>
           </Card>
 
@@ -473,16 +517,22 @@ export default async function EvaluationPage({ params }: EvaluationPageProps) {
               <CardTitle>Metas</CardTitle>
             </CardHeader>
             <CardContent>
-              {evaluation.managerGoals ? (
-                <p>{evaluation.managerGoals}</p>
-              ) : (
-                <p className="text-muted-foreground">Não informado</p>
-              )}
+              <Textarea
+                placeholder="Descreva as metas para o funcionário"
+                value={evaluation?.managerGoals || ""}
+                onChange={(e) => handleEvaluationChange("managerGoals", e.target.value)}
+              />
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
+
+      <div className="flex justify-end">
+        <Button onClick={handleSubmit} disabled={isSubmitting}>
+          {isSubmitting ? "Salvando..." : "Salvar Avaliação"}
+        </Button>
+      </div>
     </div>
-  );
+  )
 }
 
