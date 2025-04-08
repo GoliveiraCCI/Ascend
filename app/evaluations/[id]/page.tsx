@@ -15,6 +15,7 @@ import { useRouter } from "next/navigation"
 import { ArrowLeft, Download, FileText, Printer, Send, User } from "lucide-react"
 import html2canvas from "html2canvas"
 import jsPDF from "jspdf"
+import { use } from "react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -360,19 +361,19 @@ export default function EvaluationPage({ params }: EvaluationPageProps) {
       })
 
       const imgData = canvas.toDataURL("image/png")
-      const pdf = new jsPDF("p", "mm", "a4")
+    const pdf = new jsPDF("p", "mm", "a4")
       const imgWidth = 210
       const pageHeight = 297
       const imgHeight = (canvas.height * imgWidth) / canvas.width
-      let heightLeft = imgHeight
-      let position = 0
+        let heightLeft = imgHeight
+        let position = 0
 
       pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight)
       heightLeft -= pageHeight
 
       while (heightLeft >= 0) {
         position = heightLeft - imgHeight
-        pdf.addPage()
+          pdf.addPage()
         pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight)
         heightLeft -= pageHeight
       }
@@ -444,7 +445,7 @@ export default function EvaluationPage({ params }: EvaluationPageProps) {
               <p className="text-sm text-muted-foreground">
                 Matrícula: {evaluation.employee.matricula}
               </p>
-            </div>
+                </div>
           </CardContent>
         </Card>
 
@@ -453,7 +454,7 @@ export default function EvaluationPage({ params }: EvaluationPageProps) {
             <CardTitle>Avaliador</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-2">
+              <div className="space-y-2">
               <p className="font-medium">{evaluation.evaluator.name}</p>
             </div>
           </CardContent>
@@ -469,10 +470,10 @@ export default function EvaluationPage({ params }: EvaluationPageProps) {
               <p className="text-sm text-muted-foreground">
                 {evaluation.template.description}
               </p>
-            </div>
+                                </div>
           </CardContent>
         </Card>
-      </div>
+                    </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList>
@@ -496,7 +497,7 @@ export default function EvaluationPage({ params }: EvaluationPageProps) {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <h3 className="font-medium mb-2">Autoavaliação</h3>
-                      <div className="space-y-2">
+                        <div className="space-y-2">
                         <div className="flex items-center gap-2 mb-2">
                           <span className="text-sm font-medium">Nota:</span>
                           <span className={`px-2 py-1 rounded-md text-sm ${getScoreClass(answer?.selfScore)}`}>
@@ -514,9 +515,9 @@ export default function EvaluationPage({ params }: EvaluationPageProps) {
                             <div key={score} className="flex items-center space-x-2">
                               <RadioGroupItem value={score.toString()} id={`self-${question.id}-${score}`} />
                               <Label htmlFor={`self-${question.id}-${score}`}>{score}</Label>
-                            </div>
-                          ))}
-                        </RadioGroup>
+                                    </div>
+                                  ))}
+                                </RadioGroup>
                         <Textarea
                           placeholder="Comentários"
                           value={answer?.selfComment || ""}
@@ -527,7 +528,7 @@ export default function EvaluationPage({ params }: EvaluationPageProps) {
                       </div>
                     </div>
 
-                    <div>
+                      <div>
                       <h3 className="font-medium mb-2">Avaliação do Gestor</h3>
                       <div className="space-y-2">
                         <div className="flex items-center gap-2 mb-2">
@@ -547,7 +548,7 @@ export default function EvaluationPage({ params }: EvaluationPageProps) {
                             <div key={score} className="flex items-center space-x-2">
                               <RadioGroupItem value={score.toString()} id={`manager-${question.id}-${score}`} />
                               <Label htmlFor={`manager-${question.id}-${score}`}>{score}</Label>
-                            </div>
+                      </div>
                           ))}
                         </RadioGroup>
                         <Textarea
@@ -564,7 +565,7 @@ export default function EvaluationPage({ params }: EvaluationPageProps) {
               </Card>
             )
           })}
-        </TabsContent>
+                </TabsContent>
 
         <TabsContent value="self" className="space-y-4">
           <Card>
@@ -577,14 +578,14 @@ export default function EvaluationPage({ params }: EvaluationPageProps) {
                 value={evaluation?.selfStrengths || ""}
                 onChange={(e) => handleEvaluationChange("selfStrengths", e.target.value)}
               />
-            </CardContent>
-          </Card>
+          </CardContent>
+        </Card>
 
-          <Card>
+      <Card>
             <CardHeader>
               <CardTitle>Pontos de Melhoria</CardTitle>
-            </CardHeader>
-            <CardContent>
+        </CardHeader>
+        <CardContent>
               <Textarea
                 placeholder="Descreva seus pontos de melhoria"
                 value={evaluation?.selfImprovements || ""}
@@ -644,7 +645,7 @@ export default function EvaluationPage({ params }: EvaluationPageProps) {
                 value={evaluation?.managerGoals || ""}
                 onChange={(e) => handleEvaluationChange("managerGoals", e.target.value)}
               />
-            </CardContent>
+        </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
@@ -652,7 +653,7 @@ export default function EvaluationPage({ params }: EvaluationPageProps) {
       <div className="flex justify-end">
         <Button onClick={handleSubmit} disabled={isSubmitting}>
           {isSubmitting ? "Salvando..." : "Salvar Avaliação"}
-        </Button>
+          </Button>
       </div>
     </div>
   )

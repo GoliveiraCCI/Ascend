@@ -3,20 +3,16 @@ import { PrismaClient } from '@prisma/client'
 
 const prisma = new PrismaClient()
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
-    const { searchParams } = new URL(request.url)
-    const role = searchParams.get('role')
-
     const users = await prisma.user.findMany({
-      where: role ? {
-        role: role
-      } : undefined,
       select: {
         id: true,
         name: true,
         email: true,
-        role: true
+      },
+      orderBy: {
+        name: 'asc'
       }
     })
 

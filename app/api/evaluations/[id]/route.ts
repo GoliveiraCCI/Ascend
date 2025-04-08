@@ -8,15 +8,17 @@ export async function GET(
 ) {
   try {
     const evaluation = await prisma.evaluation.findUnique({
-      where: { id: params.id },
+      where: {
+        id: params.id,
+      },
       include: {
-        employee: true,
-        evaluator: true,
-        template: {
+        employee: {
           include: {
-            questions: true,
+            department: true,
           },
         },
+        evaluator: true,
+        template: true,
         answers: {
           include: {
             question: true,
@@ -26,14 +28,14 @@ export async function GET(
     })
 
     if (!evaluation) {
-      return NextResponse.json({ error: 'Avaliação não encontrada' }, { status: 404 })
+      return NextResponse.json({ error: "Avaliação não encontrada" }, { status: 404 })
     }
 
     return NextResponse.json(evaluation)
   } catch (error) {
-    console.error('Erro ao buscar avaliação:', error)
+    console.error("Erro ao buscar avaliação:", error)
     return NextResponse.json(
-      { error: 'Erro ao buscar avaliação' },
+      { error: "Erro ao buscar avaliação" },
       { status: 500 }
     )
   }
@@ -134,11 +136,7 @@ export async function PUT(
       include: {
         employee: true,
         evaluator: true,
-        template: {
-          include: {
-            questions: true,
-          },
-        },
+        template: true,
         answers: {
           include: {
             question: true,

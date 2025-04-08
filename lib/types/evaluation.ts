@@ -70,5 +70,5 @@ export interface EvaluationMetrics {
   scoreDifference: number
 }
 
-export type EvaluationStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED'
-export type EvaluationType = 'ANNUAL' | 'MIDYEAR' 
+export type EvaluationStatus = 'Pendente' | 'Finalizado'
+export type EvaluationType = 'Anual' | 'Semestral' | 'Mensal'

@@ -119,34 +119,33 @@ model EmployeeHistory {
 
 // Tabela de Avaliações
 model Evaluation {
-  id                    String    @id @default(uuid())
+  id                    String   @id @default(cuid())
   employeeId            String
-  employee              Employee  @relation(fields: [employeeId], references: [id])
+  employee              Employee @relation(fields: [employeeId], references: [id])
   evaluatorId           String
-  evaluator            User      @relation(fields: [evaluatorId], references: [id])
+  evaluator             User     @relation(fields: [evaluatorId], references: [id])
   templateId            String
-  template             EvaluationTemplate @relation(fields: [templateId], references: [id])
+  template              EvaluationTemplate @relation(fields: [templateId], references: [id])
   date                  DateTime
-  status                String    @default("Pendente")
-  score                 Float?
-  selfEvaluation        Boolean   @default(false)
-  selfEvaluationStatus  String?   @default("Pendente")
-  selfStrengths         String?   @db.Text
-  selfImprovements      String?   @db.Text
-  selfGoals            String?   @db.Text
-  selfScore            Float?    // Nova: Nota da autoavaliação
-  selfEvaluationDate   DateTime? // Nova: Data da autoavaliação
-  managerEvaluation     Boolean   @default(false)
-  managerEvaluationStatus String? @default("Pendente")
-  managerStrengths      String?   @db.Text
-  managerImprovements   String?   @db.Text
-  managerGoals         String?   @db.Text
-  managerScore         Float?    // Nova: Nota da avaliação do gestor
-  managerEvaluationDate DateTime? // Nova: Data da avaliação do gestor
-  finalScore           Float?    // Nova: Nota final calculada
+  status                String   @default("Pendente")
+  selfEvaluation        Boolean  @default(false)
+  selfEvaluationStatus  String   @default("Pendente")
+  selfStrengths         String?
+  selfImprovements      String?
+  selfGoals            String?
+  selfScore            Float?
+  selfEvaluationDate   DateTime?
+  managerEvaluation     Boolean  @default(false)
+  managerEvaluationStatus String @default("Pendente")
+  managerStrengths      String?
+  managerImprovements   String?
+  managerGoals         String?
+  managerScore         Float?
+  managerEvaluationDate DateTime?
+  finalScore           Float?
   answers              EvaluationAnswer[]
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
   notifications        Notification[]
 
   @@index([employeeId])

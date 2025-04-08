@@ -23,6 +23,9 @@ import {
   CheckCircle,
   Circle,
   Trash2,
+  AlertCircle,
+  CheckCircle2,
+  FileText,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -83,11 +86,14 @@ interface Employee {
 interface Template {
   id: string;
   name: string;
-  description: string;
-  questions: {
+  description: string | null;
+  questions?: {
     id: string;
     text: string;
-    category: string;
+    category: {
+      id: string;
+      name: string;
+    };
   }[];
   _count?: {
     evaluations: number;
@@ -103,31 +109,42 @@ interface CustomQuestion {
 
 interface Evaluation {
   id: string;
-  employee: Employee;
+  employee: {
+    id: string;
+    name: string;
+    matricula: string;
+    department: {
+      id: string;
+      name: string;
+    };
+  };
   evaluator: {
     id: string;
     name: string;
   };
-  template: Template;
+  template: {
+    id: string;
+    name: string;
+    description: string | null;
+  };
   date: string;
-  status: string;
+  status: "Pendente" | "Finalizado";
   selfEvaluation: boolean;
-  selfEvaluationStatus: string;
+  selfEvaluationStatus: "Pendente" | "Finalizado";
   selfStrengths: string | null;
   selfImprovements: string | null;
   selfGoals: string | null;
   selfScore: number | null;
   selfEvaluationDate: string | null;
   managerEvaluation: boolean;
-  managerEvaluationStatus: string;
+  managerEvaluationStatus: "Pendente" | "Finalizado";
   managerStrengths: string | null;
   managerImprovements: string | null;
   managerGoals: string | null;
   managerScore: number | null;
   managerEvaluationDate: string | null;
   finalScore: number | null;
-  score?: number;
-  answers: {
+  answers: Array<{
     id: string;
     question: {
       id: string;
@@ -137,7 +154,7 @@ interface Evaluation {
     managerScore: number | null;
     selfComment: string | null;
     managerComment: string | null;
-  }[];
+  }>;
 }
 
 interface Stats {
@@ -153,6 +170,12 @@ interface Stats {
     department: string;
     score: number;
   }[];
+}
+
+interface Evaluator {
+  id: string;
+  name: string;
+  email: string;
 }
 
 // Função para classificar pontuações
@@ -176,30 +199,28 @@ const getScoreLabel = (score: number | null) => {
 }
 
 // Função para determinar a variante do Badge com base no status
-const getStatusBadgeVariant = (status: string) => {
+const getStatusBadgeVariant = (status: "Pendente" | "Finalizado" | null) => {
+  if (!status) return "destructive";
   switch (status) {
     case "Finalizado":
-      return "default";
+      return "success";
     case "Pendente":
       return "destructive";
-    case "Em Progresso":
-      return "outline";
     default:
-      return "secondary";
+      return "destructive";
   }
 };
 
-// Função para obter a cor do ícone com base no status
-const getStatusIcon = (status: string) => {
+// Função para obter o ícone com base no status
+const getStatusIcon = (status: "Pendente" | "Finalizado" | null) => {
+  if (!status) return <AlertCircle className="h-4 w-4" />;
   switch (status) {
     case "Finalizado":
-      return <CheckCircle className="h-4 w-4" />;
+      return <CheckCircle2 className="h-4 w-4" />;
     case "Pendente":
-      return <Clock className="h-4 w-4" />;
-    case "Em Progresso":
-      return <Circle className="h-4 w-4" />;
+      return <AlertCircle className="h-4 w-4" />;
     default:
-      return <HelpCircle className="h-4 w-4" />;
+      return <AlertCircle className="h-4 w-4" />;
   }
 };
 
@@ -223,6 +244,7 @@ export default function EvaluationsPage() {
   const [newTemplateDescription, setNewTemplateDescription] = useState("")
   const [selectedEmployee, setSelectedEmployee] = useState("")
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null)
+  const [selectedEvaluator, setSelectedEvaluator] = useState<string | null>(null)
   const [templates, setTemplates] = useState<Template[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -254,6 +276,7 @@ export default function EvaluationsPage() {
     ],
     departmentScores: []
   })
+  const [evaluators, setEvaluators] = useState<Evaluator[]>([])
   const router = useRouter()
 
   // Filtrar e ordenar avaliações
@@ -343,11 +366,13 @@ export default function EvaluationsPage() {
   const fetchEvaluations = async () => {
     try {
       const response = await fetch('/api/evaluations')
-      if (!response.ok) {
-        throw new Error('Erro ao buscar avaliações')
-      }
       const data = await response.json()
-      setEvaluations(data)
+      
+      if (response.ok) {
+        setEvaluations(data)
+      } else {
+        throw new Error(data.error || 'Erro ao buscar avaliações')
+      }
     } catch (error) {
       console.error('Erro ao buscar avaliações:', error)
       toast({
@@ -433,11 +458,29 @@ export default function EvaluationsPage() {
     }
   }
 
+  // Buscar avaliadores
+  const fetchEvaluators = async () => {
+    try {
+      const response = await fetch('/api/users')
+      if (!response.ok) throw new Error('Erro ao buscar avaliadores')
+      const data = await response.json()
+      setEvaluators(data)
+    } catch (error) {
+      console.error('Erro ao buscar avaliadores:', error)
+      toast({
+        title: "Erro",
+        description: "Não foi possível carregar a lista de avaliadores.",
+        variant: "destructive",
+      })
+    }
+  }
+
   // Carregar dados ao abrir o modal
   useEffect(() => {
     if (isNewEvaluationOpen) {
       fetchEmployees()
       fetchTemplates()
+      fetchEvaluators()
     }
   }, [isNewEvaluationOpen])
 
@@ -501,28 +544,16 @@ export default function EvaluationsPage() {
 
   // Criar nova avaliação
   const createNewEvaluation = async () => {
-    if (!selectedEmployee || !selectedTemplate) {
+    if (!selectedEmployee || !selectedTemplate || !selectedEvaluator) {
       toast({
         title: "Erro",
-        description: "Por favor, selecione um funcionário e um modelo de avaliação.",
+        description: "Por favor, selecione um funcionário, um modelo de avaliação e um avaliador.",
         variant: "destructive",
       });
       return;
     }
 
     try {
-      // Primeiro, buscar um avaliador válido
-      const evaluatorsResponse = await fetch('/api/users?role=EVALUATOR');
-      if (!evaluatorsResponse.ok) throw new Error('Erro ao buscar avaliadores');
-      const evaluators = await evaluatorsResponse.json();
-      
-      if (!evaluators || evaluators.length === 0) {
-        throw new Error('Nenhum avaliador encontrado');
-      }
-
-      // Usar o primeiro avaliador disponível
-      const evaluatorId = evaluators[0].id;
-
       const response = await fetch('/api/evaluations', {
         method: 'POST',
         headers: {
@@ -530,11 +561,14 @@ export default function EvaluationsPage() {
         },
         body: JSON.stringify({
           employeeId: selectedEmployee,
-          evaluatorId: evaluatorId,
+          evaluatorId: selectedEvaluator,
           templateId: selectedTemplate,
           date: new Date().toISOString(),
           selfEvaluation: true,
           managerEvaluation: true,
+          status: "Pendente",
+          selfEvaluationStatus: "Pendente",
+          managerEvaluationStatus: "Pendente"
         }),
       });
 
@@ -545,11 +579,17 @@ export default function EvaluationsPage() {
 
       const newEvaluation = await response.json();
       setEvaluations([...evaluations, newEvaluation]);
-      setIsNewEvaluationOpen(false);
+      
+      // Resetar todos os estados
       setSelectedEmployee('');
       setSelectedTemplate(null);
-      setDeadline('');
-      setNotes('');
+      setSelectedEvaluator(null);
+      setEmployeeSearch('');
+      setIsEmployeeComboboxOpen(false);
+      
+      // Fechar o diálogo
+      setIsNewEvaluationOpen(false);
+      
       toast({
         title: "Sucesso",
         description: "Avaliação criada com sucesso!",
@@ -558,7 +598,7 @@ export default function EvaluationsPage() {
       console.error('Erro:', error);
       toast({
         title: "Erro",
-        description: error instanceof Error ? error.message : "Erro ao criar avaliação. Tente novamente.",
+        description: error instanceof Error ? error.message : "Erro ao criar avaliação. Verifique se o funcionário e o avaliador existem no sistema.",
         variant: "destructive",
       });
     }
@@ -574,6 +614,7 @@ export default function EvaluationsPage() {
     setIsApplyEvaluationOpen(false)
     setSelectedEmployee("")
     setSelectedTemplate(null)
+    setSelectedEvaluator(null)
     setQuestionScores({})
     setQuestionComments({})
   }
@@ -884,6 +925,28 @@ export default function EvaluationsPage() {
                         </div>
                       </div>
                       <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="evaluator" className="text-right">
+                          Avaliador
+                        </Label>
+                        <div className="col-span-3">
+                          <Select
+                            value={selectedEvaluator || ""}
+                            onValueChange={setSelectedEvaluator}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecione um avaliador" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {evaluators.map((evaluator) => (
+                                <SelectItem key={evaluator.id} value={evaluator.id}>
+                                  {evaluator.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="deadline" className="text-right">
                           Prazo
                         </Label>
@@ -1164,51 +1227,34 @@ export default function EvaluationsPage() {
                         {new Date(evaluation.date).toLocaleDateString('pt-BR')}
                       </TableCell>
                       <TableCell>
-                        <div className="flex flex-col gap-1">
-                          <Badge variant={getStatusBadgeVariant(evaluation.selfEvaluationStatus)}>
+                        <div className="flex items-center gap-2">
+                          <Badge variant={getStatusBadgeVariant(evaluation.selfEvaluationStatus)} className="flex items-center gap-1">
                             {getStatusIcon(evaluation.selfEvaluationStatus)}
-                            <span className="ml-1">
-                              {evaluation.selfEvaluationStatus === "Finalizado" ? "Finalizado" :
-                               evaluation.selfEvaluationStatus === "Pendente" ? "Pendente" :
-                               evaluation.selfEvaluationStatus === "Em Progresso" ? "Em Progresso" :
-                               evaluation.selfEvaluationStatus}
-                            </span>
+                            <span>{evaluation.selfEvaluationStatus || "Pendente"}</span>
+                            {evaluation.selfScore !== null && (
+                              <span className="ml-2">({evaluation.selfScore.toFixed(1)})</span>
+                            )}
                           </Badge>
-                          {evaluation.selfScore !== null && (
-                            <div className="text-sm text-muted-foreground">
-                              Nota: {evaluation.selfScore.toFixed(1)}
-                            </div>
-                          )}
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className="flex flex-col gap-1">
-                          <Badge variant={getStatusBadgeVariant(evaluation.managerEvaluationStatus)}>
+                        <div className="flex items-center gap-2">
+                          <Badge variant={getStatusBadgeVariant(evaluation.managerEvaluationStatus)} className="flex items-center gap-1">
                             {getStatusIcon(evaluation.managerEvaluationStatus)}
-                            <span className="ml-1">
-                              {evaluation.managerEvaluationStatus === "Finalizado" ? "Finalizado" :
-                               evaluation.managerEvaluationStatus === "Pendente" ? "Pendente" :
-                               evaluation.managerEvaluationStatus === "Em Progresso" ? "Em Progresso" :
-                               evaluation.managerEvaluationStatus}
-                            </span>
+                            <span>{evaluation.managerEvaluationStatus || "Pendente"}</span>
+                            {evaluation.managerScore !== null && (
+                              <span className="ml-2">({evaluation.managerScore.toFixed(1)})</span>
+                            )}
                           </Badge>
-                          {evaluation.managerScore !== null && (
-                            <div className="text-sm text-muted-foreground">
-                              Nota: {evaluation.managerScore.toFixed(1)}
-                            </div>
-                          )}
                         </div>
                       </TableCell>
                       <TableCell>
                         {evaluation.finalScore !== null ? (
-                          <div className="flex items-center gap-2">
-                            <div className="text-lg font-semibold">{evaluation.finalScore.toFixed(1)}</div>
-                            <Badge variant="outline">
-                              {getScoreLabel(evaluation.finalScore)}
-                            </Badge>
-                          </div>
+                          <Badge variant="success" className="flex items-center gap-1">
+                            <span>{evaluation.finalScore.toFixed(1)}</span>
+                          </Badge>
                         ) : (
-                          <div className="text-muted-foreground">-</div>
+                          <span>-</span>
                         )}
                       </TableCell>
                       <TableCell>
@@ -1225,6 +1271,12 @@ export default function EvaluationsPage() {
                             >
                               <Eye className="mr-2 h-4 w-4" />
                               Visualizar
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => router.push(`/evaluations/${evaluation.id}/details`)}
+                            >
+                              <FileText className="mr-2 h-4 w-4" />
+                              Detalhes
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               onClick={() => openEditDialog(evaluation.template)}
@@ -1343,16 +1395,16 @@ export default function EvaluationsPage() {
                   <div className="space-y-4">
                     <div className="rounded-lg border p-4">
                       <h3 className="text-sm font-medium mb-2">Status das Avaliações</h3>
-                      <div className="grid grid-cols-3 gap-4">
+                      <div className="grid grid-cols-2 gap-4">
                         {stats.statusStats.map((stat) => (
                           <div
                             key={stat.name}
                             className="flex flex-col items-center justify-center p-3 bg-green-50 rounded-lg dark:bg-green-900/20"
                           >
                             <span className="text-2xl font-bold text-green-600 dark:text-green-400">
-                              {typeof stat.value === 'number' ? `${stat.value}%` : '0%'}
+                              {stat.value}%
                             </span>
-                            <span className="text-sm text-muted-foreground">{typeof stat.name === 'string' ? stat.name : 'Status não definido'}</span>
+                            <span className="text-sm text-muted-foreground">{stat.name}</span>
                           </div>
                         ))}
                       </div>
@@ -1377,22 +1429,20 @@ export default function EvaluationsPage() {
                             }`}
                           >
                             <div>
-                              <span className="font-medium">{typeof item.range === 'string' ? item.range : '0-0'}</span>
+                              <span className="font-medium">{item.range}</span>
                               <span className="ml-2 text-sm text-muted-foreground">
-                                {typeof item.range === 'string' ? (
-                                  item.range === "9-10"
-                                    ? "Excelente"
-                                    : item.range === "8-8.9"
-                                      ? "Muito Bom"
-                                      : item.range === "7-7.9"
-                                        ? "Bom"
-                                        : item.range === "6-6.9"
-                                          ? "Satisfatório"
-                                          : "Precisa Melhorar"
-                                ) : "Não definido"}
+                                {item.range === "9-10"
+                                  ? "Excelente"
+                                  : item.range === "8-8.9"
+                                    ? "Muito Bom"
+                                    : item.range === "7-7.9"
+                                      ? "Bom"
+                                      : item.range === "6-6.9"
+                                        ? "Satisfatório"
+                                        : "Precisa Melhorar"}
                               </span>
                             </div>
-                            <div className="font-medium">{typeof item.count === 'number' ? `${item.count} avaliações` : '0 avaliações'}</div>
+                            <div className="font-medium">{item.count} avaliações</div>
                           </div>
                         ))}
                       </div>
@@ -1410,27 +1460,27 @@ export default function EvaluationsPage() {
                   <div className="space-y-2">
                     {stats.departmentScores.map((dept, index) => (
                       <div key={index} className="flex items-center justify-between p-3 rounded-md border">
-                        <div className="font-medium">{typeof dept.department === 'string' ? dept.department : 'Departamento não definido'}</div>
+                        <div className="font-medium">{dept.department}</div>
                         <div className="flex items-center gap-2">
                           <div className="w-32 h-2 bg-gray-200 rounded-full overflow-hidden">
                             <div
                               className="h-full rounded-full"
                               style={{
-                                width: `${(typeof dept.score === 'number' ? dept.score : 0) / 10 * 100}%`,
+                                width: `${(dept.score / 10) * 100}%`,
                                 backgroundColor: MODERN_COLORS[index % MODERN_COLORS.length],
                               }}
                             />
                           </div>
                           <span
                             className={`inline-block rounded-full px-2 py-1 text-xs font-medium ${
-                              (typeof dept.score === 'number' ? dept.score : 0) >= 8.5
+                              dept.score >= 8.5
                                 ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100"
-                                : (typeof dept.score === 'number' ? dept.score : 0) >= 8
+                                : dept.score >= 8
                                   ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100"
                                   : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100"
                             }`}
                           >
-                            {(typeof dept.score === 'number' ? dept.score : 0).toFixed(1)}
+                            {dept.score.toFixed(1)}
                           </span>
                         </div>
                       </div>
