@@ -1,22 +1,18 @@
 import { NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
-
-const prisma = new PrismaClient()
+import { prisma } from '@/lib/prisma'
 
 // GET /api/evaluations - Listar avaliações
 export async function GET() {
   try {
     const evaluations = await prisma.evaluation.findMany({
       include: {
-        employee: true,
-        evaluator: true,
-        template: {
-          select: {
-            id: true,
-            name: true,
-            description: true,
-          },
+        employee: {
+          include: {
+            department: true
+          }
         },
+        evaluator: true,
+        template: true,
         answers: {
           include: {
             question: true,
@@ -31,6 +27,10 @@ export async function GET() {
         id: evaluation.employee.id,
         name: evaluation.employee.name,
         matricula: evaluation.employee.matricula,
+        department: {
+          id: evaluation.employee.department.id,
+          name: evaluation.employee.department.name
+        }
       },
       evaluator: {
         id: evaluation.evaluator.id,
@@ -41,7 +41,7 @@ export async function GET() {
         name: evaluation.template.name,
         description: evaluation.template.description,
       },
-      date: evaluation.date,
+      date: evaluation.date.toISOString(),
       status: evaluation.status,
       selfEvaluation: evaluation.selfEvaluation,
       selfEvaluationStatus: evaluation.selfEvaluationStatus,
@@ -49,14 +49,12 @@ export async function GET() {
       selfImprovements: evaluation.selfImprovements,
       selfGoals: evaluation.selfGoals,
       selfScore: evaluation.selfScore,
-      selfEvaluationDate: evaluation.selfEvaluationDate,
       managerEvaluation: evaluation.managerEvaluation,
       managerEvaluationStatus: evaluation.managerEvaluationStatus,
       managerStrengths: evaluation.managerStrengths,
       managerImprovements: evaluation.managerImprovements,
       managerGoals: evaluation.managerGoals,
       managerScore: evaluation.managerScore,
-      managerEvaluationDate: evaluation.managerEvaluationDate,
       finalScore: evaluation.finalScore,
       answers: evaluation.answers.map((answer) => ({
         id: answer.id,
@@ -65,17 +63,17 @@ export async function GET() {
           text: answer.question.text,
         },
         selfScore: answer.selfScore,
-        managerScore: answer.managerScore,
         selfComment: answer.selfComment,
+        managerScore: answer.managerScore,
         managerComment: answer.managerComment,
       })),
     }))
 
     return NextResponse.json(formattedEvaluations)
   } catch (error) {
-    console.error('Erro ao buscar avaliações:', error)
+    console.error("Erro ao buscar avaliações:", error)
     return NextResponse.json(
-      { error: 'Erro ao buscar avaliações' },
+      { error: "Erro ao buscar avaliações" },
       { status: 500 }
     )
   }
@@ -85,13 +83,51 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { employeeId, evaluatorId, templateId } = body
+    const { employeeId, evaluatorId, templateId, date, selfEvaluation, managerEvaluation } = body
+
+    // Verificar se o template existe
+    const template = await prisma.evaluationTemplate.findUnique({
+      where: { id: templateId }
+    })
+
+    if (!template) {
+      return NextResponse.json(
+        { error: "Modelo de avaliação não encontrado" },
+        { status: 404 }
+      )
+    }
+
+    // Verificar se o funcionário e o avaliador existem
+    const [employee, evaluator] = await Promise.all([
+      prisma.employee.findUnique({ where: { id: employeeId } }),
+      prisma.user.findUnique({ where: { id: evaluatorId } })
+    ])
+
+    if (!employee) {
+      return NextResponse.json(
+        { error: "Funcionário não encontrado" },
+        { status: 404 }
+      )
+    }
+
+    if (!evaluator) {
+      return NextResponse.json(
+        { error: "Avaliador não encontrado" },
+        { status: 404 }
+      )
+    }
 
     const evaluation = await prisma.evaluation.create({
       data: {
         employeeId,
         evaluatorId,
         templateId,
+        date: new Date(date),
+        status: "Pendente",
+        selfEvaluation,
+        selfEvaluationStatus: "Pendente",
+        managerEvaluation,
+        managerEvaluationStatus: "Pendente",
       },
       include: {
         employee: true,
@@ -106,17 +142,16 @@ export async function POST(request: Request) {
       },
     })
 
-    // Criar notificação para o funcionário
+    // Criar notificações
     await prisma.notification.create({
       data: {
-        userId: employeeId,
+        userId: evaluatorId,
         type: "evaluation_pending",
         message: `Nova avaliação pendente: ${evaluation.template.name}`,
         evaluationId: evaluation.id,
       },
     })
 
-    // Criar notificação para o gestor
     await prisma.notification.create({
       data: {
         userId: evaluatorId,

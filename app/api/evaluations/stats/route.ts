@@ -1,7 +1,5 @@
 import { NextResponse } from "next/server"
-import { PrismaClient } from "@prisma/client"
-
-const prisma = new PrismaClient()
+import { prisma } from "@/lib/prisma"
 
 export async function GET() {
   try {
@@ -12,7 +10,8 @@ export async function GET() {
           include: {
             department: true
           }
-        }
+        },
+        answers: true
       }
     })
 
@@ -21,25 +20,21 @@ export async function GET() {
     const statusStats = [
       {
         name: "Concluídas",
-        value: Math.round((evaluations.filter(e => e.status === "Concluída").length / total) * 100) || 0
+        value: total > 0 ? Math.round((evaluations.filter(e => e.status === "Finalizado").length / total) * 100) : 0
       },
       {
         name: "Pendentes",
-        value: Math.round((evaluations.filter(e => e.status === "Pendente").length / total) * 100) || 0
-      },
-      {
-        name: "Em Progresso",
-        value: Math.round((evaluations.filter(e => e.status === "Em Progresso").length / total) * 100) || 0
+        value: total > 0 ? Math.round((evaluations.filter(e => e.status === "Pendente").length / total) * 100) : 0
       }
     ]
 
     // Calcular distribuição de pontuações
     const scoreDistribution = [
-      { range: "9-10", count: evaluations.filter(e => e.score && e.score >= 9).length },
-      { range: "8-8.9", count: evaluations.filter(e => e.score && e.score >= 8 && e.score < 9).length },
-      { range: "7-7.9", count: evaluations.filter(e => e.score && e.score >= 7 && e.score < 8).length },
-      { range: "6-6.9", count: evaluations.filter(e => e.score && e.score >= 6 && e.score < 7).length },
-      { range: "0-5.9", count: evaluations.filter(e => e.score && e.score < 6).length }
+      { range: "9-10", count: evaluations.filter(e => e.finalScore && e.finalScore >= 9).length },
+      { range: "8-8.9", count: evaluations.filter(e => e.finalScore && e.finalScore >= 8 && e.finalScore < 9).length },
+      { range: "7-7.9", count: evaluations.filter(e => e.finalScore && e.finalScore >= 7 && e.finalScore < 8).length },
+      { range: "6-6.9", count: evaluations.filter(e => e.finalScore && e.finalScore >= 6 && e.finalScore < 7).length },
+      { range: "0-5.9", count: evaluations.filter(e => e.finalScore && e.finalScore < 6).length }
     ]
 
     // Calcular pontuação média por departamento
@@ -47,7 +42,11 @@ export async function GET() {
       include: {
         employees: {
           include: {
-            evaluations: true
+            evaluations: {
+              include: {
+                answers: true
+              }
+            }
           }
         }
       }
@@ -55,12 +54,14 @@ export async function GET() {
 
     const departmentScores = departments.map(dept => {
       const departmentEvaluations = dept.employees.flatMap(emp => emp.evaluations)
-      const totalScore = departmentEvaluations.reduce((acc, evaluation) => {
-        const score = evaluation.score || 0
-        return acc + score
+      const validEvaluations = departmentEvaluations.filter(e => e.finalScore !== null)
+      
+      const totalScore = validEvaluations.reduce((acc, evaluation) => {
+        return acc + (evaluation.finalScore || 0)
       }, 0)
-      const averageScore = departmentEvaluations.length > 0 
-        ? totalScore / departmentEvaluations.length 
+      
+      const averageScore = validEvaluations.length > 0 
+        ? totalScore / validEvaluations.length 
         : 0
 
       return {
