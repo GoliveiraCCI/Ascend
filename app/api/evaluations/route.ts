@@ -11,11 +11,11 @@ export async function GET() {
             department: true
           }
         },
-        evaluator: true,
-        template: true,
-        answers: {
+        user: true,
+        evaluationtemplate: true,
+        evaluationanswer: {
           include: {
-            question: true,
+            evaluationquestion: true,
           },
         },
       },
@@ -33,13 +33,13 @@ export async function GET() {
         }
       },
       evaluator: {
-        id: evaluation.evaluator.id,
-        name: evaluation.evaluator.name,
+        id: evaluation.user.id,
+        name: evaluation.user.name,
       },
       template: {
-        id: evaluation.template.id,
-        name: evaluation.template.name,
-        description: evaluation.template.description,
+        id: evaluation.evaluationtemplate.id,
+        name: evaluation.evaluationtemplate.name,
+        description: evaluation.evaluationtemplate.description,
       },
       date: evaluation.date.toISOString(),
       status: evaluation.status,
@@ -56,11 +56,11 @@ export async function GET() {
       managerGoals: evaluation.managerGoals,
       managerScore: evaluation.managerScore,
       finalScore: evaluation.finalScore,
-      answers: evaluation.answers.map((answer) => ({
+      answers: evaluation.evaluationanswer.map((answer) => ({
         id: answer.id,
         question: {
-          id: answer.question.id,
-          text: answer.question.text,
+          id: answer.evaluationquestion.id,
+          text: answer.evaluationquestion.text,
         },
         selfScore: answer.selfScore,
         selfComment: answer.selfComment,

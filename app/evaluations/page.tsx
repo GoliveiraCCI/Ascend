@@ -26,6 +26,7 @@ import {
   AlertCircle,
   CheckCircle2,
   FileText,
+  Copy,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -56,6 +57,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { toast } from "@/components/ui/use-toast"
 import { Badge } from "@/components/ui/badge"
+import { Checkbox } from "@/components/ui/checkbox"
 
 // Cores modernas para gráficos
 const MODERN_COLORS = [
@@ -104,7 +106,7 @@ interface Template {
 interface CustomQuestion {
   id: string
   text: string
-  category: string
+  categoryId: string
 }
 
 interface Evaluation {
@@ -237,7 +239,7 @@ export default function EvaluationsPage() {
   const [isNewEvaluationOpen, setIsNewEvaluationOpen] = useState(false)
   const [isTemplateDialogOpen, setIsTemplateDialogOpen] = useState(false)
   const [isApplyEvaluationOpen, setIsApplyEvaluationOpen] = useState(false)
-  const [selectedQuestions, setSelectedQuestions] = useState<string[]>([])
+  const [selectedQuestions, setSelectedQuestions] = useState<CustomQuestion[]>([])
   const [questionScores, setQuestionScores] = useState<Record<string, number>>({})
   const [questionComments, setQuestionComments] = useState<Record<string, string>>({})
   const [newTemplateName, setNewTemplateName] = useState("")
@@ -315,12 +317,19 @@ export default function EvaluationsPage() {
 
   // Adicionar nova pergunta personalizada
   const handleAddCustomQuestion = () => {
-    if (newQuestionText.trim() === "") return
+    if (newQuestionText.trim() === "" || !newQuestionCategory) {
+      toast({
+        title: "Erro",
+        description: "Preencha o texto da pergunta e selecione uma categoria.",
+        variant: "destructive",
+      })
+      return
+    }
 
     const newQuestion = {
       id: Date.now().toString(),
-      text: newQuestionText,
-      category: newQuestionCategory,
+      text: newQuestionText.trim(),
+      categoryId: newQuestionCategory,
     }
 
     setCustomQuestions([...customQuestions, newQuestion])
@@ -328,13 +337,19 @@ export default function EvaluationsPage() {
     setNewQuestionCategory("")
   }
 
+  // Remover pergunta personalizada
+  const removeCustomQuestion = (questionId: string) => {
+    setCustomQuestions(customQuestions.filter(q => q.id !== questionId))
+    setSelectedQuestions(selectedQuestions.filter(q => q.id !== questionId))
+  }
+
   // Alternar seleção de pergunta
-  const toggleQuestionSelection = (questionId: string) => {
+  const toggleQuestionSelection = (question: CustomQuestion) => {
     setSelectedQuestions(prev => {
-      if (prev.includes(questionId)) {
-        return prev.filter(id => id !== questionId)
+      if (prev.some(q => q.id === question.id)) {
+        return prev.filter(q => q.id !== question.id)
       } else {
-        return [...prev, questionId]
+        return [...prev, question]
       }
     })
   }
@@ -365,21 +380,31 @@ export default function EvaluationsPage() {
   // Buscar avaliações
   const fetchEvaluations = async () => {
     try {
+      setIsLoading(true)
       const response = await fetch('/api/evaluations')
       const data = await response.json()
       
       if (response.ok) {
         setEvaluations(data)
       } else {
-        throw new Error(data.error || 'Erro ao buscar avaliações')
+        console.error('Erro ao buscar avaliações:', data.error)
+        toast({
+          title: "Erro",
+          description: data.error || "Erro ao buscar avaliações",
+          variant: "destructive",
+        })
+        setEvaluations([])
       }
     } catch (error) {
       console.error('Erro ao buscar avaliações:', error)
       toast({
         title: "Erro",
-        description: "Não foi possível carregar as avaliações.",
+        description: "Erro ao buscar avaliações",
         variant: "destructive",
       })
+      setEvaluations([])
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -394,6 +419,9 @@ export default function EvaluationsPage() {
   const fetchTemplates = async () => {
     try {
       const response = await fetch('/api/evaluations/templates')
+      if (!response.ok) {
+        throw new Error('Erro ao buscar modelos de avaliação')
+      }
       const data = await response.json()
       setTemplates(data)
     } catch (error) {
@@ -403,6 +431,7 @@ export default function EvaluationsPage() {
         description: "Não foi possível carregar os modelos de avaliação.",
         variant: "destructive",
       })
+      setTemplates([])
     } finally {
       setIsLoading(false)
     }
@@ -508,19 +537,55 @@ export default function EvaluationsPage() {
   // Salvar novo modelo de avaliação
   const saveTemplate = async () => {
     try {
+      // Validar se há questões selecionadas
+      if (selectedQuestions.length === 0) {
+        toast({
+          title: "Erro",
+          description: "Selecione pelo menos uma questão para o modelo.",
+          variant: "destructive",
+        })
+        return
+      }
+
+      // Validar se o nome está preenchido
+      if (!newTemplateName.trim()) {
+        toast({
+          title: "Erro",
+          description: "O nome do modelo é obrigatório.",
+          variant: "destructive",
+        })
+        return
+      }
+
+      // Validar se todas as questões têm texto e categoria
+      const invalidQuestions = selectedQuestions.filter(q => !q.text || !q.categoryId)
+      if (invalidQuestions.length > 0) {
+        toast({
+          title: "Erro",
+          description: "Todas as questões devem ter texto e categoria.",
+          variant: "destructive",
+        })
+        return
+      }
+
       const response = await fetch('/api/evaluations/templates', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          name: newTemplateName,
-          description: newTemplateDescription,
+          name: newTemplateName.trim(),
+          description: newTemplateDescription.trim(),
+          questions: selectedQuestions.map(question => ({
+            text: question.text,
+            categoryId: question.categoryId
+          }))
         }),
       })
 
       if (!response.ok) {
-        throw new Error('Erro ao criar modelo de avaliação')
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Erro ao criar modelo de avaliação')
       }
 
       await fetchTemplates()
@@ -532,11 +597,14 @@ export default function EvaluationsPage() {
       setNewTemplateName("")
       setNewTemplateDescription("")
       setSelectedQuestions([])
+      setCustomQuestions([])
+      setNewQuestionText("")
+      setNewQuestionCategory("")
     } catch (error) {
       console.error('Erro ao criar modelo de avaliação:', error)
       toast({
         title: "Erro",
-        description: "Não foi possível criar o modelo de avaliação.",
+        description: error instanceof Error ? error.message : "Não foi possível criar o modelo de avaliação.",
         variant: "destructive",
       })
     }
@@ -745,23 +813,39 @@ export default function EvaluationsPage() {
     setIsDuplicateDialogOpen(true)
   }
 
-  // Adicionar função para remover pergunta personalizada
-  const removeCustomQuestion = (questionId: string) => {
-    setCustomQuestions(customQuestions.filter(q => q.id !== questionId))
-    setSelectedQuestions(selectedQuestions.filter(id => id !== questionId))
-  }
-
   // Função para buscar estatísticas
   const fetchStats = async () => {
     try {
       const response = await fetch('/api/evaluations/stats')
-      if (!response.ok) {
-        throw new Error('Erro ao buscar estatísticas')
-      }
       const data = await response.json()
-      setStats(data)
+      
+      if (response.ok) {
+        setStats(data)
+      } else {
+        console.error('Erro ao buscar estatísticas:', data.error)
+        toast({
+          title: "Erro",
+          description: data.error || "Erro ao buscar estatísticas",
+          variant: "destructive",
+        })
+        setStats({
+          statusStats: [],
+          scoreDistribution: [],
+          departmentScores: []
+        })
+      }
     } catch (error) {
       console.error('Erro ao buscar estatísticas:', error)
+      toast({
+        title: "Erro",
+        description: "Erro ao buscar estatísticas",
+        variant: "destructive",
+      })
+      setStats({
+        statusStats: [],
+        scoreDistribution: [],
+        departmentScores: []
+      })
     }
   }
 
@@ -1050,26 +1134,26 @@ export default function EvaluationsPage() {
                           </Button>
                         </div>
                         <ScrollArea className="h-[300px] rounded-md border p-4">
-                          {evaluationCategories.map((category) => (
-                            <Collapsible key={category.id} className="mb-4">
-                              <CollapsibleTrigger className="flex w-full items-center justify-between rounded-md bg-secondary p-2 text-left font-medium hover:bg-secondary/80">
-                                {typeof category.name === 'string' ? category.name : 'Categoria sem nome'}
-                                <ChevronDown className="h-4 w-4" />
-                              </CollapsibleTrigger>
-                              <CollapsibleContent className="pt-2">
-                                {customQuestions
-                                  .filter((q) => q.category === category.id)
-                                  .map((question) => (
+                          {evaluationCategories.map((category) => {
+                            const categoryQuestions = customQuestions.filter((q) => q.categoryId === category.id)
+                            if (categoryQuestions.length === 0) return null
+                            
+                            return (
+                              <Collapsible key={category.id} className="mb-4">
+                                <CollapsibleTrigger className="flex w-full items-center justify-between rounded-md bg-secondary p-2 text-left font-medium hover:bg-secondary/80">
+                                  {typeof category.name === 'string' ? category.name : 'Categoria sem nome'}
+                                  <ChevronDown className="h-4 w-4" />
+                                </CollapsibleTrigger>
+                                <CollapsibleContent className="pt-2">
+                                  {categoryQuestions.map((question) => (
                                     <div key={question.id} className="flex items-center gap-2 py-2">
-                                      <input
-                                        type="checkbox"
+                                      <Checkbox
                                         id={question.id}
-                                        checked={selectedQuestions.includes(question.id)}
-                                        onChange={() => toggleQuestionSelection(question.id)}
-                                        className="h-4 w-4 rounded border-gray-300"
+                                        checked={selectedQuestions.some(q => q.id === question.id)}
+                                        onCheckedChange={() => toggleQuestionSelection(question)}
                                       />
                                       <label htmlFor={question.id} className="text-sm flex-1">
-                                        {typeof question.text === 'string' ? question.text : 'Pergunta sem texto'}
+                                        {question.text}
                                       </label>
                                       <Button
                                         variant="ghost"
@@ -1081,9 +1165,10 @@ export default function EvaluationsPage() {
                                       </Button>
                                     </div>
                                   ))}
-                              </CollapsibleContent>
-                            </Collapsible>
-                          ))}
+                                </CollapsibleContent>
+                              </Collapsible>
+                            )
+                          })}
                         </ScrollArea>
                       </div>
                     </div>
@@ -1355,10 +1440,16 @@ export default function EvaluationsPage() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => router.push(`/evaluations/templates/${template.id}`)}>
+                              <Eye className="mr-2 h-4 w-4" />
+                              Visualizar modelo
+                            </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => openEditDialog(template)}>
+                              <Pencil className="mr-2 h-4 w-4" />
                               Editar modelo
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => openDuplicateDialog(template)}>
+                              <Copy className="mr-2 h-4 w-4" />
                               Duplicar modelo
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
@@ -1373,7 +1464,10 @@ export default function EvaluationsPage() {
                                   Excluindo...
                                 </>
                               ) : (
-                                'Excluir modelo'
+                                <>
+                                  <Trash2 className="mr-2 h-4 w-4" />
+                                  Excluir modelo
+                                </>
                               )}
                             </DropdownMenuItem>
                           </DropdownMenuContent>

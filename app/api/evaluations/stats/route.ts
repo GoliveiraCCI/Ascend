@@ -11,7 +11,7 @@ export async function GET() {
             department: true
           }
         },
-        answers: true
+        evaluationanswer: true
       }
     })
 
@@ -40,11 +40,11 @@ export async function GET() {
     // Calcular pontuação média por departamento
     const departments = await prisma.department.findMany({
       include: {
-        employees: {
+        employee: {
           include: {
-            evaluations: {
+            evaluation: {
               include: {
-                answers: true
+                evaluationanswer: true
               }
             }
           }
@@ -53,7 +53,7 @@ export async function GET() {
     })
 
     const departmentScores = departments.map(dept => {
-      const departmentEvaluations = dept.employees.flatMap(emp => emp.evaluations)
+      const departmentEvaluations = dept.employee.flatMap(emp => emp.evaluation)
       const validEvaluations = departmentEvaluations.filter(e => e.finalScore !== null)
       
       const totalScore = validEvaluations.reduce((acc, evaluation) => {

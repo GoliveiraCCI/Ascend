@@ -17,11 +17,14 @@ import { toast } from "@/components/ui/use-toast"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
-interface Answer {
+interface EvaluationAnswer {
   id: string
-  question: {
+  evaluationquestion: {
     id: string
     text: string
+    category: {
+      name: string
+    }
   }
   selfScore: number | null
   selfComment: string | null
@@ -38,23 +41,27 @@ interface Employee {
   }
 }
 
-interface Evaluator {
+interface User {
   id: string
   name: string
   position: string
 }
 
-interface Template {
+interface EvaluationTemplate {
   id: string
   name: string
   description: string
+  questions: {
+    id: string
+    text: string
+  }[]
 }
 
 interface Evaluation {
   id: string
   employee: Employee
-  evaluator: Evaluator
-  template: Template
+  user: User
+  evaluationtemplate: EvaluationTemplate
   date: string
   status: string
   selfEvaluationStatus: string
@@ -68,7 +75,7 @@ interface Evaluation {
   selfScore: number | null
   managerScore: number | null
   finalScore: number | null
-  answers: Answer[]
+  evaluationanswer: EvaluationAnswer[]
 }
 
 // Função para classificar pontuações
@@ -105,23 +112,22 @@ export default function EvaluationDetailsPage() {
     const fetchEvaluation = async () => {
       try {
         const response = await fetch(`/api/evaluations/${params.id}`)
-        const data = await response.json()
         
-        if (response.ok) {
-          setEvaluation(data)
-        } else {
-          console.error("Erro ao carregar avaliação:", data.error)
-          toast({
-            title: "Erro",
-            description: "Não foi possível carregar a avaliação",
-            variant: "destructive",
-          })
+        if (!response.ok) {
+          const errorData = await response.json()
+          if (response.status === 404) {
+            throw new Error("Avaliação não encontrada")
+          }
+          throw new Error(errorData.error || 'Erro ao buscar avaliação')
         }
+        
+        const data = await response.json()
+        setEvaluation(data)
       } catch (error) {
         console.error("Erro ao carregar avaliação:", error)
         toast({
           title: "Erro",
-          description: "Ocorreu um erro ao carregar a avaliação",
+          description: error instanceof Error ? error.message : "Ocorreu um erro ao carregar a avaliação",
           variant: "destructive",
         })
       } finally {
@@ -150,18 +156,68 @@ export default function EvaluationDetailsPage() {
     })
   }
 
-  const handleSaveEvaluation = () => {
-    toast({
-      title: "Avaliação salva",
-      description: "A avaliação foi salva com sucesso.",
-    })
+  const handleSaveEvaluation = async () => {
+    try {
+      const answers = evaluation.evaluationanswer.map(answer => ({
+        id: answer.id,
+        score: scores[answer.id] || (evaluationType === "self" ? answer.selfScore : answer.managerScore),
+        comment: comments[answer.id] || (evaluationType === "self" ? answer.selfComment : answer.managerComment)
+      }))
+
+      const response = await fetch(`/api/evaluations/${params.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          type: evaluationType,
+          answers,
+          strengths: evaluationType === "self" ? evaluation.selfStrengths : evaluation.managerStrengths,
+          improvements: evaluationType === "self" ? evaluation.selfImprovements : evaluation.managerImprovements,
+          goals: evaluationType === "self" ? evaluation.selfGoals : evaluation.managerGoals
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error("Erro ao salvar avaliação")
+      }
+
+      toast({
+        title: "Sucesso",
+        description: "Avaliação salva com sucesso",
+      })
+
+      // Recarregar os dados da avaliação
+      const updatedEvaluation = await response.json()
+      setEvaluation(updatedEvaluation)
+    } catch (error) {
+      console.error("Erro ao salvar avaliação:", error)
+      toast({
+        title: "Erro",
+        description: "Ocorreu um erro ao salvar a avaliação",
+        variant: "destructive",
+      })
+    }
   }
 
-  const handleSubmitEvaluation = () => {
-    toast({
-      title: "Avaliação enviada",
-      description: "A avaliação foi enviada com sucesso.",
-    })
+  const handleSubmitEvaluation = async () => {
+    try {
+      await handleSaveEvaluation()
+      
+      toast({
+        title: "Sucesso",
+        description: "Avaliação enviada com sucesso",
+      })
+
+      router.push("/evaluations")
+    } catch (error) {
+      console.error("Erro ao enviar avaliação:", error)
+      toast({
+        title: "Erro",
+        description: "Ocorreu um erro ao enviar a avaliação",
+        variant: "destructive",
+      })
+    }
   }
 
   // Exportar para PDF
@@ -248,7 +304,7 @@ export default function EvaluationDetailsPage() {
           <Button variant="outline" onClick={exportToPDF}>
             <FileText className="mr-2 h-4 w-4" />
             Exportar PDF
-          </Button>
+        </Button>
           <Button onClick={handleSaveEvaluation}>Salvar</Button>
         </div>
       </div>
@@ -277,11 +333,11 @@ export default function EvaluationDetailsPage() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm font-medium">Gestor:</span>
-                  <span className="text-sm">{evaluation.evaluator.name}</span>
+                  <span className="text-sm">{evaluation.user.name}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm font-medium">Template:</span>
-                  <span className="text-sm">{evaluation.template.name}</span>
+                  <span className="text-sm">{evaluation.evaluationtemplate.name}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm font-medium">Data:</span>
@@ -427,27 +483,27 @@ export default function EvaluationDetailsPage() {
                     </div>
                   </div>
 
-                  {evaluation.answers.map((answer) => (
+                  {evaluation.evaluationanswer.map((answer) => (
                     <div key={answer.id} className="space-y-2 border p-4 rounded-md">
                       <div className="flex items-center justify-between">
-                        <Label className="text-sm font-medium">{answer.question.text}</Label>
+                        <Label className="text-sm font-medium">{answer.evaluationquestion.text}</Label>
                         <div className="flex items-center gap-2">
                           <span
                             className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${getScoreClass(
-                              answer.selfScore,
+                              answer.selfScore ?? 0
                             )}`}
                           >
-                            Auto: {answer.selfScore?.toFixed(1) || "0"}
+                            Auto: {(answer.selfScore ?? 0).toFixed(1)}
                           </span>
                           <span
                             className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${getScoreClass(
-                              answer.managerScore,
+                              answer.managerScore ?? 0
                             )}`}
                           >
-                            Gestor: {answer.managerScore?.toFixed(1) || "0"}
+                            Gestor: {(answer.managerScore ?? 0).toFixed(1)}
                           </span>
                           <span className="text-xs text-muted-foreground">
-                            Dif: {Math.abs((answer.managerScore || 0) - (answer.selfScore || 0)).toFixed(1)}
+                            Dif: {Math.abs((answer.managerScore ?? 0) - (answer.selfScore ?? 0)).toFixed(1)}
                           </span>
                         </div>
                       </div>
@@ -489,58 +545,54 @@ export default function EvaluationDetailsPage() {
                     </div>
                   </div>
 
-                  {evaluation.answers.map((answer) => {
-                    const currentScore = evaluationType === "self" ? answer.selfScore : answer.managerScore
-                    const currentComment = evaluationType === "self" ? answer.selfComment : answer.managerComment
-
-                    return (
-                      <div key={answer.id} className="space-y-2 border p-4 rounded-md">
-                        <div className="flex items-center justify-between">
-                          <Label htmlFor={answer.id} className="text-sm font-medium">
-                            {answer.question.text}
-                          </Label>
-                          <span
-                            className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${getScoreClass(
-                              scores[answer.id] || currentScore,
-                            )}`}
-                          >
-                            {(scores[answer.id] || currentScore || 0).toFixed(1)}/10
-                          </span>
-                        </div>
-
-                        <div className="pt-2">
-                          <Label className="text-sm mb-1 block">Pontuação:</Label>
-                          <RadioGroup
-                            value={(scores[answer.id] || currentScore || 0).toString()}
-                            onValueChange={(value) => handleScoreChange(answer.id, Number.parseInt(value))}
-                            className="flex flex-wrap gap-2"
-                          >
-                            {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((value) => (
-                              <div key={value} className="flex items-center space-x-1">
-                                <RadioGroupItem value={value.toString()} id={`${answer.id}-${value}`} />
-                                <Label htmlFor={`${answer.id}-${value}`} className="text-sm">
-                                  {value}
-                                </Label>
-                              </div>
-                            ))}
-                          </RadioGroup>
-                        </div>
-
-                        <div className="pt-3">
-                          <Label htmlFor={`comment-${answer.id}`} className="text-sm mb-1 block">
-                            Comentário:
-                          </Label>
-                          <Textarea
-                            id={`comment-${answer.id}`}
-                            placeholder="Adicione um comentário sobre esta questão"
-                            value={comments[answer.id] || currentComment || ""}
-                            onChange={(e) => handleCommentChange(answer.id, e.target.value)}
-                            className="min-h-[80px]"
-                          />
-                        </div>
+                  {/* Agrupar questões por categoria */}
+                  {evaluation.evaluationtemplate.questions.map((question) => (
+                    <div key={question.id} className="space-y-2 border p-4 rounded-md">
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor={question.id} className="text-sm font-medium">
+                          {question.text}
+                        </Label>
+                        <span
+                          className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${getScoreClass(
+                            scores[question.id] || 0
+                          )}`}
+                        >
+                          {(scores[question.id] || 0).toFixed(1)}/10
+                        </span>
                       </div>
-                    )
-                  })}
+
+                      <div className="pt-2">
+                        <Label className="text-sm mb-1 block">Pontuação:</Label>
+                        <RadioGroup
+                          value={(scores[question.id] || 0).toString()}
+                          onValueChange={(value) => handleScoreChange(question.id, Number.parseInt(value))}
+                          className="flex flex-wrap gap-2"
+                        >
+                          {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((value) => (
+                            <div key={value} className="flex items-center space-x-1">
+                              <RadioGroupItem value={value.toString()} id={`${question.id}-${value}`} />
+                              <Label htmlFor={`${question.id}-${value}`} className="text-sm">
+                                {value}
+                              </Label>
+                            </div>
+                          ))}
+                        </RadioGroup>
+                      </div>
+
+                      <div className="pt-3">
+                        <Label htmlFor={`comment-${question.id}`} className="text-sm mb-1 block">
+                          Comentário:
+                        </Label>
+                        <Textarea
+                          id={`comment-${question.id}`}
+                          placeholder="Adicione um comentário sobre esta questão"
+                          value={comments[question.id] || ""}
+                          onChange={(e) => handleCommentChange(question.id, e.target.value)}
+                          className="min-h-[80px]"
+                        />
+                      </div>
+                    </div>
+                  ))}
 
                   <div className="rounded-lg border p-4">
                     <h3 className="mb-4 font-medium">Comentários Gerais</h3>
@@ -552,11 +604,14 @@ export default function EvaluationDetailsPage() {
                         <Textarea
                           id="strengths"
                           placeholder="Descreva os pontos fortes do funcionário"
-                          defaultValue={
-                            evaluationType === "self"
-                              ? evaluation.selfStrengths || ""
-                              : evaluation.managerStrengths || ""
-                          }
+                          value={evaluationType === "self" ? evaluation.selfStrengths || "" : evaluation.managerStrengths || ""}
+                          onChange={(e) => {
+                            if (evaluationType === "self") {
+                              setEvaluation({...evaluation, selfStrengths: e.target.value})
+                            } else {
+                              setEvaluation({...evaluation, managerStrengths: e.target.value})
+                            }
+                          }}
                           className="mt-1"
                         />
                       </div>
@@ -567,11 +622,14 @@ export default function EvaluationDetailsPage() {
                         <Textarea
                           id="improvements"
                           placeholder="Descreva as áreas que precisam de melhoria"
-                          defaultValue={
-                            evaluationType === "self"
-                              ? evaluation.selfImprovements || ""
-                              : evaluation.managerImprovements || ""
-                          }
+                          value={evaluationType === "self" ? evaluation.selfImprovements || "" : evaluation.managerImprovements || ""}
+                          onChange={(e) => {
+                            if (evaluationType === "self") {
+                              setEvaluation({...evaluation, selfImprovements: e.target.value})
+                            } else {
+                              setEvaluation({...evaluation, managerImprovements: e.target.value})
+                            }
+                          }}
                           className="mt-1"
                         />
                       </div>
@@ -582,27 +640,32 @@ export default function EvaluationDetailsPage() {
                         <Textarea
                           id="goals"
                           placeholder="Defina metas e objetivos para o próximo período"
-                          defaultValue={
-                            evaluationType === "self" ? evaluation.selfGoals || "" : evaluation.managerGoals || ""
-                          }
+                          value={evaluationType === "self" ? evaluation.selfGoals || "" : evaluation.managerGoals || ""}
+                          onChange={(e) => {
+                            if (evaluationType === "self") {
+                              setEvaluation({...evaluation, selfGoals: e.target.value})
+                            } else {
+                              setEvaluation({...evaluation, managerGoals: e.target.value})
+                            }
+                          }}
                           className="mt-1"
                         />
                       </div>
                     </div>
                   </div>
+
+                  <div className="flex justify-end gap-2">
+                    <Button variant="outline" onClick={handleSaveEvaluation}>
+                      Salvar
+                    </Button>
+                    <Button onClick={handleSubmitEvaluation}>
+                      Enviar Avaliação
+                    </Button>
+                  </div>
                 </TabsContent>
               </div>
             </Tabs>
           </CardContent>
-          <CardFooter className="flex justify-between">
-            <Button variant="outline" onClick={handleSaveEvaluation}>
-              Salvar Rascunho
-            </Button>
-            <Button onClick={handleSubmitEvaluation}>
-              <Send className="mr-2 h-4 w-4" />
-              Enviar Avaliação
-            </Button>
-          </CardFooter>
         </Card>
       </div>
     </div>

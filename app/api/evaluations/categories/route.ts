@@ -12,9 +12,9 @@ export async function GET() {
     await prisma.$connect()
     console.log('Conexão com o banco de dados estabelecida')
     
-    const categories = await prisma.evaluationCategory.findMany({
+    const categories = await prisma.evaluationcategory.findMany({
       include: {
-        questions: {
+        evaluationquestion: {
           orderBy: {
             text: 'asc'
           }
@@ -40,7 +40,7 @@ export async function GET() {
       ]
       
       for (const category of defaultCategories) {
-        await prisma.evaluationCategory.create({
+        await prisma.evaluationcategory.create({
           data: category
         })
       }
@@ -48,9 +48,9 @@ export async function GET() {
       console.log('Categorias padrão criadas com sucesso')
       
       // Buscar as categorias novamente
-      const newCategories = await prisma.evaluationCategory.findMany({
+      const newCategories = await prisma.evaluationcategory.findMany({
         include: {
-          questions: {
+          evaluationquestion: {
             orderBy: {
               text: 'asc'
             }
@@ -81,7 +81,7 @@ export async function POST(request: Request) {
   try {
     const data = await request.json()
     
-    const category = await prisma.evaluationCategory.create({
+    const category = await prisma.evaluationcategory.create({
       data: {
         name: data.name,
         description: data.description

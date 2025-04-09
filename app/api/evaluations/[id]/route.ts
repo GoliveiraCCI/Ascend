@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { PrismaClient } from '@prisma/client'
+
+const prisma = new PrismaClient()
 
 // GET /api/evaluations/[id] - Buscar avaliação por ID
 export async function GET(
@@ -17,11 +19,28 @@ export async function GET(
             department: true,
           },
         },
-        evaluator: true,
-        template: true,
-        answers: {
+        user: true,
+        evaluationtemplate: {
           include: {
-            question: true,
+            questions: {
+              include: {
+                category: true,
+              },
+              orderBy: {
+                category: {
+                  name: 'asc'
+                }
+              }
+            },
+          },
+        },
+        evaluationanswer: {
+          include: {
+            evaluationquestion: {
+              include: {
+                category: true,
+              },
+            },
           },
         },
       },
@@ -30,6 +49,51 @@ export async function GET(
     if (!evaluation) {
       return NextResponse.json({ error: "Avaliação não encontrada" }, { status: 404 })
     }
+
+    // Garantir que todas as questões do template tenham uma resposta
+    const templateQuestions = evaluation.evaluationtemplate.questions
+    const existingAnswers = evaluation.evaluationanswer.map(answer => answer.evaluationquestion.id)
+    
+    // Criar respostas vazias para questões que ainda não têm resposta
+    const missingQuestions = templateQuestions.filter(
+      question => !existingAnswers.includes(question.id)
+    )
+
+    if (missingQuestions.length > 0) {
+      const newAnswers = await Promise.all(
+        missingQuestions.map(question =>
+          prisma.evaluationanswer.create({
+            data: {
+              evaluationId: evaluation.id,
+              questionId: question.id,
+              selfScore: null,
+              managerScore: null,
+              selfComment: null,
+              managerComment: null
+            },
+            include: {
+              evaluationquestion: {
+                include: {
+                  category: true,
+                },
+              },
+            },
+          })
+        )
+      )
+
+      evaluation.evaluationanswer = [...evaluation.evaluationanswer, ...newAnswers]
+    }
+
+    // Ordenar as respostas pela categoria da questão
+    evaluation.evaluationanswer.sort((a, b) => 
+      a.evaluationquestion.category.name.localeCompare(b.evaluationquestion.category.name)
+    )
+
+    // Garantir que as questões do template estejam ordenadas por categoria
+    evaluation.evaluationtemplate.questions.sort((a, b) => 
+      a.category.name.localeCompare(b.category.name)
+    )
 
     return NextResponse.json(evaluation)
   } catch (error) {
@@ -48,131 +112,86 @@ export async function PUT(
 ) {
   try {
     const body = await request.json()
-    const { answers, selfStrengths, selfImprovements, selfGoals, managerStrengths, managerImprovements, managerGoals } = body
+    const { answers, type, strengths, improvements, goals } = body
 
-    // Busca a avaliação atual
-    const currentEvaluation = await prisma.evaluation.findUnique({
+    // Buscar a avaliação atual
+    const evaluation = await prisma.evaluation.findUnique({
       where: { id: params.id },
-      include: {
-        answers: true,
-        employee: true,
-        evaluator: true,
-      },
+      include: { evaluationanswer: true }
     })
 
-    if (!currentEvaluation) {
-      return NextResponse.json({ error: "Avaliação não encontrada" }, { status: 404 })
+    if (!evaluation) {
+      return NextResponse.json(
+        { error: "Avaliação não encontrada" },
+        { status: 404 }
+      )
     }
 
-    // Atualiza as respostas
-    const updatedAnswers = await Promise.all(
-      answers.map(async (answer: any) => {
-        return prisma.evaluationAnswer.upsert({
-          where: {
-            id: answer.id || "",
-          },
-          update: {
-            selfScore: answer.selfScore,
-            selfComment: answer.selfComment,
-            managerScore: answer.managerScore,
-            managerComment: answer.managerComment,
-          },
-          create: {
-            evaluationId: params.id,
-            questionId: answer.questionId,
-            selfScore: answer.selfScore,
-            selfComment: answer.selfComment,
-            managerScore: answer.managerScore,
-            managerComment: answer.managerComment,
-          },
-        })
+    // Atualizar as respostas
+    for (const answer of answers) {
+      await prisma.evaluationanswer.update({
+        where: { id: answer.id },
+        data: {
+          ...(type === "self" ? {
+            selfScore: answer.score,
+            selfComment: answer.comment
+          } : {
+            managerScore: answer.score,
+            managerComment: answer.comment
+          })
+        }
       })
-    )
+    }
 
-    // Calcula as pontuações médias
-    const selfScores = updatedAnswers
-      .filter((answer) => answer.selfScore !== null)
-      .map((answer) => answer.selfScore)
-    const managerScores = updatedAnswers
-      .filter((answer) => answer.managerScore !== null)
-      .map((answer) => answer.managerScore)
+    // Atualizar o status e os campos gerais
+    const updateData: any = {
+      ...(type === "self" ? {
+        selfEvaluationStatus: "Concluída",
+        selfStrengths: strengths,
+        selfImprovements: improvements,
+        selfGoals: goals,
+        selfScore: calculateAverageScore(answers),
+        selfEvaluationDate: new Date()
+      } : {
+        managerEvaluationStatus: "Concluída",
+        managerStrengths: strengths,
+        managerImprovements: improvements,
+        managerGoals: goals,
+        managerScore: calculateAverageScore(answers),
+        managerEvaluationDate: new Date()
+      })
+    }
 
-    const selfScore = selfScores.length > 0
-      ? selfScores.reduce((a, b) => a + b, 0) / selfScores.length
-      : null
-    const managerScore = managerScores.length > 0
-      ? managerScores.reduce((a, b) => a + b, 0) / managerScores.length
-      : null
+    // Se ambas as avaliações estiverem concluídas, calcular a pontuação final
+    if (type === "manager" && evaluation.selfEvaluationStatus === "Concluída") {
+      updateData.finalScore = (updateData.managerScore + evaluation.selfScore!) / 2
+      updateData.status = "Concluída"
+    }
 
-    // Calcula a pontuação final (média ponderada: 30% autoavaliação, 70% avaliação do gestor)
-    const finalScore = selfScore !== null && managerScore !== null
-      ? (selfScore * 0.3) + (managerScore * 0.7)
-      : null
-
-    // Verifica se houve mudança de status
-    const wasSelfPending = currentEvaluation.selfEvaluationStatus === "Pendente"
-    const wasManagerPending = currentEvaluation.managerEvaluationStatus === "Pendente"
-    const isSelfCompleted = selfScore !== null
-    const isManagerCompleted = managerScore !== null
-
-    // Atualiza a avaliação
-    const updatedEvaluation = await prisma.evaluation.update({
+    await prisma.evaluation.update({
       where: { id: params.id },
-      data: {
-        selfStrengths,
-        selfImprovements,
-        selfGoals,
-        managerStrengths,
-        managerImprovements,
-        managerGoals,
-        selfScore,
-        managerScore,
-        finalScore,
-        selfEvaluationDate: isSelfCompleted ? new Date() : null,
-        managerEvaluationDate: isManagerCompleted ? new Date() : null,
-        selfEvaluationStatus: isSelfCompleted ? "Finalizado" : "Pendente",
-        managerEvaluationStatus: isManagerCompleted ? "Finalizado" : "Pendente",
-      },
-      include: {
-        employee: true,
-        evaluator: true,
-        template: true,
-        answers: {
-          include: {
-            question: true,
-          },
-        },
-      },
+      data: updateData
     })
 
-    // Criar notificações se houver mudança de status
-    if (wasSelfPending && isSelfCompleted) {
-      await prisma.notification.create({
-        data: {
-          userId: currentEvaluation.evaluatorId,
-          type: "evaluation_completed",
-          message: `Autoavaliação finalizada: ${currentEvaluation.employee.name}`,
-          evaluationId: params.id,
-        },
-      })
-    }
-
-    if (wasManagerPending && isManagerCompleted) {
-      await prisma.notification.create({
-        data: {
-          userId: currentEvaluation.employeeId,
-          type: "evaluation_completed",
-          message: `Avaliação do gestor finalizada`,
-          evaluationId: params.id,
-        },
-      })
-    }
-
-    return NextResponse.json(updatedEvaluation)
+    return NextResponse.json({ success: true })
   } catch (error) {
     console.error("Erro ao atualizar avaliação:", error)
-    return NextResponse.json({ error: "Erro ao atualizar avaliação" }, { status: 500 })
+    return NextResponse.json(
+      { error: "Erro ao atualizar avaliação" },
+      { status: 500 }
+    )
   }
+}
+
+function calculateAverageScore(answers: any[]) {
+  const validScores = answers
+    .map(a => a.score)
+    .filter(score => score !== null && score !== undefined)
+  
+  if (validScores.length === 0) return null
+  
+  const sum = validScores.reduce((a, b) => a + b, 0)
+  return sum / validScores.length
 }
 
 export async function DELETE(
