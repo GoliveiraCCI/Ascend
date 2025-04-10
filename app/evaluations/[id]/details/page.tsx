@@ -5,6 +5,8 @@ import { useRouter, useParams } from "next/navigation"
 import { ArrowLeft, Download, FileText, Printer, Send, User } from "lucide-react"
 import html2canvas from "html2canvas"
 import jsPDF from "jspdf"
+import { ResponsiveContainer } from "recharts"
+import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Legend } from "recharts"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -16,6 +18,9 @@ import { Textarea } from "@/components/ui/textarea"
 import { toast } from "@/components/ui/use-toast"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Input } from "@/components/ui/input"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { CheckCircle, AlertCircle } from "lucide-react"
 
 interface EvaluationAnswer {
   id: string
@@ -54,6 +59,10 @@ interface EvaluationTemplate {
   questions: {
     id: string
     text: string
+    category: {
+      id: string
+      name: string
+    }
   }[]
 }
 
@@ -107,6 +116,10 @@ export default function EvaluationDetailsPage() {
   const [evaluationType, setEvaluationType] = useState<"self" | "manager">("self")
   const [scores, setScores] = useState<Record<string, number>>({})
   const [comments, setComments] = useState<Record<string, string>>({})
+  const [isSaving, setIsSaving] = useState(false)
+  const [canEdit, setCanEdit] = useState(true)
+  const [isEditing, setIsEditing] = useState(false)
+  const [alert, setAlert] = useState<{ type: "success" | "error", message: string } | null>(null)
 
   useEffect(() => {
     const fetchEvaluation = async () => {
@@ -123,6 +136,15 @@ export default function EvaluationDetailsPage() {
         
         const data = await response.json()
         setEvaluation(data)
+        setCanEdit(true)
+        // Se a avaliação estiver concluída, começa no modo de visualização
+        if (data.status === "Concluída" || 
+            (evaluationType === "self" && data.selfEvaluationStatus === "Concluída") ||
+            (evaluationType === "manager" && data.managerEvaluationStatus === "Concluída")) {
+          setIsEditing(false)
+        } else {
+          setIsEditing(true)
+        }
       } catch (error) {
         console.error("Erro ao carregar avaliação:", error)
         toast({
@@ -136,7 +158,7 @@ export default function EvaluationDetailsPage() {
     }
 
     fetchEvaluation()
-  }, [params.id])
+  }, [params.id, evaluationType])
 
   const handleGoBack = () => {
     router.back()
@@ -158,11 +180,25 @@ export default function EvaluationDetailsPage() {
 
   const handleSaveEvaluation = async () => {
     try {
+      setIsSaving(true)
+      setAlert(null)
+
+      // Preparar as respostas para envio
       const answers = evaluation.evaluationanswer.map(answer => ({
         id: answer.id,
-        score: scores[answer.id] || (evaluationType === "self" ? answer.selfScore : answer.managerScore),
-        comment: comments[answer.id] || (evaluationType === "self" ? answer.selfComment : answer.managerComment)
+        score: evaluationType === "self" ? answer.selfScore : answer.managerScore,
+        comment: evaluationType === "self" ? answer.selfComment : answer.managerComment
       }))
+
+      // Validar se todas as questões foram respondidas
+      const unansweredQuestions = answers.filter(a => a.score === null)
+      if (unansweredQuestions.length > 0) {
+        setAlert({
+          type: "error",
+          message: "Por favor, responda todas as questões antes de salvar"
+        })
+        return
+      }
 
       const response = await fetch(`/api/evaluations/${params.id}`, {
         method: "PUT",
@@ -179,45 +215,37 @@ export default function EvaluationDetailsPage() {
       })
 
       if (!response.ok) {
-        throw new Error("Erro ao salvar avaliação")
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Erro ao salvar avaliação")
       }
-
-      toast({
-        title: "Sucesso",
-        description: "Avaliação salva com sucesso",
-      })
 
       // Recarregar os dados da avaliação
       const updatedEvaluation = await response.json()
       setEvaluation(updatedEvaluation)
+      setIsEditing(false)
+
+      setAlert({
+        type: "success",
+        message: "Avaliação salva com sucesso!"
+      })
+
+      // Limpar o alerta após 5 segundos
+      setTimeout(() => {
+        setAlert(null)
+      }, 5000)
     } catch (error) {
       console.error("Erro ao salvar avaliação:", error)
-      toast({
-        title: "Erro",
-        description: "Ocorreu um erro ao salvar a avaliação",
-        variant: "destructive",
+      setAlert({
+        type: "error",
+        message: error instanceof Error ? error.message : "Ocorreu um erro ao salvar a avaliação"
       })
+    } finally {
+      setIsSaving(false)
     }
   }
 
-  const handleSubmitEvaluation = async () => {
-    try {
-      await handleSaveEvaluation()
-      
-      toast({
-        title: "Sucesso",
-        description: "Avaliação enviada com sucesso",
-      })
-
-      router.push("/evaluations")
-    } catch (error) {
-      console.error("Erro ao enviar avaliação:", error)
-      toast({
-        title: "Erro",
-        description: "Ocorreu um erro ao enviar a avaliação",
-        variant: "destructive",
-      })
-    }
+  const handleEditClick = () => {
+    setIsEditing(true)
   }
 
   // Exportar para PDF
@@ -289,6 +317,19 @@ export default function EvaluationDetailsPage() {
 
   return (
     <div className="animate-in flex flex-col gap-8 p-4 md:p-8">
+      {/* Alert */}
+      {alert && (
+        <Alert variant={alert.type === "success" ? "default" : "destructive"} className="mb-4">
+          {alert.type === "success" ? (
+            <CheckCircle className="h-4 w-4" />
+          ) : (
+            <AlertCircle className="h-4 w-4" />
+          )}
+          <AlertTitle>{alert.type === "success" ? "Sucesso" : "Erro"}</AlertTitle>
+          <AlertDescription>{alert.message}</AlertDescription>
+        </Alert>
+      )}
+
       <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <div className="flex items-center gap-2">
           <Button variant="outline" size="icon" onClick={handleGoBack}>
@@ -417,113 +458,426 @@ export default function EvaluationDetailsPage() {
                 <TabsTrigger value="evaluation">Avaliação</TabsTrigger>
               </TabsList>
               <div id="evaluation-content">
-                <TabsContent value="overview" className="space-y-6">
-                  <div className="mt-6 space-y-6">
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <div className="rounded-lg border p-4">
-                        <h3 className="mb-2 font-medium">Pontos Fortes (Autoavaliação)</h3>
-                        <p className="text-sm">{evaluation.selfStrengths || "Não informado"}</p>
+                <TabsContent value="overview" className="space-y-4">
+                  <div className="grid grid-cols-1 gap-4">
+                    {/* Gráfico Radar - Médias Brutas */}
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Comparativo por Categoria</CardTitle>
+                        <CardDescription>Autoavaliação vs Avaliação do Gestor</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="h-[400px]">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <RadarChart
+                              cx="50%"
+                              cy="50%"
+                              outerRadius="80%"
+                              data={Array.from(new Set(evaluation.evaluationanswer.map(a => a.evaluationquestion.category.name)))
+                                .map(category => {
+                                  const categoryAnswers = evaluation.evaluationanswer.filter(a => a.evaluationquestion.category.name === category);
+                                  const selfAverage = Number((categoryAnswers.reduce((sum, a) => sum + (a.selfScore || 0), 0) / categoryAnswers.length).toFixed(1));
+                                  const managerAverage = Number((categoryAnswers.reduce((sum, a) => sum + (a.managerScore || 0), 0) / categoryAnswers.length).toFixed(1));
+                                  
+                                  return {
+                                    category,
+                                    self: selfAverage,
+                                    manager: managerAverage
+                                  };
+                                })}
+                            >
+                              <PolarGrid stroke="#e5e7eb" />
+                              <PolarAngleAxis 
+                                dataKey="category" 
+                                tick={{ fill: '#374151', fontSize: 12, fontWeight: 500 }}
+                                tickFormatter={(value, index) => {
+                                  const data = Array.from(new Set(evaluation.evaluationanswer.map(a => a.evaluationquestion.category.name)))
+                                    .map(category => {
+                                      const categoryAnswers = evaluation.evaluationanswer.filter(a => a.evaluationquestion.category.name === category);
+                                      const selfAverage = Number((categoryAnswers.reduce((sum, a) => sum + (a.selfScore || 0), 0) / categoryAnswers.length).toFixed(1));
+                                      const managerAverage = Number((categoryAnswers.reduce((sum, a) => sum + (a.managerScore || 0), 0) / categoryAnswers.length).toFixed(1));
+                                      return { category, selfAverage, managerAverage };
+                                    });
+                                  const item = data[index];
+                                  return `${value}\n${item.selfAverage}/${item.managerAverage}`;
+                                }}
+                              />
+                              <PolarRadiusAxis 
+                                angle={30} 
+                                domain={[0, 5]} 
+                                tick={{ fill: '#374151', fontSize: 12, fontWeight: 500 }}
+                              />
+                              <Radar
+                                name="Autoavaliação"
+                                dataKey="self"
+                                stroke="#3b82f6"
+                                fill="#3b82f6"
+                                fillOpacity={0.6}
+                              />
+                              <Radar
+                                name="Gestor"
+                                dataKey="manager"
+                                stroke="#10b981"
+                                fill="#10b981"
+                                fillOpacity={0.6}
+                              />
+                              <Legend 
+                                wrapperStyle={{ 
+                                  paddingTop: '20px',
+                                  fontSize: '12px',
+                                  fontWeight: 500
+                                }}
+                              />
+                              <foreignObject x="80%" y="5%" width="100" height="50">
+                                <div className="flex flex-col gap-1">
+                                  <Badge variant="outline" className="bg-blue-100 text-blue-700 border-blue-200">
+                                    Auto: {Number((evaluation.evaluationanswer.reduce((sum, a) => sum + (a.selfScore || 0), 0) / evaluation.evaluationanswer.length).toFixed(1))}
+                                  </Badge>
+                                  <Badge variant="outline" className="bg-green-100 text-green-700 border-green-200">
+                                    Gestor: {Number((evaluation.evaluationanswer.reduce((sum, a) => sum + (a.managerScore || 0), 0) / evaluation.evaluationanswer.length).toFixed(1))}
+                                  </Badge>
                       </div>
-                      <div className="rounded-lg border p-4">
-                        <h3 className="mb-2 font-medium">Pontos Fortes (Gestor)</h3>
-                        <p className="text-sm">{evaluation.managerStrengths || "Não informado"}</p>
+                              </foreignObject>
+                            </RadarChart>
+                          </ResponsiveContainer>
                       </div>
-                    </div>
+                      </CardContent>
+                    </Card>
 
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <div className="rounded-lg border p-4">
-                        <h3 className="mb-2 font-medium">Áreas para Melhoria (Autoavaliação)</h3>
-                        <p className="text-sm">{evaluation.selfImprovements || "Não informado"}</p>
-                      </div>
-                      <div className="rounded-lg border p-4">
-                        <h3 className="mb-2 font-medium">Áreas para Melhoria (Gestor)</h3>
-                        <p className="text-sm">{evaluation.managerImprovements || "Não informado"}</p>
-                      </div>
-                    </div>
-
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <div className="rounded-lg border p-4">
-                        <h3 className="mb-2 font-medium">Metas e Objetivos (Autoavaliação)</h3>
-                        <div className="space-y-2">
-                          {evaluation.selfGoals?.split("\n").map((goal, index) => (
-                            <div key={index} className="flex items-start gap-2">
-                              <div className="mt-0.5 h-4 w-4 rounded-full border border-primary" />
-                              <p className="text-sm">{goal}</p>
+                    {/* Gráfico Radar - Média Ponderada */}
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Média Ponderada por Categoria</CardTitle>
+                        <CardDescription>Média Final (40% Autoavaliação + 60% Gestor)</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="h-[400px]">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <RadarChart
+                              cx="50%"
+                              cy="50%"
+                              outerRadius="80%"
+                              data={Array.from(new Set(evaluation.evaluationanswer.map(a => a.evaluationquestion.category.name)))
+                                .map(category => {
+                                  const categoryAnswers = evaluation.evaluationanswer.filter(a => a.evaluationquestion.category.name === category);
+                                  const selfAverage = categoryAnswers.reduce((sum, a) => sum + (a.selfScore || 0), 0) / categoryAnswers.length;
+                                  const managerAverage = categoryAnswers.reduce((sum, a) => sum + (a.managerScore || 0), 0) / categoryAnswers.length;
+                                  const finalAverage = Number(((selfAverage * 0.4) + (managerAverage * 0.6)).toFixed(1));
+                                  
+                                  return {
+                                    category,
+                                    final: finalAverage
+                                  };
+                                })}
+                            >
+                              <PolarGrid stroke="#e5e7eb" />
+                              <PolarAngleAxis 
+                                dataKey="category" 
+                                tick={{ fill: '#374151', fontSize: 12, fontWeight: 500 }}
+                                tickFormatter={(value, index) => {
+                                  const data = Array.from(new Set(evaluation.evaluationanswer.map(a => a.evaluationquestion.category.name)))
+                                    .map(category => {
+                                      const categoryAnswers = evaluation.evaluationanswer.filter(a => a.evaluationquestion.category.name === category);
+                                      const selfAverage = categoryAnswers.reduce((sum, a) => sum + (a.selfScore || 0), 0) / categoryAnswers.length;
+                                      const managerAverage = categoryAnswers.reduce((sum, a) => sum + (a.managerScore || 0), 0) / categoryAnswers.length;
+                                      const finalAverage = Number(((selfAverage * 0.4) + (managerAverage * 0.6)).toFixed(1));
+                                      return { category, finalAverage };
+                                    });
+                                  const item = data[index];
+                                  return `${value}\n${item.finalAverage}`;
+                                }}
+                              />
+                              <PolarRadiusAxis 
+                                angle={30} 
+                                domain={[0, 5]} 
+                                tick={{ fill: '#374151', fontSize: 12, fontWeight: 500 }}
+                              />
+                              <Radar
+                                name="Média Final"
+                                dataKey="final"
+                                stroke="#8b5cf6"
+                                fill="#8b5cf6"
+                                fillOpacity={0.6}
+                              />
+                              <Legend 
+                                wrapperStyle={{ 
+                                  paddingTop: '20px',
+                                  fontSize: '12px',
+                                  fontWeight: 500
+                                }}
+                              />
+                              <foreignObject x="80%" y="5%" width="100" height="50">
+                                <div className="flex flex-col gap-1">
+                                  <Badge variant="outline" className="bg-purple-100 text-purple-700 border-purple-200">
+                                    Média: {Math.round((evaluation.evaluationanswer.reduce((sum, a) => sum + (a.selfScore || 0), 0) / evaluation.evaluationanswer.length * 0.4) + 
+                                                      (evaluation.evaluationanswer.reduce((sum, a) => sum + (a.managerScore || 0), 0) / evaluation.evaluationanswer.length * 0.6))}
+                                  </Badge>
                             </div>
-                          )) || <p className="text-sm">Não informado</p>}
+                              </foreignObject>
+                            </RadarChart>
+                          </ResponsiveContainer>
                         </div>
-                      </div>
-                      <div className="rounded-lg border p-4">
-                        <h3 className="mb-2 font-medium">Metas e Objetivos (Gestor)</h3>
-                        <div className="space-y-2">
-                          {evaluation.managerGoals?.split("\n").map((goal, index) => (
-                            <div key={index} className="flex items-start gap-2">
-                              <div className="mt-0.5 h-4 w-4 rounded-full border border-primary" />
-                              <p className="text-sm">{goal}</p>
-                            </div>
-                          )) || <p className="text-sm">Não informado</p>}
-                        </div>
-                      </div>
-                    </div>
+                      </CardContent>
+                    </Card>
                   </div>
                 </TabsContent>
 
-                <TabsContent value="comparison" className="space-y-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-medium">Comparação de Avaliações</h3>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline" className="flex items-center gap-1">
-                        <span className="h-2 w-2 rounded-full bg-blue-500"></span>
-                        <span className="text-xs">Autoavaliação</span>
+                <TabsContent value="comparison" className="space-y-1">
+                  <div className="flex items-center justify-between mb-1">
+                    <h3 className="text-lg font-semibold">Comparação de Avaliações</h3>
+                    <div className="flex items-center gap-1">
+                      <Badge variant="secondary" className="flex items-center gap-1 px-1.5 py-0.5 bg-blue-100 text-blue-700 hover:bg-blue-100">
+                        <span className="h-1.5 w-1.5 rounded-full bg-blue-500"></span>
+                        <span className="text-xs font-medium">Autoavaliação</span>
                       </Badge>
-                      <Badge variant="outline" className="flex items-center gap-1">
-                        <span className="h-2 w-2 rounded-full bg-green-500"></span>
-                        <span className="text-xs">Avaliação do Gestor</span>
+                      <Badge variant="secondary" className="flex items-center gap-1 px-1.5 py-0.5 bg-green-100 text-green-700 hover:bg-green-100">
+                        <span className="h-1.5 w-1.5 rounded-full bg-green-500"></span>
+                        <span className="text-xs font-medium">Avaliação do Gestor</span>
                       </Badge>
                     </div>
                   </div>
 
-                  {evaluation.evaluationanswer.map((answer) => (
-                    <div key={answer.id} className="space-y-2 border p-4 rounded-md">
+                  {/* Questões */}
+                  <div className="grid gap-1">
+                    {Array.from(new Set(evaluation.evaluationanswer.map(answer => answer.evaluationquestion.category.name))).map(category => {
+                      // Calcular a média da categoria
+                      const categoryAnswers = evaluation.evaluationanswer.filter(
+                        answer => answer.evaluationquestion.category.name === category
+                      )
+                      const selfAverage = categoryAnswers.reduce((acc, answer) => acc + (answer.selfScore ?? 0), 0) / categoryAnswers.length
+                      const managerAverage = categoryAnswers.reduce((acc, answer) => acc + (answer.managerScore ?? 0), 0) / categoryAnswers.length
+                      const finalAverage = Number(((selfAverage * 0.4) + (managerAverage * 0.6)).toFixed(1))
+                      
+                      return (
+                        <Card key={category} className="border border-gray-300 hover:border-gray-400 transition-colors">
+                          <CardHeader className="bg-gray-50 p-2 border-b border-gray-300">
                       <div className="flex items-center justify-between">
-                        <Label className="text-sm font-medium">{answer.evaluationquestion.text}</Label>
+                              <CardTitle className="text-base font-bold">{category}</CardTitle>
                         <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-1">
+                                  <Badge variant="secondary" className="bg-blue-100 text-blue-700 hover:bg-blue-100 px-1.5 py-0.5">
+                                    Autoavaliação
+                                  </Badge>
+                                  <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-xs font-medium ${getScoreClass(selfAverage)}`}>
+                                    {selfAverage.toFixed(1)}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <Badge variant="secondary" className="bg-green-100 text-green-700 hover:bg-green-100 px-1.5 py-0.5">
+                                    Gestor
+                                  </Badge>
+                                  <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-xs font-medium ${getScoreClass(managerAverage)}`}>
+                                    {managerAverage.toFixed(1)}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <Badge variant="secondary" className="bg-gray-100 text-gray-700 hover:bg-gray-100 px-1.5 py-0.5">
+                                    Média
+                                  </Badge>
+                                  <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-xs font-medium ${getScoreClass(finalAverage)}`}>
+                                    {finalAverage.toFixed(1)}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          </CardHeader>
+                          <CardContent className="p-2">
+                            <div className="grid gap-1">
+                              {evaluation.evaluationanswer
+                                .filter(answer => answer.evaluationquestion.category.name === category)
+                                .map((answer) => (
+                                  <Card key={answer.id} className="overflow-hidden border border-gray-300 hover:border-gray-400 transition-colors">
+                                    <CardHeader className="bg-gray-50 p-2 border-b border-gray-300">
+                                      <CardTitle className="text-sm font-medium">{answer.evaluationquestion.text}</CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="p-2">
+                                      <div className="grid grid-cols-2 gap-2">
+                                        {/* Autoavaliação */}
+                                        <div className="space-y-1 border-r border-gray-300 pr-2">
+                                          <div className="flex items-center justify-between">
+                                            <Badge variant="secondary" className="bg-blue-100 text-blue-700 hover:bg-blue-100 px-1.5 py-0.5">
+                                              Autoavaliação
+                                            </Badge>
                           <span
-                            className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${getScoreClass(
-                              answer.selfScore ?? 0
+                                              className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-xs font-medium ${getScoreClass(
+                                                answer.selfScore ?? 0
                             )}`}
                           >
-                            Auto: {(answer.selfScore ?? 0).toFixed(1)}
+                                              {(answer.selfScore ?? 0).toFixed(1)}
                           </span>
+                                          </div>
+                                          <div className="rounded-lg bg-gray-50 p-1.5 border border-gray-200 min-h-[60px]">
+                                            <p className="text-xs text-muted-foreground">
+                                              {answer.selfComment || "Sem comentário"}
+                                            </p>
+                                          </div>
+                                        </div>
+
+                                        {/* Avaliação do Gestor */}
+                                        <div className="space-y-1 pl-2">
+                                          <div className="flex items-center justify-between">
+                                            <Badge variant="secondary" className="bg-green-100 text-green-700 hover:bg-green-100 px-1.5 py-0.5">
+                                              Avaliação do Gestor
+                                            </Badge>
                           <span
-                            className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${getScoreClass(
-                              answer.managerScore ?? 0
+                                              className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-xs font-medium ${getScoreClass(
+                                                answer.managerScore ?? 0
                             )}`}
                           >
-                            Gestor: {(answer.managerScore ?? 0).toFixed(1)}
+                                              {(answer.managerScore ?? 0).toFixed(1)}
                           </span>
-                          <span className="text-xs text-muted-foreground">
-                            Dif: {Math.abs((answer.managerScore ?? 0) - (answer.selfScore ?? 0)).toFixed(1)}
+                                          </div>
+                                          <div className="rounded-lg bg-gray-50 p-1.5 border border-gray-200 min-h-[60px]">
+                                            <p className="text-xs text-muted-foreground">
+                                              {answer.managerComment || "Sem comentário"}
+                                            </p>
+                                          </div>
+                                        </div>
+                                      </div>
+
+                                      {/* Diferença */}
+                                      <div className="mt-1 flex items-center justify-center border-t border-gray-300 pt-1">
+                                        <div className="rounded-full bg-gray-50 px-2 py-0.5 border border-gray-200">
+                                          <span className="text-xs font-medium text-muted-foreground">
+                                            Diferença: {Math.abs((answer.managerScore ?? 0) - (answer.selfScore ?? 0)).toFixed(1)}
                           </span>
                         </div>
+                                      </div>
+                                    </CardContent>
+                                  </Card>
+                                ))}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )
+                    })}
                       </div>
 
-                      <div className="grid grid-cols-2 gap-4 mt-2">
-                        <div className="space-y-1">
-                          <Label className="text-xs text-muted-foreground">Comentário (Autoavaliação):</Label>
-                          <p className="text-sm p-2 bg-muted/50 rounded-md">
-                            {answer.selfComment || "Sem comentário"}
+                  {/* Pontuação Final */}
+                  <Card className="border border-gray-300 hover:border-gray-400 transition-colors">
+                    <CardHeader className="bg-gray-50 p-2 border-b border-gray-300">
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="text-base font-bold">Pontuação Final</CardTitle>
+                        <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-1">
+                            <Badge variant="secondary" className="bg-blue-100 text-blue-700 hover:bg-blue-100 px-1.5 py-0.5">
+                              Autoavaliação
+                            </Badge>
+                            <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-xs font-medium ${getScoreClass(evaluation.selfScore)}`}>
+                              {evaluation.selfScore?.toFixed(1) || "0.0"}
+                          </span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Badge variant="secondary" className="bg-green-100 text-green-700 hover:bg-green-100 px-1.5 py-0.5">
+                              Gestor
+                            </Badge>
+                            <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-xs font-medium ${getScoreClass(evaluation.managerScore)}`}>
+                              {evaluation.managerScore?.toFixed(1) || "0.0"}
+                          </span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Badge variant="secondary" className="bg-gray-100 text-gray-700 hover:bg-gray-100 px-1.5 py-0.5">
+                              Final
+                            </Badge>
+                            <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-xs font-medium ${getScoreClass(evaluation.finalScore)}`}>
+                              {evaluation.finalScore?.toFixed(1) || "0.0"}
+                          </span>
+                        </div>
+                      </div>
+                      </div>
+                    </CardHeader>
+                  </Card>
+
+                  {/* Comentários Gerais */}
+                  <Card className="border border-gray-300 hover:border-gray-400 transition-colors">
+                    <CardHeader className="bg-gray-50 p-2 border-b border-gray-300">
+                      <CardTitle className="text-base font-bold">Comentários Gerais</CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-2">
+                      <div className="grid gap-1">
+                        {/* Pontos Fortes */}
+                        <div className="space-y-1 border-b border-gray-300 pb-2">
+                          <Label className="text-xs font-medium">Pontos Fortes</Label>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div className="space-y-1 border-r border-gray-300 pr-2">
+                              <Badge variant="secondary" className="bg-blue-100 text-blue-700 hover:bg-blue-100 px-1.5 py-0.5">
+                                Autoavaliação
+                              </Badge>
+                              <div className="rounded-lg bg-gray-50 p-1.5 border border-gray-200 min-h-[60px]">
+                                <p className="text-xs text-muted-foreground">
+                                  {evaluation.selfStrengths || "Não informado"}
                           </p>
                         </div>
+                            </div>
+                            <div className="space-y-1 pl-2">
+                              <Badge variant="secondary" className="bg-green-100 text-green-700 hover:bg-green-100 px-1.5 py-0.5">
+                                Avaliação do Gestor
+                              </Badge>
+                              <div className="rounded-lg bg-gray-50 p-1.5 border border-gray-200 min-h-[60px]">
+                                <p className="text-xs text-muted-foreground">
+                                  {evaluation.managerStrengths || "Não informado"}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Pontos de Melhoria */}
+                        <div className="space-y-1 border-b border-gray-300 pb-2">
+                          <Label className="text-xs font-medium">Pontos de Melhoria</Label>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div className="space-y-1 border-r border-gray-300 pr-2">
+                              <Badge variant="secondary" className="bg-blue-100 text-blue-700 hover:bg-blue-100 px-1.5 py-0.5">
+                                Autoavaliação
+                              </Badge>
+                              <div className="rounded-lg bg-gray-50 p-1.5 border border-gray-200 min-h-[60px]">
+                                <p className="text-xs text-muted-foreground">
+                                  {evaluation.selfImprovements || "Não informado"}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="space-y-1 pl-2">
+                              <Badge variant="secondary" className="bg-green-100 text-green-700 hover:bg-green-100 px-1.5 py-0.5">
+                                Avaliação do Gestor
+                              </Badge>
+                              <div className="rounded-lg bg-gray-50 p-1.5 border border-gray-200 min-h-[60px]">
+                                <p className="text-xs text-muted-foreground">
+                                  {evaluation.managerImprovements || "Não informado"}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Metas e Objetivos */}
                         <div className="space-y-1">
-                          <Label className="text-xs text-muted-foreground">Comentário (Gestor):</Label>
-                          <p className="text-sm p-2 bg-muted/50 rounded-md">
-                            {answer.managerComment || "Sem comentário"}
+                          <Label className="text-xs font-medium">Metas e Objetivos</Label>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div className="space-y-1 border-r border-gray-300 pr-2">
+                              <Badge variant="secondary" className="bg-blue-100 text-blue-700 hover:bg-blue-100 px-1.5 py-0.5">
+                                Autoavaliação
+                              </Badge>
+                              <div className="rounded-lg bg-gray-50 p-1.5 border border-gray-200 min-h-[60px]">
+                                <p className="text-xs text-muted-foreground">
+                                  {evaluation.selfGoals || "Não informado"}
                           </p>
                         </div>
                       </div>
+                            <div className="space-y-1 pl-2">
+                              <Badge variant="secondary" className="bg-green-100 text-green-700 hover:bg-green-100 px-1.5 py-0.5">
+                                Avaliação do Gestor
+                              </Badge>
+                              <div className="rounded-lg bg-gray-50 p-1.5 border border-gray-200 min-h-[60px]">
+                                <p className="text-xs text-muted-foreground">
+                                  {evaluation.managerGoals || "Não informado"}
+                                </p>
                     </div>
-                  ))}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
                 </TabsContent>
 
                 <TabsContent value="evaluation" className="space-y-6">
@@ -532,7 +886,10 @@ export default function EvaluationDetailsPage() {
                     <div className="flex items-center gap-2">
                       <Select
                         value={evaluationType}
-                        onValueChange={(value) => setEvaluationType(value as "self" | "manager")}
+                        onValueChange={(value) => {
+                          console.log("Tipo de avaliação alterado para:", value)
+                          setEvaluationType(value as "self" | "manager")
+                        }}
                       >
                         <SelectTrigger className="w-[180px]">
                           <SelectValue placeholder="Tipo de Avaliação" />
@@ -545,122 +902,221 @@ export default function EvaluationDetailsPage() {
                     </div>
                   </div>
 
-                  {/* Agrupar questões por categoria */}
-                  {evaluation.evaluationtemplate.questions.map((question) => (
-                    <div key={question.id} className="space-y-2 border p-4 rounded-md">
-                      <div className="flex items-center justify-between">
-                        <Label htmlFor={question.id} className="text-sm font-medium">
-                          {question.text}
-                        </Label>
-                        <span
-                          className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${getScoreClass(
-                            scores[question.id] || 0
-                          )}`}
-                        >
-                          {(scores[question.id] || 0).toFixed(1)}/10
-                        </span>
+                  {/* Questões do Template */}
+                  {evaluation.evaluationtemplate && (
+                    <div className="space-y-6">
+                      {Array.from(new Set(evaluation.evaluationtemplate.questions.map(q => q.category.name))).map(category => (
+                        <Card key={category}>
+                          <CardHeader>
+                            <CardTitle>{category}</CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="space-y-4">
+                              {evaluation.evaluationanswer
+                                .filter((answer) => answer.evaluationquestion.category.name === category)
+                                .map((answer) => (
+                                  <div key={answer.id} className="space-y-2">
+                                    <div className="flex items-start justify-between">
+                                      <div className="flex-1">
+                                        <p className="font-medium">{answer.evaluationquestion.text}</p>
+                                        {evaluationType === "self" ? (
+                                          <div className="mt-4 space-y-2">
+                                            <Label>Sua nota:</Label>
+                                            <div className="flex items-center gap-2">
+                                              {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((score) => (
+                                                <div key={score} className="relative flex flex-col items-center">
+                                                  <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                      console.log("Nota selecionada:", score, "para questão:", answer.id)
+                                                      const newAnswers = evaluation.evaluationanswer.map((a) =>
+                                                        a.id === answer.id
+                                                          ? { ...a, selfScore: score }
+                                                          : a
+                                                      )
+                                                      setEvaluation({ ...evaluation, evaluationanswer: newAnswers })
+                                                    }}
+                                                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors
+                                                      ${answer.selfScore === score
+                                                        ? score >= 9 ? 'bg-green-500 text-white' :
+                                                          score >= 8 ? 'bg-blue-500 text-white' :
+                                                          score >= 7 ? 'bg-yellow-500 text-white' :
+                                                          score >= 6 ? 'bg-orange-500 text-white' :
+                                                          'bg-red-500 text-white'
+                                                        : 'bg-muted hover:bg-muted/80'
+                                                      }`}
+                                                  >
+                                                    {score}
+                                                  </button>
+                        </div>
+                                              ))}
+                                            </div>
+                                          </div>
+                                        ) : (
+                                          <div className="mt-4 space-y-2">
+                                            <Label>Nota do gestor:</Label>
+                                            <div className="flex items-center gap-2">
+                                              {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((score) => (
+                                                <div key={score} className="relative flex flex-col items-center">
+                                                  <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                      console.log("Nota selecionada:", score, "para questão:", answer.id)
+                                                      const newAnswers = evaluation.evaluationanswer.map((a) =>
+                                                        a.id === answer.id
+                                                          ? { ...a, managerScore: score }
+                                                          : a
+                                                      )
+                                                      setEvaluation({ ...evaluation, evaluationanswer: newAnswers })
+                                                    }}
+                                                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors
+                                                      ${answer.managerScore === score
+                                                        ? score >= 9 ? 'bg-green-500 text-white' :
+                                                          score >= 8 ? 'bg-blue-500 text-white' :
+                                                          score >= 7 ? 'bg-yellow-500 text-white' :
+                                                          score >= 6 ? 'bg-orange-500 text-white' :
+                                                          'bg-red-500 text-white'
+                                                        : 'bg-muted hover:bg-muted/80'
+                                                      }`}
+                                                  >
+                                                    {score}
+                                                  </button>
+                              </div>
+                            ))}
+                        </div>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                    <div className="space-y-2">
+                                      {evaluationType === "self" ? (
+                                        <>
+                                          <Label htmlFor={`self-comment-${answer.id}`}>Seu comentário:</Label>
+                          <Textarea
+                                            id={`self-comment-${answer.id}`}
+                                            value={answer.selfComment || ""}
+                                            onChange={(e) => {
+                                              console.log("Comentário alterado para:", e.target.value, "na questão:", answer.id)
+                                              const newAnswers = evaluation.evaluationanswer.map((a) =>
+                                                a.id === answer.id
+                                                  ? { ...a, selfComment: e.target.value }
+                                                  : a
+                                              )
+                                              setEvaluation({ ...evaluation, evaluationanswer: newAnswers })
+                                            }}
+                                            placeholder="Adicione um comentário sobre sua avaliação..."
+                            className="min-h-[80px]"
+                                            disabled={!isEditing}
+                                          />
+                                        </>
+                                      ) : (
+                                        <>
+                                          <Label htmlFor={`manager-comment-${answer.id}`}>Comentário do gestor:</Label>
+                                          <Textarea
+                                            id={`manager-comment-${answer.id}`}
+                                            value={answer.managerComment || ""}
+                                            onChange={(e) => {
+                                              console.log("Comentário alterado para:", e.target.value, "na questão:", answer.id)
+                                              const newAnswers = evaluation.evaluationanswer.map((a) =>
+                                                a.id === answer.id
+                                                  ? { ...a, managerComment: e.target.value }
+                                                  : a
+                                              )
+                                              setEvaluation({ ...evaluation, evaluationanswer: newAnswers })
+                                            }}
+                                            placeholder="Adicione um comentário sobre a avaliação do gestor..."
+                                            className="min-h-[80px]"
+                                            disabled={!isEditing}
+                                          />
+                                        </>
+                                      )}
+                        </div>
                       </div>
-
-                      <div className="pt-2">
-                        <Label className="text-sm mb-1 block">Pontuação:</Label>
-                        <RadioGroup
-                          value={(scores[question.id] || 0).toString()}
-                          onValueChange={(value) => handleScoreChange(question.id, Number.parseInt(value))}
-                          className="flex flex-wrap gap-2"
-                        >
-                          {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((value) => (
-                            <div key={value} className="flex items-center space-x-1">
-                              <RadioGroupItem value={value.toString()} id={`${question.id}-${value}`} />
-                              <Label htmlFor={`${question.id}-${value}`} className="text-sm">
-                                {value}
-                              </Label>
+                            ))}
                             </div>
-                          ))}
-                        </RadioGroup>
-                      </div>
-
-                      <div className="pt-3">
-                        <Label htmlFor={`comment-${question.id}`} className="text-sm mb-1 block">
-                          Comentário:
-                        </Label>
-                        <Textarea
-                          id={`comment-${question.id}`}
-                          placeholder="Adicione um comentário sobre esta questão"
-                          value={comments[question.id] || ""}
-                          onChange={(e) => handleCommentChange(question.id, e.target.value)}
-                          className="min-h-[80px]"
-                        />
-                      </div>
+                          </CardContent>
+                        </Card>
+                      ))}
                     </div>
-                  ))}
+                  )}
 
-                  <div className="rounded-lg border p-4">
-                    <h3 className="mb-4 font-medium">Comentários Gerais</h3>
+                  {/* Comentários Gerais */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Comentários Gerais</CardTitle>
+                    </CardHeader>
+                    <CardContent>
                     <div className="space-y-4">
                       <div>
-                        <Label htmlFor="strengths" className="text-sm">
-                          Pontos Fortes
-                        </Label>
+                          <Label>Pontos Fortes</Label>
                         <Textarea
-                          id="strengths"
-                          placeholder="Descreva os pontos fortes do funcionário"
-                          value={evaluationType === "self" ? evaluation.selfStrengths || "" : evaluation.managerStrengths || ""}
-                          onChange={(e) => {
-                            if (evaluationType === "self") {
-                              setEvaluation({...evaluation, selfStrengths: e.target.value})
-                            } else {
-                              setEvaluation({...evaluation, managerStrengths: e.target.value})
-                            }
-                          }}
-                          className="mt-1"
+                            value={evaluationType === "self" ? evaluation.selfStrengths || "" : evaluation.managerStrengths || ""}
+                            onChange={(e) => {
+                              console.log("Pontos fortes alterados para:", e.target.value)
+                              if (evaluationType === "self") {
+                                setEvaluation({ ...evaluation, selfStrengths: e.target.value })
+                              } else {
+                                setEvaluation({ ...evaluation, managerStrengths: e.target.value })
+                              }
+                            }}
+                            placeholder="Liste os pontos fortes do colaborador..."
+                            disabled={!isEditing}
                         />
                       </div>
                       <div>
-                        <Label htmlFor="improvements" className="text-sm">
-                          Áreas para Melhoria
-                        </Label>
+                          <Label>Pontos de Melhoria</Label>
                         <Textarea
-                          id="improvements"
-                          placeholder="Descreva as áreas que precisam de melhoria"
-                          value={evaluationType === "self" ? evaluation.selfImprovements || "" : evaluation.managerImprovements || ""}
-                          onChange={(e) => {
-                            if (evaluationType === "self") {
-                              setEvaluation({...evaluation, selfImprovements: e.target.value})
-                            } else {
-                              setEvaluation({...evaluation, managerImprovements: e.target.value})
-                            }
-                          }}
-                          className="mt-1"
+                            value={evaluationType === "self" ? evaluation.selfImprovements || "" : evaluation.managerImprovements || ""}
+                            onChange={(e) => {
+                              console.log("Pontos de melhoria alterados para:", e.target.value)
+                              if (evaluationType === "self") {
+                                setEvaluation({ ...evaluation, selfImprovements: e.target.value })
+                              } else {
+                                setEvaluation({ ...evaluation, managerImprovements: e.target.value })
+                              }
+                            }}
+                            placeholder="Liste os pontos de melhoria do colaborador..."
+                            disabled={!isEditing}
                         />
                       </div>
                       <div>
-                        <Label htmlFor="goals" className="text-sm">
-                          Metas e Objetivos
-                        </Label>
+                          <Label>Metas e Objetivos</Label>
                         <Textarea
-                          id="goals"
-                          placeholder="Defina metas e objetivos para o próximo período"
-                          value={evaluationType === "self" ? evaluation.selfGoals || "" : evaluation.managerGoals || ""}
-                          onChange={(e) => {
-                            if (evaluationType === "self") {
-                              setEvaluation({...evaluation, selfGoals: e.target.value})
-                            } else {
-                              setEvaluation({...evaluation, managerGoals: e.target.value})
-                            }
-                          }}
-                          className="mt-1"
+                            value={evaluationType === "self" ? evaluation.selfGoals || "" : evaluation.managerGoals || ""}
+                            onChange={(e) => {
+                              console.log("Metas e objetivos alterados para:", e.target.value)
+                              if (evaluationType === "self") {
+                                setEvaluation({ ...evaluation, selfGoals: e.target.value })
+                              } else {
+                                setEvaluation({ ...evaluation, managerGoals: e.target.value })
+                              }
+                            }}
+                            placeholder="Liste as metas e objetivos do colaborador..."
+                            disabled={!isEditing}
                         />
                       </div>
                     </div>
-                  </div>
+                    </CardContent>
+                  </Card>
 
-                  <div className="flex justify-end gap-2">
-                    <Button variant="outline" onClick={handleSaveEvaluation}>
-                      Salvar
-                    </Button>
-                    <Button onClick={handleSubmitEvaluation}>
-                      Enviar Avaliação
-                    </Button>
+                  {/* Botões de Ação */}
+                  <div className="flex justify-end gap-4">
+                    {isEditing ? (
+                      <Button
+                        onClick={handleSaveEvaluation}
+                        disabled={isSaving}
+                        className="bg-primary hover:bg-primary/90 text-white"
+                      >
+                        {isSaving ? 'Salvando...' : 'Salvar Avaliação'}
+                      </Button>
+                    ) : (
+                      <Button
+                        onClick={handleEditClick}
+                        className="bg-primary hover:bg-primary/90 text-white"
+                      >
+                        Editar Avaliação
+                      </Button>
+                    )}
                   </div>
                 </TabsContent>
               </div>
