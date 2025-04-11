@@ -32,7 +32,7 @@ async function getData() {
             title: true
           }
         },
-        positionLevel: {
+        positionlevel: {
           select: {
             id: true,
             name: true

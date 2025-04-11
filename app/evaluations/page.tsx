@@ -201,16 +201,9 @@ const getScoreLabel = (score: number | null) => {
 }
 
 // Função para determinar a variante do Badge com base no status
-const getStatusBadgeVariant = (status: "Pendente" | "Finalizado" | null) => {
+const getStatusBadgeVariant = (status: string | null | undefined) => {
   if (!status) return "destructive";
-  switch (status) {
-    case "Finalizado":
-      return "success";
-    case "Pendente":
-      return "destructive";
-    default:
-      return "destructive";
-  }
+  return status === "Concluída" ? "success" : "destructive";
 };
 
 // Função para obter o ícone com base no status
@@ -285,25 +278,34 @@ export default function EvaluationsPage() {
   const filteredEvaluations = evaluations
     .filter(
       (evaluation) =>
-        evaluation.employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        evaluation.evaluator.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        evaluation.id.toLowerCase().includes(searchTerm.toLowerCase()),
+        (evaluation.employee?.name?.toLowerCase() || "").includes(searchTerm.toLowerCase()) ||
+        (evaluation.evaluator?.name?.toLowerCase() || "").includes(searchTerm.toLowerCase()) ||
+        (evaluation.id?.toLowerCase() || "").includes(searchTerm.toLowerCase()),
     )
     .filter((evaluation) => departmentFilter === "all" || evaluation.employee.department.id === departmentFilter)
     .filter((evaluation) => statusFilter === "all" || evaluation.status === statusFilter)
     .sort((a, b) => {
-      const aValue = a[sortField as keyof typeof a]
-      const bValue = b[sortField as keyof typeof b]
-
-      if (typeof aValue === "string" && typeof bValue === "string") {
-        return sortDirection === "asc" ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue)
-      } else if (aValue === null) {
-        return sortDirection === "asc" ? -1 : 1
-      } else if (bValue === null) {
-        return sortDirection === "asc" ? 1 : -1
-      } else {
-        return sortDirection === "asc" ? Number(aValue) - Number(bValue) : Number(bValue) - Number(aValue)
+      if (sortField === "date") {
+        return sortDirection === "asc"
+          ? new Date(a.date).getTime() - new Date(b.date).getTime()
+          : new Date(b.date).getTime() - new Date(a.date).getTime()
       }
+      if (sortField === "status") {
+        return sortDirection === "asc"
+          ? a.status.localeCompare(b.status)
+          : b.status.localeCompare(a.status)
+      }
+      if (sortField === "employee") {
+        return sortDirection === "asc"
+          ? a.employee.name.localeCompare(b.employee.name)
+          : b.employee.name.localeCompare(a.employee.name)
+      }
+      if (sortField === "evaluator") {
+        return sortDirection === "asc"
+          ? a.evaluator.name.localeCompare(b.evaluator.name)
+          : b.evaluator.name.localeCompare(a.evaluator.name)
+      }
+      return 0
     })
 
   const handleSort = (field: string) => {
@@ -971,8 +973,8 @@ export default function EvaluationsPage() {
                                     <div className="font-medium">
                                       {employee.name}
                                     </div>
-                                    <div className="text-xs text-gray-500 dark:text-gray-400">
-                                      {employee.matricula || 'Sem matrícula'}
+                                    <div className="text-sm text-muted-foreground">
+                                      Matrícula: {employee.matricula || 'Não informada'}
                                     </div>
                                     {employee.department && (
                                       <div className="text-xs text-gray-500 dark:text-gray-400">
@@ -1241,7 +1243,9 @@ export default function EvaluationsPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{evaluations.length}</div>
-                <p className="text-xs text-muted-foreground">+3 em relação ao mês anterior</p>
+                <p className="text-xs text-muted-foreground">
+                  {evaluations.length > 0 ? `+${evaluations.length} em relação ao mês anterior` : 'Nenhuma avaliação no mês anterior'}
+                </p>
               </CardContent>
             </Card>
             <Card className="animate-scale [animation-delay:100ms]">
@@ -1251,7 +1255,14 @@ export default function EvaluationsPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{evaluations.filter((e) => e.status === "Pendente").length}</div>
-                <p className="text-xs text-muted-foreground">Prazo médio: 15 dias</p>
+                <p className="text-xs text-muted-foreground">
+                  {evaluations.filter((e) => e.status === "Pendente").length > 0 
+                    ? `Prazo médio: ${Math.round(evaluations.filter((e) => e.status === "Pendente").reduce((sum, e) => {
+                        const days = Math.ceil((new Date(e.date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+                        return sum + days;
+                      }, 0) / evaluations.filter((e) => e.status === "Pendente").length)} dias`
+                    : 'Nenhuma avaliação pendente'}
+                </p>
               </CardContent>
             </Card>
             <Card className="animate-scale [animation-delay:200ms]">
@@ -1266,7 +1277,12 @@ export default function EvaluationsPage() {
                     evaluations.filter((e) => e.finalScore !== null).length
                   ).toFixed(1)}
                 </div>
-                <p className="text-xs text-muted-foreground">+0.3 em relação ao mês anterior</p>
+                <p className="text-xs text-muted-foreground">
+                  {evaluations.filter((e) => e.finalScore !== null).length > 0
+                    ? `+${(evaluations.filter((e) => e.finalScore !== null).reduce((sum, e) => sum + (e.finalScore || 0), 0) /
+                        evaluations.filter((e) => e.finalScore !== null).length).toFixed(1)} em relação ao mês anterior`
+                    : 'Nenhuma pontuação disponível'}
+                </p>
               </CardContent>
             </Card>
           </div>
@@ -1295,19 +1311,19 @@ export default function EvaluationsPage() {
                     <TableRow key={evaluation.id}>
                       <TableCell>
                         <div>
-                          <div className="font-medium">{evaluation.employee.name}</div>
+                          <div className="font-medium">{evaluation.employee?.name || 'Funcionário não encontrado'}</div>
                           <div className="text-sm text-muted-foreground">
-                            {evaluation.employee.matricula || 'Sem matrícula'}
+                            Matrícula: {evaluation.employee?.matricula || 'Não informada'}
                           </div>
-                          {evaluation.employee.department && (
+                          {evaluation.employee?.department && (
                             <div className="text-xs text-gray-500 dark:text-gray-400">
                               {evaluation.employee.department.name}
                             </div>
                           )}
                         </div>
                       </TableCell>
-                      <TableCell>{evaluation.evaluator.name}</TableCell>
-                      <TableCell>{evaluation.template.name}</TableCell>
+                      <TableCell>{evaluation.evaluator?.name || 'Avaliador não encontrado'}</TableCell>
+                      <TableCell>{evaluation.template?.name || 'Modelo não encontrado'}</TableCell>
                       <TableCell>
                         {new Date(evaluation.date).toLocaleDateString('pt-BR')}
                       </TableCell>
@@ -1352,22 +1368,10 @@ export default function EvaluationsPage() {
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem
-                              onClick={() => router.push(`/evaluations/${evaluation.id}`)}
-                            >
-                              <Eye className="mr-2 h-4 w-4" />
-                              Visualizar
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
                               onClick={() => router.push(`/evaluations/${evaluation.id}/details`)}
                             >
                               <FileText className="mr-2 h-4 w-4" />
                               Detalhes
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => openEditDialog(evaluation.template)}
-                            >
-                              <Pencil className="mr-2 h-4 w-4" />
-                              Editar
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               onClick={() => handleDeleteEvaluation(evaluation.id)}

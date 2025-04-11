@@ -111,7 +111,7 @@ interface EmployeeStats {
 interface EmployeeWithRelations extends Employee {
   department: { id: string; name: string }
   position: { id: string; title: string }
-  positionLevel?: { id: string; name: string }
+  positionlevel?: { id: string; name: string }
   shift?: { id: string; name: string }
   history?: EmployeeHistory[]
   medicalLeaves?: {
@@ -175,7 +175,7 @@ export function EmployeesTab({
       matricula: firstEmployee.matricula,
       department: firstEmployee.department?.name,
       position: firstEmployee.position?.title,
-      positionLevel: firstEmployee.positionLevel?.name,
+      positionLevel: firstEmployee.positionlevel?.name,
       shift: firstEmployee.shift?.name,
       active: firstEmployee.active
     })
@@ -206,7 +206,7 @@ export function EmployeesTab({
         matricula: firstEmployee.matricula,
         department: firstEmployee.department,
         position: firstEmployee.position,
-        positionLevel: firstEmployee.positionLevel,
+        positionLevel: firstEmployee.positionlevel,
         shift: firstEmployee.shift,
         historyCount: firstEmployee.history?.length || 0
       })
@@ -250,7 +250,7 @@ export function EmployeesTab({
         (employee.phone || "").includes(searchTerm) ||
         (employee.department?.name?.toLowerCase() || "").includes(searchTermLower) ||
         (employee.position?.title?.toLowerCase() || "").includes(searchTermLower) ||
-        (employee.positionLevel?.name?.toLowerCase() || "").includes(searchTermLower) ||
+        (employee.positionlevel?.name?.toLowerCase() || "").includes(searchTermLower) ||
         (employee.shift?.name?.toLowerCase() || "").includes(searchTermLower) ||
         (getEmployeeStatus(employee).label.toLowerCase() || "").includes(searchTermLower)
 
@@ -392,13 +392,13 @@ export function EmployeesTab({
       terminationDate: employee.terminationDate,
       departmentId: employee.departmentId,
       positionId: employee.positionId,
-      positionLevelId: employee.positionLevelId,
+      positionLevelId: employee.positionlevel?.id || "",
       shiftId: employee.shiftId,
       phone: employee.phone,
       address: employee.address,
       department: employee.department,
       position: employee.position,
-      positionLevel: employee.positionLevel,
+      positionLevel: employee.positionlevel,
       shift: employee.shift
     })
     setSelectedEmployee(employee)
@@ -567,7 +567,7 @@ export function EmployeesTab({
             : '',
           departmentId: selectedEmployee.department?.id || "",
           positionId: selectedEmployee.position?.id || "",
-          positionLevelId: selectedEmployee.positionLevel?.id || "",
+          positionLevelId: selectedEmployee.positionlevel?.id || "",
           shiftId: selectedEmployee.shift?.id || "",
           phone: selectedEmployee.phone || undefined,
           address: selectedEmployee.address || undefined,

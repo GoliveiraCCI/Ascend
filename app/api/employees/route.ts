@@ -16,7 +16,7 @@ async function getEmployeeStatus(employee: any) {
   }
 
   // Se tiver atestado médico ativo, está afastado
-  if (employee.medicalLeaves && employee.medicalLeaves.length > 0) {
+  if (employee.medicalleave && employee.medicalleave.length > 0) {
     return "AFASTADO"
   }
 
@@ -60,7 +60,7 @@ export async function GET(request: Request) {
             title: true
           }
         },
-        positionLevel: {
+        positionlevel: {
           select: {
             id: true,
             name: true
@@ -72,7 +72,7 @@ export async function GET(request: Request) {
             name: true
           }
         },
-        medicalLeaves: {
+        medicalleave: {
           where: {
             status: "AFASTADO",
             endDate: {

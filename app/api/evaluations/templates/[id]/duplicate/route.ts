@@ -10,9 +10,12 @@ export async function POST(
 ) {
   try {
     const data = await request.json()
-    const originalTemplate = await prisma.evaluationTemplate.findUnique({
+    const originalTemplate = await prisma.evaluationtemplate.findUnique({
       where: {
         id: params.id
+      },
+      include: {
+        questions: true
       }
     })
 
@@ -23,10 +26,19 @@ export async function POST(
       )
     }
 
-    const duplicatedTemplate = await prisma.evaluationTemplate.create({
+    const duplicatedTemplate = await prisma.evaluationtemplate.create({
       data: {
         name: data.name || `${originalTemplate.name} (Cópia)`,
-        description: data.description || originalTemplate.description
+        description: data.description || originalTemplate.description,
+        questions: {
+          create: originalTemplate.questions.map(question => ({
+            text: question.text,
+            categoryId: question.categoryId
+          }))
+        }
+      },
+      include: {
+        questions: true
       }
     })
 

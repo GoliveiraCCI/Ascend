@@ -330,6 +330,7 @@ export default function EvaluationPage({ params }: EvaluationPageProps) {
   const getStatusBadgeVariant = (status: string) => {
     switch (status) {
       case "Finalizado":
+      case "Concluída":
         return "success"
       case "Pendente":
         return "destructive"
@@ -341,6 +342,7 @@ export default function EvaluationPage({ params }: EvaluationPageProps) {
   const getStatusIcon = (status: string) => {
     switch (status) {
       case "Finalizado":
+      case "Concluída":
         return <CheckCircle className="h-4 w-4" />
       case "Pendente":
         return <Clock className="h-4 w-4" />
@@ -443,9 +445,9 @@ export default function EvaluationPage({ params }: EvaluationPageProps) {
             <div className="space-y-2">
               <p className="font-medium">{evaluation.employee.name}</p>
               <p className="text-sm text-muted-foreground">
-                Matrícula: {evaluation.employee.matricula}
+                Matrícula: {evaluation.employee.matricula || "Sem matrícula"}
               </p>
-                </div>
+            </div>
           </CardContent>
         </Card>
 

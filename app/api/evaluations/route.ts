@@ -1,24 +1,47 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import crypto from 'crypto'
 
 // GET /api/evaluations - Listar avaliações
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const evaluations = await prisma.evaluation.findMany({
       include: {
         employee: {
-          include: {
-            department: true
+          select: {
+            id: true,
+            name: true,
+            matricula: true,
+            department: {
+              select: {
+                id: true,
+                name: true
+              }
+            }
           }
         },
-        user: true,
-        evaluationtemplate: true,
+        user: {
+          select: {
+            id: true,
+            name: true
+          }
+        },
+        evaluationtemplate: {
+          select: {
+            id: true,
+            name: true,
+            description: true
+          }
+        },
         evaluationanswer: {
           include: {
-            evaluationquestion: true,
-          },
-        },
+            evaluationquestion: true
+          }
+        }
       },
+      orderBy: {
+        date: 'desc'
+      }
     })
 
     const formattedEvaluations = evaluations.map((evaluation) => ({
@@ -56,7 +79,7 @@ export async function GET() {
       managerGoals: evaluation.managerGoals,
       managerScore: evaluation.managerScore,
       finalScore: evaluation.finalScore,
-      answers: evaluation.evaluationanswer.map((answer) => ({
+      answers: evaluation.evaluationanswer?.map((answer) => ({
         id: answer.id,
         question: {
           id: answer.evaluationquestion.id,
@@ -66,7 +89,7 @@ export async function GET() {
         selfComment: answer.selfComment,
         managerScore: answer.managerScore,
         managerComment: answer.managerComment,
-      })),
+      })) || []
     }))
 
     return NextResponse.json(formattedEvaluations)
@@ -86,22 +109,28 @@ export async function POST(request: Request) {
     const { employeeId, evaluatorId, templateId, date, selfEvaluation, managerEvaluation } = body
 
     // Verificar se o template existe
-    const template = await prisma.evaluationTemplate.findUnique({
-      where: { id: templateId }
+    const template = await prisma.evaluationtemplate.findUnique({
+      where: { id: templateId },
+      include: {
+        questions: {
+          include: {
+            category: true
+          }
+        }
+      }
     })
 
     if (!template) {
       return NextResponse.json(
-        { error: "Modelo de avaliação não encontrado" },
+        { error: "Template não encontrado" },
         { status: 404 }
       )
     }
 
-    // Verificar se o funcionário e o avaliador existem
-    const [employee, evaluator] = await Promise.all([
-      prisma.employee.findUnique({ where: { id: employeeId } }),
-      prisma.user.findUnique({ where: { id: evaluatorId } })
-    ])
+    // Verificar se o funcionário existe
+    const employee = await prisma.employee.findUnique({
+      where: { id: employeeId }
+    })
 
     if (!employee) {
       return NextResponse.json(
@@ -110,6 +139,11 @@ export async function POST(request: Request) {
       )
     }
 
+    // Verificar se o avaliador existe
+    const evaluator = await prisma.user.findUnique({
+      where: { id: evaluatorId }
+    })
+
     if (!evaluator) {
       return NextResponse.json(
         { error: "Avaliador não encontrado" },
@@ -117,51 +151,45 @@ export async function POST(request: Request) {
       )
     }
 
+    // Criar a avaliação
     const evaluation = await prisma.evaluation.create({
       data: {
+        id: crypto.randomUUID(),
         employeeId,
         evaluatorId,
         templateId,
-        date: new Date(date),
+        date: new Date(),
         status: "Pendente",
-        selfEvaluation,
+        selfEvaluation: false,
         selfEvaluationStatus: "Pendente",
-        managerEvaluation,
+        managerEvaluation: false,
         managerEvaluationStatus: "Pendente",
-      },
-      include: {
-        employee: true,
-        evaluator: true,
-        template: {
-          select: {
-            id: true,
-            name: true,
-            description: true,
-          },
-        },
-      },
+        updatedAt: new Date()
+      }
     })
 
-    // Criar notificações
-    await prisma.notification.create({
-      data: {
-        userId: evaluatorId,
-        type: "evaluation_pending",
-        message: `Nova avaliação pendente: ${evaluation.template.name}`,
-        evaluationId: evaluation.id,
-      },
-    })
+    // Criar as respostas para cada questão do template
+    const answers = await Promise.all(
+      template.questions.map(async (question) => {
+        return prisma.evaluationanswer.create({
+          data: {
+            id: crypto.randomUUID(),
+            evaluationId: evaluation.id,
+            questionId: question.id,
+            selfScore: null,
+            managerScore: null,
+            selfComment: null,
+            managerComment: null,
+            updatedAt: new Date()
+          }
+        })
+      })
+    )
 
-    await prisma.notification.create({
-      data: {
-        userId: evaluatorId,
-        type: "evaluation_pending",
-        message: `Nova avaliação pendente: ${evaluation.template.name} - ${evaluation.employee.name}`,
-        evaluationId: evaluation.id,
-      },
+    return NextResponse.json({
+      ...evaluation,
+      answers
     })
-
-    return NextResponse.json(evaluation)
   } catch (error) {
     console.error("Erro ao criar avaliação:", error)
     return NextResponse.json({ error: "Erro ao criar avaliação" }, { status: 500 })

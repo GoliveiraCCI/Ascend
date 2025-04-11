@@ -15,7 +15,10 @@ export async function GET(
       },
       include: {
         employee: {
-          include: {
+          select: {
+            id: true,
+            name: true,
+            matricula: true,
             department: true,
           },
         },
@@ -111,13 +114,33 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
+    const evaluationId = params.id
     const body = await request.json()
     const { answers, type, strengths, improvements, goals } = body
 
+    // Validar os dados recebidos
+    if (!answers || !Array.isArray(answers)) {
+      return NextResponse.json(
+        { error: "Dados de respostas inválidos" },
+        { status: 400 }
+      )
+    }
+
+    if (!type || (type !== "self" && type !== "manager")) {
+      return NextResponse.json(
+        { error: "Tipo de avaliação inválido" },
+        { status: 400 }
+      )
+    }
+
     // Buscar a avaliação atual
     const evaluation = await prisma.evaluation.findUnique({
-      where: { id: params.id },
-      include: { evaluationanswer: true }
+      where: { id: evaluationId },
+      include: { 
+        evaluationanswer: true,
+        employee: true,
+        user: true
+      }
     })
 
     if (!evaluation) {
@@ -127,7 +150,7 @@ export async function PUT(
       )
     }
 
-    // Atualizar as respostas
+    // Atualizar cada resposta individualmente
     for (const answer of answers) {
       await prisma.evaluationanswer.update({
         where: { id: answer.id },
@@ -164,16 +187,46 @@ export async function PUT(
 
     // Se ambas as avaliações estiverem concluídas, calcular a pontuação final
     if (type === "manager" && evaluation.selfEvaluationStatus === "Concluída") {
-      updateData.finalScore = (updateData.managerScore + evaluation.selfScore!) / 2
+      const selfScore = evaluation.selfScore || 0
+      const managerScore = updateData.managerScore || 0
+      // Peso maior para a avaliação do gestor (60% gestor, 40% autoavaliação)
+      updateData.finalScore = Number(((managerScore * 0.6) + (selfScore * 0.4)).toFixed(1))
       updateData.status = "Concluída"
     }
 
-    await prisma.evaluation.update({
-      where: { id: params.id },
-      data: updateData
+    // Atualizar a avaliação
+    const updatedEvaluation = await prisma.evaluation.update({
+      where: { id: evaluationId },
+      data: updateData,
+      include: {
+        employee: {
+          include: {
+            department: true,
+          },
+        },
+        user: true,
+        evaluationtemplate: {
+          include: {
+            questions: {
+              include: {
+                category: true,
+              },
+            },
+          },
+        },
+        evaluationanswer: {
+          include: {
+            evaluationquestion: {
+              include: {
+                category: true,
+              },
+            },
+          },
+        },
+      },
     })
 
-    return NextResponse.json({ success: true })
+    return NextResponse.json(updatedEvaluation)
   } catch (error) {
     console.error("Erro ao atualizar avaliação:", error)
     return NextResponse.json(
@@ -186,12 +239,12 @@ export async function PUT(
 function calculateAverageScore(answers: any[]) {
   const validScores = answers
     .map(a => a.score)
-    .filter(score => score !== null && score !== undefined)
+    .filter(score => score !== null && score !== undefined && !isNaN(score))
   
   if (validScores.length === 0) return null
   
   const sum = validScores.reduce((a, b) => a + b, 0)
-  return sum / validScores.length
+  return Number((sum / validScores.length).toFixed(1))
 }
 
 export async function DELETE(
@@ -199,15 +252,21 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
+    // Primeiro, excluir todas as respostas da avaliação
+    await prisma.evaluationanswer.deleteMany({
+      where: { evaluationId: params.id }
+    })
+
+    // Depois, excluir a avaliação
     await prisma.evaluation.delete({
-      where: { id: params.id },
+      where: { id: params.id }
     })
 
     return NextResponse.json({ message: "Avaliação excluída com sucesso" })
   } catch (error) {
-    console.error('Erro ao excluir avaliação:', error)
+    console.error("Erro ao excluir avaliação:", error)
     return NextResponse.json(
-      { error: 'Erro ao excluir avaliação' },
+      { error: "Erro ao excluir avaliação" },
       { status: 500 }
     )
   }
