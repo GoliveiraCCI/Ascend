@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { join } from "path"
 import { existsSync, mkdirSync, writeFileSync } from "fs"
+import { randomUUID } from "crypto"
 
 export async function POST(request: Request) {
   try {
@@ -14,7 +15,6 @@ export async function POST(request: Request) {
     const source = formData.get("source") as "INTERNAL" | "EXTERNAL"
     const instructor = formData.get("instructor") as string
     const institution = formData.get("institution") as string
-    const departmentId = formData.get("departmentId") as string
     const startDate = new Date(formData.get("startDate") as string)
     const endDate = new Date(formData.get("endDate") as string)
     const hours = Number(formData.get("hours"))
@@ -83,43 +83,52 @@ export async function POST(request: Request) {
       )
     }
 
+    const now = new Date()
+
     // Criar o treinamento
     const training = await prisma.training.create({
       data: {
+        id: randomUUID(),
         name,
         category,
         source,
         instructor,
         institution: institution || null,
-        departmentId,
         startDate,
         endDate,
         hours,
         status: "PLANNED",
         description: description || null,
-        participants: {
+        createdAt: now,
+        updatedAt: now,
+        trainingparticipant: {
           create: participantIds.map(employeeId => ({
+            id: randomUUID(),
             employeeId,
-            status: "ENROLLED"
+            status: "ENROLLED",
+            createdAt: now,
+            updatedAt: now
           }))
         },
-        materials: {
+        trainingmaterial: {
           create: files.map(file => ({
+            id: randomUUID(),
             name: file.name,
             type: file.type,
             url: `/uploads/trainings/${Date.now()}-${file.name}`,
-            size: file.size
+            size: file.size,
+            createdAt: now,
+            updatedAt: now
           }))
         }
       },
       include: {
-        participants: {
+        trainingparticipant: {
           include: {
             employee: true
           }
         },
-        materials: true,
-        department: true
+        trainingmaterial: true
       }
     })
 

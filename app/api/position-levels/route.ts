@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma"
 
 export async function GET() {
   try {
-    const positionLevels = await prisma.positionLevel.findMany({
+    const positionLevels = await prisma.positionlevel.findMany({
       select: {
         id: true,
         name: true
@@ -28,7 +28,7 @@ export async function POST(request: Request) {
     const body = await request.json()
     const { name, salary, positionId } = body
 
-    const positionLevel = await prisma.positionLevel.create({
+    const positionLevel = await prisma.positionlevel.create({
       data: {
         name,
         salary,
@@ -54,7 +54,7 @@ export async function PUT(request: Request) {
     const body = await request.json()
     const { id, name, salary } = body
 
-    const positionLevel = await prisma.positionLevel.update({
+    const positionLevel = await prisma.positionlevel.update({
       where: { id },
       data: {
         name,
@@ -87,7 +87,7 @@ export async function DELETE(request: Request) {
       )
     }
 
-    await prisma.positionLevel.delete({
+    await prisma.positionlevel.delete({
       where: { id }
     })
 

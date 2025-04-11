@@ -9,7 +9,7 @@ export async function GET(
 ) {
   const { id } = await params
   try {
-    const medicalLeave = await prisma.medicalLeave.findUnique({
+    const medicalLeave = await prisma.medicalleave.findUnique({
       where: {
         id,
       },
@@ -21,8 +21,8 @@ export async function GET(
             shift: true,
           },
         },
-        category: true,
-        files: true,
+        medicalleavecategory: true,
+        file: true,
       },
     })
 
@@ -122,10 +122,10 @@ export async function DELETE(
     console.log("Excluindo atestado médico:", id)
 
     // Verifica se o atestado existe
-    const medicalLeave = await prisma.medicalLeave.findUnique({
+    const medicalLeave = await prisma.medicalleave.findUnique({
       where: { id },
       include: {
-        files: true
+        file: true
       }
     })
 
@@ -137,7 +137,7 @@ export async function DELETE(
     }
 
     // Remove os arquivos físicos
-    for (const file of medicalLeave.files) {
+    for (const file of medicalLeave.file) {
       const fileName = file.url.split("/").pop()
       if (fileName) {
         const path = join(process.cwd(), "public/uploads/medical-leaves", fileName)
@@ -153,7 +153,7 @@ export async function DELETE(
     })
 
     // Depois remove o atestado
-    await prisma.medicalLeave.delete({
+    await prisma.medicalleave.delete({
       where: { id }
     })
 

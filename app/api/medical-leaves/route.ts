@@ -7,6 +7,7 @@ import { existsSync, mkdirSync, writeFileSync, unlinkSync } from "fs"
 export async function GET(request: Request) {
   try {
     console.log("Iniciando busca de licenças médicas...")
+    console.log("Verificando cliente Prisma:", !!prisma)
     
     const { searchParams } = new URL(request.url)
     const department = searchParams.get("department")
@@ -53,53 +54,32 @@ export async function GET(request: Request) {
       ]
     }
 
-    console.log("Query where:", JSON.stringify(where, null, 2))
+    console.log("Construindo query com where:", where)
 
-    const medicalLeaves = await prisma.medicalLeave.findMany({
+    const medicalLeaves = await prisma.medicalleave.findMany({
       where,
       include: {
         employee: {
-          select: {
-            id: true,
-            name: true,
-            matricula: true,
-            department: {
-              select: {
-                id: true,
-                name: true
-              }
-            },
-            shift: {
-              select: {
-                id: true,
-                name: true,
-                description: true
-              }
-            }
+          include: {
+            department: true,
+            position: true,
+            shift: true
           }
         },
-        category: true
+        medicalleavecategory: true,
+        file: true
       },
       orderBy: {
-        startDate: "desc"
+        startDate: 'desc'
       }
     })
 
     console.log(`Encontradas ${medicalLeaves.length} licenças médicas`)
     return NextResponse.json(medicalLeaves)
   } catch (error) {
-    console.error("Erro detalhado ao buscar licenças médicas:", {
-      message: error instanceof Error ? error.message : "Erro desconhecido",
-      stack: error instanceof Error ? error.stack : undefined,
-      error
-    })
-    
+    console.error("Erro ao buscar licenças médicas:", error)
     return NextResponse.json(
-      { 
-        error: "Erro ao buscar licenças médicas",
-        details: error instanceof Error ? error.message : "Erro desconhecido",
-        stack: error instanceof Error ? error.stack : undefined
-      },
+      { error: "Erro ao buscar licenças médicas", details: error instanceof Error ? error.message : "Erro desconhecido" },
       { status: 500 }
     )
   }

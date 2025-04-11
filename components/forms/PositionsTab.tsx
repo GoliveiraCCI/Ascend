@@ -42,7 +42,7 @@ interface Position {
     id: string
     name: string
   }
-  positionLevels: PositionLevel[]
+  positionlevel: PositionLevel[]
 }
 
 interface PositionLevel {
@@ -475,7 +475,7 @@ export default function PositionsTab() {
                 <TableCell>{position.department.name}</TableCell>
                 <TableCell>
                   <div className="space-y-1">
-                    {position.positionLevels.map((level) => (
+                    {position.positionlevel?.map((level) => (
                       <div key={level.id} className="text-sm">
                         {level.name} - R$ {level.salary.toFixed(2)}
                       </div>

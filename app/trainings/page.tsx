@@ -5,16 +5,16 @@ export default async function Page() {
   // Buscar treinamentos com participantes e departamento
   const trainings = await prisma.training.findMany({
     include: {
-      participants: {
+      trainingparticipant: {
         include: {
           employee: true
         }
       },
       department: true,
-      evaluations: true,
-      materials: true,
-      sessions: true,
-      photos: true
+      trainingevaluation: true,
+      trainingmaterial: true,
+      trainingsession: true,
+      trainingphoto: true
     },
     orderBy: {
       startDate: "desc"

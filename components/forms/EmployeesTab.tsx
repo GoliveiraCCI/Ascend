@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
-import { Plus, MoreHorizontal, SlidersHorizontal, Pencil, History, Trash, Stethoscope, FileText, Search } from "lucide-react"
+import { Plus, MoreHorizontal, SlidersHorizontal, Pencil, History, Trash, Stethoscope, FileText, Search, Star, GraduationCap } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -68,6 +68,8 @@ import {
 import type { Department, Position, PositionLevel, Shift, Employee } from "@prisma/client"
 import { EmployeeEditForm } from "./EmployeeEditForm"
 import { MedicalLeavesDialog } from "./MedicalLeavesDialog"
+import { EvaluationsDialog } from "./EvaluationsDialog"
+import { TrainingsDialog } from "./TrainingsDialog"
 
 ChartJS.register(
   CategoryScale,
@@ -188,6 +190,8 @@ export function EmployeesTab({
   const [selectedEmployee, setSelectedEmployee] = useState<EmployeeWithRelations | null>(null)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isMedicalLeavesDialogOpen, setIsMedicalLeavesDialogOpen] = useState(false)
+  const [isEvaluationsDialogOpen, setIsEvaluationsDialogOpen] = useState(false)
+  const [isTrainingsDialogOpen, setIsTrainingsDialogOpen] = useState(false)
 
   useEffect(() => {
     console.log("EmployeesTab montado com:", {
@@ -410,6 +414,16 @@ export function EmployeesTab({
     setIsMedicalLeavesDialogOpen(true)
   }
 
+  const handleViewEvaluations = (employee: EmployeeWithRelations) => {
+    setSelectedEmployee(employee)
+    setIsEvaluationsDialogOpen(true)
+  }
+
+  const handleViewTrainings = (employee: EmployeeWithRelations) => {
+    setSelectedEmployee(employee)
+    setIsTrainingsDialogOpen(true)
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -534,6 +548,14 @@ export function EmployeesTab({
                         <Stethoscope className="mr-2 h-4 w-4" />
                         Atestados
                       </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleViewEvaluations(employee)}>
+                        <Star className="mr-2 h-4 w-4" />
+                        Avaliações
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleViewTrainings(employee)}>
+                        <GraduationCap className="mr-2 h-4 w-4" />
+                        Treinamentos
+                      </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </TableCell>
@@ -591,6 +613,18 @@ export function EmployeesTab({
         employeeId={selectedEmployee?.id || ""}
         isOpen={isMedicalLeavesDialogOpen}
         onClose={() => setIsMedicalLeavesDialogOpen(false)}
+      />
+
+      <EvaluationsDialog
+        employeeId={selectedEmployee?.id || ""}
+        isOpen={isEvaluationsDialogOpen}
+        onClose={() => setIsEvaluationsDialogOpen(false)}
+      />
+
+      <TrainingsDialog
+        employeeId={selectedEmployee?.id || ""}
+        isOpen={isTrainingsDialogOpen}
+        onClose={() => setIsTrainingsDialogOpen(false)}
       />
     </div>
   )

@@ -7,7 +7,7 @@ export async function GET(
 ) {
   try {
     const { id } = await params
-    const medicalLeaves = await prisma.medicalLeave.findMany({
+    const medicalLeaves = await prisma.medicalleave.findMany({
       where: {
         employeeId: id,
       },

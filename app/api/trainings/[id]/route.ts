@@ -15,15 +15,15 @@ export async function GET(
       },
       include: {
         department: true,
-        participants: {
+        trainingparticipant: {
           include: {
             employee: true
           }
         },
-        sessions: true,
-        evaluations: true,
-        photos: true,
-        materials: true,
+        trainingsession: true,
+        trainingevaluation: true,
+        trainingphoto: true,
+        trainingmaterial: true
       },
     })
 

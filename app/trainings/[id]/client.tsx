@@ -115,7 +115,7 @@ export function TrainingDetailsClient({ id }: TrainingDetailsClientProps) {
         hours: training.hours.toString(),
         category: training.category
       })
-      setSelectedParticipants(training.participants.map(p => p.employeeId))
+      setSelectedParticipants(training.trainingparticipant.map(p => p.employeeId))
     }
   }, [training, form])
 
@@ -164,7 +164,7 @@ export function TrainingDetailsClient({ id }: TrainingDetailsClientProps) {
         formData.append("files", file)
       })
 
-      const removedFiles = training.materials
+      const removedFiles = training.trainingmaterial
         .filter(material => !files.some(file => file.name === material.name))
         .map(material => material.id)
       formData.append("removedFiles", JSON.stringify(removedFiles))
@@ -389,12 +389,12 @@ export function TrainingDetailsClient({ id }: TrainingDetailsClientProps) {
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium">Total:</span>
-                <span className="text-sm">{training.participants.length}</span>
+                <span className="text-sm">{training.trainingparticipant.length}</span>
               </div>
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
                 <span className="text-sm">
-                  {training.participants.filter(p => p.status === "COMPLETED").length} concluídos
+                  {training.trainingparticipant.filter(p => p.status === "COMPLETED").length} concluídos
                 </span>
               </div>
             </div>
@@ -435,7 +435,7 @@ export function TrainingDetailsClient({ id }: TrainingDetailsClientProps) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {training.participants.map((participant) => (
+                  {training.trainingparticipant.map((participant) => (
                     <TableRow key={participant.id}>
                       <TableCell>{participant.employee?.name || "Nome não disponível"}</TableCell>
                       <TableCell>
@@ -458,7 +458,7 @@ export function TrainingDetailsClient({ id }: TrainingDetailsClientProps) {
             </CardHeader>
             <CardContent>
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {training.materials?.map((material) => (
+                {training.trainingmaterial?.map((material) => (
                   <Card key={material.id}>
                     <CardHeader>
                       <CardTitle className="text-sm font-medium">{material.name}</CardTitle>
@@ -474,7 +474,7 @@ export function TrainingDetailsClient({ id }: TrainingDetailsClientProps) {
                     </CardContent>
                   </Card>
                 ))}
-                {(!training.materials || training.materials.length === 0) && (
+                {(!training.trainingmaterial || training.trainingmaterial.length === 0) && (
                   <div className="col-span-full text-center text-muted-foreground py-8">
                     Nenhum material disponível
                   </div>
@@ -495,11 +495,10 @@ export function TrainingDetailsClient({ id }: TrainingDetailsClientProps) {
             </CardHeader>
             <CardContent>
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {training.photos?.map((photo) => (
+                {training.trainingphoto?.map((photo) => (
                   <Card key={photo.id}>
                     <CardHeader>
-                      <CardTitle className="text-sm font-medium">Foto</CardTitle>
-                      <CardDescription>{photo.caption || "Sem descrição"}</CardDescription>
+                      <CardTitle className="text-sm font-medium">{photo.caption || "Sem legenda"}</CardTitle>
                     </CardHeader>
                     <CardContent>
                       <img
@@ -510,7 +509,7 @@ export function TrainingDetailsClient({ id }: TrainingDetailsClientProps) {
                     </CardContent>
                   </Card>
                 ))}
-                {(!training.photos || training.photos.length === 0) && (
+                {(!training.trainingphoto || training.trainingphoto.length === 0) && (
                   <div className="col-span-full text-center text-muted-foreground py-8">
                     Nenhuma foto disponível
                   </div>
@@ -706,7 +705,7 @@ export function TrainingDetailsClient({ id }: TrainingDetailsClientProps) {
                   </CardHeader>
                   <CardContent>
                     <TrainingFiles
-                      initialFiles={training?.materials || []}
+                      initialFiles={training?.trainingmaterial || []}
                       onFilesChange={handleFilesChange}
                       onRemovedFilesChange={(removedFiles) => {
                         setRemovedFiles(removedFiles)

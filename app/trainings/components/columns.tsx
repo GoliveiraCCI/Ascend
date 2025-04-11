@@ -136,8 +136,8 @@ export const columns: ColumnDef<Training>[] = [
     accessorKey: "participants",
     header: "Participantes",
     cell: ({ row }) => {
-      const participants = row.original.participants
-      return <div className="text-center">{participants.length}</div>
+      const participants = row.original.trainingparticipant
+      return <div className="text-center">{participants?.length || 0}</div>
     },
   },
   {

@@ -225,32 +225,33 @@ const calculateAverageScore = (sections: typeof evaluationData.sections, type: "
 }
 
 interface EvaluationPageProps {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
 export default function EvaluationPage({ params }: EvaluationPageProps) {
   const router = useRouter()
-  const [activeTab, setActiveTab] = useState("questions")
   const [evaluation, setEvaluation] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [activeTab, setActiveTab] = useState("self")
+
+  const resolvedParams = use(params)
 
   useEffect(() => {
     const fetchEvaluation = async () => {
       try {
-        const response = await fetch(`/api/evaluations/${params.id}`)
+        const response = await fetch(`/api/evaluations/${resolvedParams.id}`)
         if (!response.ok) {
           throw new Error("Erro ao carregar avaliação")
         }
         const data = await response.json()
         setEvaluation(data)
       } catch (error) {
-        console.error("Erro ao carregar avaliação:", error)
+        console.error("Erro ao buscar avaliação:", error)
         toast({
           title: "Erro",
-          description: "Erro ao carregar avaliação",
+          description: "Não foi possível carregar a avaliação.",
           variant: "destructive",
         })
       } finally {
@@ -259,13 +260,13 @@ export default function EvaluationPage({ params }: EvaluationPageProps) {
     }
 
     fetchEvaluation()
-  }, [params.id])
+  }, [resolvedParams.id])
 
   const handleSubmit = async () => {
     try {
       setIsSubmitting(true)
 
-      const response = await fetch(`/api/evaluations/${params.id}`, {
+      const response = await fetch(`/api/evaluations/${resolvedParams.id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
