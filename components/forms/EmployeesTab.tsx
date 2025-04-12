@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
-import { Plus, MoreHorizontal, SlidersHorizontal, Pencil, History, Trash, Stethoscope, FileText, Search, Star, GraduationCap, User } from "lucide-react"
+import { Plus, MoreHorizontal, SlidersHorizontal, Pencil, History, Trash, Stethoscope, FileText, Search, Star, GraduationCap, User, Users, UserCheck, UserX } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -349,11 +349,7 @@ export function EmployeesTab({
         }
       },
       title: {
-        display: true,
-        text: 'Contratações e Desligamentos',
-        font: {
-          size: 14
-        }
+        display: false
       },
     },
     scales: {
@@ -445,30 +441,39 @@ export function EmployeesTab({
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        <Card>
-          <CardHeader>
-            <CardTitle>Total de Funcionários</CardTitle>
+        <Card className="animate-scale">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total de Funcionários</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{employees.length}</div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Funcionários Ativos</CardTitle>
+        <Card className="animate-scale [animation-delay:100ms]">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Funcionários Ativos</CardTitle>
+            <UserCheck className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{totalActive}</div>
+            <p className="text-xs text-muted-foreground">
+              {totalActive > 0 ? `${Math.round((totalActive / employees.length) * 100)}% do total` : 'Nenhum funcionário ativo'}
+            </p>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Funcionários Inativos</CardTitle>
+        <Card className="animate-scale [animation-delay:200ms]">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Funcionários Inativos</CardTitle>
+            <UserX className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{employees.length - totalActive}</div>
+            <p className="text-xs text-muted-foreground">
+              {employees.length - totalActive > 0 ? `${Math.round(((employees.length - totalActive) / employees.length) * 100)}% do total` : 'Nenhum funcionário inativo'}
+            </p>
           </CardContent>
         </Card>
       </div>
