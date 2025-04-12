@@ -6,16 +6,17 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
+    const { id } = await params
     const employee = await prisma.employee.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         department: true,
         position: true,
-        positionLevel: true,
+        positionlevel: true,
         shift: true,
-        history: {
+        employeehistory: {
           include: {
-            positionLevel: true,
+            positionlevel: true,
             department: true,
             shift: true
           },
@@ -33,7 +34,17 @@ export async function GET(
       )
     }
 
-    return NextResponse.json(employee)
+    // Transforma o objeto para usar positionLevel em vez de positionlevel
+    const transformedEmployee = {
+      ...employee,
+      positionLevel: employee.positionlevel,
+      employeeHistory: employee.employeehistory.map(history => ({
+        ...history,
+        positionLevel: history.positionlevel
+      }))
+    }
+
+    return NextResponse.json(transformedEmployee)
   } catch (error) {
     console.error("Erro ao buscar funcionário:", error)
     return NextResponse.json(
@@ -131,7 +142,7 @@ export async function PUT(
     const currentEmployee = await prisma.employee.findUnique({
       where: { id: params.id },
       include: {
-        history: {
+        employeehistory: {
           orderBy: {
             startDate: "desc"
           }
@@ -147,7 +158,7 @@ export async function PUT(
     }
 
     // Verificar se houve mudança de departamento, cargo ou turno
-    const lastHistory = currentEmployee.history[0]
+    const lastHistory = currentEmployee.employeehistory[0]
     const hasDepartmentChange = lastHistory?.departmentId !== departmentId
     const hasPositionChange = lastHistory?.positionLevelId !== positionLevelId
     const hasShiftChange = lastHistory?.shiftId !== shiftId
@@ -173,7 +184,7 @@ export async function PUT(
         position: true,
         positionLevel: true,
         shift: true,
-        history: {
+        employeehistory: {
           include: {
             positionLevel: true,
             department: true,

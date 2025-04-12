@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
-import { Plus, MoreHorizontal, SlidersHorizontal, Pencil, History, Trash, Stethoscope, FileText, Search, Star, GraduationCap } from "lucide-react"
+import { Plus, MoreHorizontal, SlidersHorizontal, Pencil, History, Trash, Stethoscope, FileText, Search, Star, GraduationCap, User } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -70,6 +70,7 @@ import { EmployeeEditForm } from "./EmployeeEditForm"
 import { MedicalLeavesDialog } from "./MedicalLeavesDialog"
 import { EvaluationsDialog } from "./EvaluationsDialog"
 import { TrainingsDialog } from "./TrainingsDialog"
+import { useRouter } from "next/navigation"
 
 ChartJS.register(
   CategoryScale,
@@ -192,6 +193,7 @@ export function EmployeesTab({
   const [isMedicalLeavesDialogOpen, setIsMedicalLeavesDialogOpen] = useState(false)
   const [isEvaluationsDialogOpen, setIsEvaluationsDialogOpen] = useState(false)
   const [isTrainingsDialogOpen, setIsTrainingsDialogOpen] = useState(false)
+  const router = useRouter()
 
   useEffect(() => {
     console.log("EmployeesTab montado com:", {
@@ -555,6 +557,10 @@ export function EmployeesTab({
                       <DropdownMenuItem onClick={() => handleViewTrainings(employee)}>
                         <GraduationCap className="mr-2 h-4 w-4" />
                         Treinamentos
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => router.push(`/employees/${employee.id}/profile`)}>
+                        <User className="mr-2 h-4 w-4" />
+                        Perfil
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { createId } from "@paralleldrive/cuid2"
 
 export async function GET(
   request: NextRequest,
@@ -10,9 +11,9 @@ export async function GET(
     const employee = await prisma.employee.findUnique({
       where: { id },
       include: {
-        history: {
+        employeehistory: {
           include: {
-            positionLevel: {
+            positionlevel: {
               include: {
                 position: true
               }
@@ -34,7 +35,7 @@ export async function GET(
       )
     }
 
-    return NextResponse.json(employee.history)
+    return NextResponse.json(employee.employeehistory)
   } catch (error) {
     console.error("Erro ao buscar histórico:", error)
     return NextResponse.json(
@@ -74,7 +75,7 @@ export async function POST(
     }
 
     // Buscar o último registro de histórico sem data fim
-    const lastHistory = await prisma.employeeHistory.findFirst({
+    const lastHistory = await prisma.employeehistory.findFirst({
       where: {
         employeeId: id,
         endDate: null
@@ -86,7 +87,7 @@ export async function POST(
 
     // Se existir um registro anterior sem data fim, atualiza com a data de início do novo registro
     if (lastHistory) {
-      await prisma.employeeHistory.update({
+      await prisma.employeehistory.update({
         where: { id: lastHistory.id },
         data: {
           endDate: new Date(startDate)
@@ -95,18 +96,20 @@ export async function POST(
     }
 
     // Criar novo registro de histórico
-    const history = await prisma.employeeHistory.create({
+    const history = await prisma.employeehistory.create({
       data: {
+        id: createId(),
         employeeId: id,
         startDate: new Date(startDate),
         endDate: endDate ? new Date(endDate) : null,
         positionLevelId,
         departmentId,
         shiftId,
+        updatedAt: new Date()
       },
       include: {
         department: true,
-        positionLevel: {
+        positionlevel: {
           include: {
             position: true
           }

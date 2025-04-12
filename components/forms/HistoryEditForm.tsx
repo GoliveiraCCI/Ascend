@@ -177,15 +177,15 @@ export function HistoryEditForm({
                   {entry.endDate ? new Date(entry.endDate).toLocaleDateString('pt-BR') : "-"}
                 </TableCell>
                 <TableCell>{entry.department?.name || "-"}</TableCell>
-                <TableCell>{entry.position?.title || "-"}</TableCell>
-                <TableCell>{entry.positionLevel?.name || "-"}</TableCell>
+                <TableCell>{entry.positionlevel?.position?.title || "-"}</TableCell>
+                <TableCell>{entry.positionlevel?.name || "-"}</TableCell>
                 <TableCell>{entry.shift?.name || "-"}</TableCell>
                 <TableCell>
-                  {entry.positionLevel?.salary
+                  {entry.positionlevel?.salary
                     ? new Intl.NumberFormat("pt-BR", {
                         style: "currency",
                         currency: "BRL"
-                      }).format(entry.positionLevel.salary)
+                      }).format(entry.positionlevel.salary)
                     : "-"}
                 </TableCell>
               </TableRow>

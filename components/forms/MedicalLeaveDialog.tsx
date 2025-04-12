@@ -149,37 +149,40 @@ export function MedicalLeaveDialog({
     setLoading(true)
 
     try {
-      const startDate = new Date(formData.startDate)
-      const endDate = new Date(formData.endDate)
-      const days = Math.ceil(
-        (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
-      ) + 1
+      // Garantir que as datas são válidas
+      const startDateObj = new Date(formData.startDate)
+      const endDateObj = new Date(formData.endDate)
 
-      const formDataToSend = new FormData()
-      formDataToSend.append('employeeId', formData.employeeId)
-      formDataToSend.append('categoryId', formData.categoryId)
-      formDataToSend.append('startDate', startDate.toISOString())
-      formDataToSend.append('endDate', endDate.toISOString())
-      formDataToSend.append('days', days.toString())
-      formDataToSend.append('reason', formData.reason)
-      formDataToSend.append('doctor', formData.doctor)
-      formDataToSend.append('hospital', formData.hospital)
-      formDataToSend.append('notes', formData.notes)
-      formDataToSend.append('status', 'AFASTADO')
+      if (isNaN(startDateObj.getTime()) || isNaN(endDateObj.getTime())) {
+        throw new Error("Datas inválidas")
+      }
 
-      // Adiciona os arquivos ao FormData
-      selectedFiles.forEach((file) => {
-        formDataToSend.append('files', file)
-      })
+      // Calcular dias
+      const diffTime = Math.abs(endDateObj.getTime() - startDateObj.getTime())
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1
 
       const response = await fetch("/api/medical-leaves", {
         method: "POST",
-        body: formDataToSend,
+        body: JSON.stringify({
+          employeeId: formData.employeeId,
+          categoryId: formData.categoryId,
+          startDate: startDateObj.toISOString(),
+          endDate: endDateObj.toISOString(),
+          days: diffDays,
+          reason: formData.reason,
+          doctor: formData.doctor,
+          hospital: formData.hospital,
+          notes: formData.notes,
+          status: "AFASTADO"
+        }),
+        headers: {
+          "Content-Type": "application/json",
+        },
       })
 
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(errorData.details || "Erro ao criar licença médica")
+        throw new Error(errorData.error || "Erro ao criar licença médica")
       }
 
       toast({
@@ -190,7 +193,7 @@ export function MedicalLeaveDialog({
       onSuccess()
       onOpenChange(false)
     } catch (error) {
-      console.error("Erro:", error)
+      console.error("Erro ao criar licença médica:", error)
       toast({
         title: "Erro",
         description: error instanceof Error ? error.message : "Erro ao criar licença médica",

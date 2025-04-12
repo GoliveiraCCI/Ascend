@@ -8,37 +8,36 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const resolvedParams = await params
-    const training = await prisma.training.findUnique({
+    const { id } = await params
+    const { searchParams } = new URL(request.url)
+    const limit = searchParams.get("limit") ? parseInt(searchParams.get("limit")!) : undefined
+
+    const trainings = await prisma.trainingparticipant.findMany({
       where: {
-        id: resolvedParams.id,
+        employeeId: id,
       },
       include: {
-        department: true,
-        trainingparticipant: {
-          include: {
-            employee: true
-          }
-        },
-        trainingsession: true,
-        trainingevaluation: true,
-        trainingphoto: true,
-        trainingmaterial: true
+        training: true
       },
+      orderBy: {
+        training: {
+          startDate: "desc"
+        }
+      },
+      take: limit,
     })
 
-    if (!training) {
-      return NextResponse.json(
-        { error: "Treinamento não encontrado" },
-        { status: 404 }
-      )
-    }
+    // Transforma o resultado para retornar apenas os treinamentos
+    const transformedTrainings = trainings.map(tp => tp.training)
 
-    return NextResponse.json(training)
+    return NextResponse.json(transformedTrainings)
   } catch (error) {
-    console.error("Erro ao buscar treinamento:", error)
+    console.error("Erro ao buscar treinamentos:", error)
     return NextResponse.json(
-      { error: "Erro interno do servidor" },
+      { 
+        error: "Erro ao buscar treinamentos",
+        details: error instanceof Error ? error.message : "Erro desconhecido"
+      },
       { status: 500 }
     )
   }

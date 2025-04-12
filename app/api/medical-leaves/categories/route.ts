@@ -3,12 +3,16 @@ import { prisma } from "@/lib/prisma"
 
 export async function GET() {
   try {
-    const categories = await prisma.medicalLeaveCategory.findMany({
+    console.log("Iniciando busca de categorias...")
+    console.log("Verificando cliente Prisma:", !!prisma)
+
+    const categories = await prisma.medicalleavecategory.findMany({
       orderBy: {
         name: "asc",
       },
     })
 
+    console.log("Categorias encontradas:", categories.length)
     return NextResponse.json(categories)
   } catch (error) {
     console.error("Erro ao buscar categorias:", error)
@@ -24,7 +28,7 @@ export async function POST(request: Request) {
     const body = await request.json()
     const { name, description } = body
 
-    const category = await prisma.medicalLeaveCategory.create({
+    const category = await prisma.medicalleavecategory.create({
       data: {
         name,
         description,

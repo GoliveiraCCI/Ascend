@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useRouter, useParams } from "next/navigation"
-import { ArrowLeft, Download, FileText, Printer, Send, User } from "lucide-react"
+import { ArrowLeft, Download, FileText, Printer, Send, User, Building2, UserCog, Calendar, UserCheck, UserCog2 } from "lucide-react"
 import html2canvas from "html2canvas"
 import jsPDF from "jspdf"
 import { ResponsiveContainer } from "recharts"
@@ -44,6 +44,7 @@ interface Employee {
   department: {
     name: string
   }
+  matricula: string
 }
 
 interface User {
@@ -345,16 +346,14 @@ export default function EvaluationDetailsPage() {
           <Button variant="outline" onClick={exportToPDF}>
             <FileText className="mr-2 h-4 w-4" />
             Exportar PDF
-        </Button>
-          <Button onClick={handleSaveEvaluation}>Salvar</Button>
+          </Button>
         </div>
       </div>
 
       <div className="grid gap-6 md:grid-cols-3">
         <Card className="md:col-span-1">
           <CardHeader>
-            <CardTitle>Informações da Avaliação</CardTitle>
-            <CardDescription>Detalhes sobre esta avaliação</CardDescription>
+            <CardTitle>Informações Gerais</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
@@ -364,29 +363,44 @@ export default function EvaluationDetailsPage() {
                 </div>
                 <div className="text-center">
                   <h2 className="text-xl font-bold">{evaluation.employee.name}</h2>
-                  <p className="text-sm text-muted-foreground">{evaluation.employee.position}</p>
+                  <p className="text-sm text-muted-foreground">{evaluation.employee.matricula}</p>
                 </div>
               </div>
               <div className="space-y-2">
                 <div className="flex justify-between">
-                  <span className="text-sm font-medium">Departamento:</span>
+                  <span className="text-sm font-medium flex items-center gap-2">
+                    <Building2 className="h-4 w-4 text-muted-foreground" />
+                    Departamento:
+                  </span>
                   <span className="text-sm">{evaluation.employee.department.name}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-sm font-medium">Gestor:</span>
+                  <span className="text-sm font-medium flex items-center gap-2">
+                    <UserCog className="h-4 w-4 text-muted-foreground" />
+                    Gestor:
+                  </span>
                   <span className="text-sm">{evaluation.user.name}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-sm font-medium">Template:</span>
+                  <span className="text-sm font-medium flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-muted-foreground" />
+                    Template:
+                  </span>
                   <span className="text-sm">{evaluation.evaluationtemplate.name}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-sm font-medium">Data:</span>
+                  <span className="text-sm font-medium flex items-center gap-2">
+                    <Calendar className="h-4 w-4 text-muted-foreground" />
+                    Data:
+                  </span>
                   <span className="text-sm">{new Date(evaluation.date).toLocaleDateString()}</span>
                 </div>
                 <Separator className="my-2" />
                 <div className="flex justify-between">
-                  <span className="text-sm font-medium">Autoavaliação:</span>
+                  <span className="text-sm font-medium flex items-center gap-2">
+                    <UserCheck className="h-4 w-4 text-muted-foreground" />
+                    Autoavaliação:
+                  </span>
                   <span
                     className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
                       evaluation.selfEvaluationStatus === "Concluída"
@@ -398,7 +412,10 @@ export default function EvaluationDetailsPage() {
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-sm font-medium">Avaliação do Gestor:</span>
+                  <span className="text-sm font-medium flex items-center gap-2">
+                    <UserCog2 className="h-4 w-4 text-muted-foreground" />
+                    Avaliação do Gestor:
+                  </span>
                   <span
                     className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
                       evaluation.managerEvaluationStatus === "Concluída"
@@ -609,8 +626,8 @@ export default function EvaluationDetailsPage() {
                               <foreignObject x="80%" y="5%" width="100" height="50">
                                 <div className="flex flex-col gap-1">
                                   <Badge variant="outline" className="bg-purple-100 text-purple-700 border-purple-200">
-                                    Média: {Math.round((evaluation.evaluationanswer.reduce((sum, a) => sum + (a.selfScore || 0), 0) / evaluation.evaluationanswer.length * 0.4) + 
-                                                      (evaluation.evaluationanswer.reduce((sum, a) => sum + (a.managerScore || 0), 0) / evaluation.evaluationanswer.length * 0.6))}
+                                    Média: {((evaluation.evaluationanswer.reduce((sum, a) => sum + (a.selfScore || 0), 0) / evaluation.evaluationanswer.length * 0.4) + 
+                                                      (evaluation.evaluationanswer.reduce((sum, a) => sum + (a.managerScore || 0), 0) / evaluation.evaluationanswer.length * 0.6)).toFixed(1)}
                                   </Badge>
                             </div>
                               </foreignObject>
@@ -707,7 +724,7 @@ export default function EvaluationDetailsPage() {
                           </span>
                                           </div>
                                           <div className="rounded-lg bg-gray-50 p-1.5 border border-gray-200 min-h-[60px]">
-                                            <p className="text-xs text-muted-foreground">
+                                            <p className="text-xs text-muted-foreground whitespace-pre-wrap break-words">
                                               {answer.selfComment || "Sem comentário"}
                                             </p>
                                           </div>
@@ -728,7 +745,7 @@ export default function EvaluationDetailsPage() {
                           </span>
                                           </div>
                                           <div className="rounded-lg bg-gray-50 p-1.5 border border-gray-200 min-h-[60px]">
-                                            <p className="text-xs text-muted-foreground">
+                                            <p className="text-xs text-muted-foreground whitespace-pre-wrap break-words">
                                               {answer.managerComment || "Sem comentário"}
                                             </p>
                                           </div>
@@ -794,87 +811,111 @@ export default function EvaluationDetailsPage() {
                       <CardTitle className="text-base font-bold">Comentários Gerais</CardTitle>
                     </CardHeader>
                     <CardContent className="p-2">
-                      <div className="grid gap-1">
+                      <div className="space-y-4">
                         {/* Pontos Fortes */}
-                        <div className="space-y-1 border-b border-gray-300 pb-2">
-                          <Label className="text-xs font-medium">Pontos Fortes</Label>
-                          <div className="grid grid-cols-2 gap-2">
-                            <div className="space-y-1 border-r border-gray-300 pr-2">
-                              <Badge variant="secondary" className="bg-blue-100 text-blue-700 hover:bg-blue-100 px-1.5 py-0.5">
-                                Autoavaliação
-                              </Badge>
-                              <div className="rounded-lg bg-gray-50 p-1.5 border border-gray-200 min-h-[60px]">
-                                <p className="text-xs text-muted-foreground">
-                                  {evaluation.selfStrengths || "Não informado"}
-                          </p>
-                        </div>
-                            </div>
-                            <div className="space-y-1 pl-2">
-                              <Badge variant="secondary" className="bg-green-100 text-green-700 hover:bg-green-100 px-1.5 py-0.5">
-                                Avaliação do Gestor
-                              </Badge>
-                              <div className="rounded-lg bg-gray-50 p-1.5 border border-gray-200 min-h-[60px]">
-                                <p className="text-xs text-muted-foreground">
-                                  {evaluation.managerStrengths || "Não informado"}
-                                </p>
+                        <Card className="overflow-hidden border border-gray-300 hover:border-gray-400 transition-colors">
+                          <CardHeader className="bg-gray-50 p-2 border-b border-gray-300">
+                            <CardTitle className="text-sm font-medium">Pontos Fortes</CardTitle>
+                          </CardHeader>
+                          <CardContent className="p-2">
+                            <div className="grid grid-cols-2 gap-2">
+                              <div className="space-y-1 border-r border-gray-300 pr-2">
+                                <div className="flex items-center justify-between">
+                                  <Badge variant="secondary" className="bg-blue-100 text-blue-700 hover:bg-blue-100 px-1.5 py-0.5">
+                                    Autoavaliação
+                                  </Badge>
+                                </div>
+                                <div className="rounded-lg bg-gray-50 p-1.5 border border-gray-200 min-h-[60px]">
+                                  <p className="text-xs text-muted-foreground whitespace-pre-wrap break-words">
+                                    {evaluation.selfStrengths || "Sem comentário"}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="space-y-1 pl-2">
+                                <div className="flex items-center justify-between">
+                                  <Badge variant="secondary" className="bg-green-100 text-green-700 hover:bg-green-100 px-1.5 py-0.5">
+                                    Avaliação do Gestor
+                                  </Badge>
+                                </div>
+                                <div className="rounded-lg bg-gray-50 p-1.5 border border-gray-200 min-h-[60px]">
+                                  <p className="text-xs text-muted-foreground whitespace-pre-wrap break-words">
+                                    {evaluation.managerStrengths || "Sem comentário"}
+                                  </p>
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        </div>
+                          </CardContent>
+                        </Card>
 
                         {/* Pontos de Melhoria */}
-                        <div className="space-y-1 border-b border-gray-300 pb-2">
-                          <Label className="text-xs font-medium">Pontos de Melhoria</Label>
-                          <div className="grid grid-cols-2 gap-2">
-                            <div className="space-y-1 border-r border-gray-300 pr-2">
-                              <Badge variant="secondary" className="bg-blue-100 text-blue-700 hover:bg-blue-100 px-1.5 py-0.5">
-                                Autoavaliação
-                              </Badge>
-                              <div className="rounded-lg bg-gray-50 p-1.5 border border-gray-200 min-h-[60px]">
-                                <p className="text-xs text-muted-foreground">
-                                  {evaluation.selfImprovements || "Não informado"}
-                                </p>
+                        <Card className="overflow-hidden border border-gray-300 hover:border-gray-400 transition-colors">
+                          <CardHeader className="bg-gray-50 p-2 border-b border-gray-300">
+                            <CardTitle className="text-sm font-medium">Pontos de Melhoria</CardTitle>
+                          </CardHeader>
+                          <CardContent className="p-2">
+                            <div className="grid grid-cols-2 gap-2">
+                              <div className="space-y-1 border-r border-gray-300 pr-2">
+                                <div className="flex items-center justify-between">
+                                  <Badge variant="secondary" className="bg-blue-100 text-blue-700 hover:bg-blue-100 px-1.5 py-0.5">
+                                    Autoavaliação
+                                  </Badge>
+                                </div>
+                                <div className="rounded-lg bg-gray-50 p-1.5 border border-gray-200 min-h-[60px]">
+                                  <p className="text-xs text-muted-foreground whitespace-pre-wrap break-words">
+                                    {evaluation.selfImprovements || "Sem comentário"}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="space-y-1 pl-2">
+                                <div className="flex items-center justify-between">
+                                  <Badge variant="secondary" className="bg-green-100 text-green-700 hover:bg-green-100 px-1.5 py-0.5">
+                                    Avaliação do Gestor
+                                  </Badge>
+                                </div>
+                                <div className="rounded-lg bg-gray-50 p-1.5 border border-gray-200 min-h-[60px]">
+                                  <p className="text-xs text-muted-foreground whitespace-pre-wrap break-words">
+                                    {evaluation.managerImprovements || "Sem comentário"}
+                                  </p>
+                                </div>
                               </div>
                             </div>
-                            <div className="space-y-1 pl-2">
-                              <Badge variant="secondary" className="bg-green-100 text-green-700 hover:bg-green-100 px-1.5 py-0.5">
-                                Avaliação do Gestor
-                              </Badge>
-                              <div className="rounded-lg bg-gray-50 p-1.5 border border-gray-200 min-h-[60px]">
-                                <p className="text-xs text-muted-foreground">
-                                  {evaluation.managerImprovements || "Não informado"}
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
+                          </CardContent>
+                        </Card>
 
                         {/* Metas e Objetivos */}
-                        <div className="space-y-1">
-                          <Label className="text-xs font-medium">Metas e Objetivos</Label>
-                          <div className="grid grid-cols-2 gap-2">
-                            <div className="space-y-1 border-r border-gray-300 pr-2">
-                              <Badge variant="secondary" className="bg-blue-100 text-blue-700 hover:bg-blue-100 px-1.5 py-0.5">
-                                Autoavaliação
-                              </Badge>
-                              <div className="rounded-lg bg-gray-50 p-1.5 border border-gray-200 min-h-[60px]">
-                                <p className="text-xs text-muted-foreground">
-                                  {evaluation.selfGoals || "Não informado"}
-                          </p>
-                        </div>
-                      </div>
-                            <div className="space-y-1 pl-2">
-                              <Badge variant="secondary" className="bg-green-100 text-green-700 hover:bg-green-100 px-1.5 py-0.5">
-                                Avaliação do Gestor
-                              </Badge>
-                              <div className="rounded-lg bg-gray-50 p-1.5 border border-gray-200 min-h-[60px]">
-                                <p className="text-xs text-muted-foreground">
-                                  {evaluation.managerGoals || "Não informado"}
-                                </p>
-                    </div>
+                        <Card className="overflow-hidden border border-gray-300 hover:border-gray-400 transition-colors">
+                          <CardHeader className="bg-gray-50 p-2 border-b border-gray-300">
+                            <CardTitle className="text-sm font-medium">Metas e Objetivos</CardTitle>
+                          </CardHeader>
+                          <CardContent className="p-2">
+                            <div className="grid grid-cols-2 gap-2">
+                              <div className="space-y-1 border-r border-gray-300 pr-2">
+                                <div className="flex items-center justify-between">
+                                  <Badge variant="secondary" className="bg-blue-100 text-blue-700 hover:bg-blue-100 px-1.5 py-0.5">
+                                    Autoavaliação
+                                  </Badge>
+                                </div>
+                                <div className="rounded-lg bg-gray-50 p-1.5 border border-gray-200 min-h-[60px]">
+                                  <p className="text-xs text-muted-foreground whitespace-pre-wrap break-words">
+                                    {evaluation.selfGoals || "Sem comentário"}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="space-y-1 pl-2">
+                                <div className="flex items-center justify-between">
+                                  <Badge variant="secondary" className="bg-green-100 text-green-700 hover:bg-green-100 px-1.5 py-0.5">
+                                    Avaliação do Gestor
+                                  </Badge>
+                                </div>
+                                <div className="rounded-lg bg-gray-50 p-1.5 border border-gray-200 min-h-[60px]">
+                                  <p className="text-xs text-muted-foreground whitespace-pre-wrap break-words">
+                                    {evaluation.managerGoals || "Sem comentário"}
+                                  </p>
+                                </div>
+                              </div>
                             </div>
-                          </div>
-                        </div>
+                          </CardContent>
+                        </Card>
                       </div>
                     </CardContent>
                   </Card>
@@ -1041,7 +1082,7 @@ export default function EvaluationDetailsPage() {
                   )}
 
                   {/* Comentários Gerais */}
-                  <Card>
+                  <Card className="border border-gray-300 hover:border-gray-400 transition-colors">
                     <CardHeader>
                       <CardTitle>Comentários Gerais</CardTitle>
                     </CardHeader>

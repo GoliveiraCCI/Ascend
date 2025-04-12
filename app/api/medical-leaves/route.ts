@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { join } from "path"
 import { existsSync, mkdirSync, writeFileSync, unlinkSync } from "fs"
+import { v4 as uuidv4 } from 'uuid'
 
 // GET - Listar todas as licenças médicas
 export async function GET(request: Request) {
@@ -88,111 +89,53 @@ export async function GET(request: Request) {
 // POST - Criar nova licença médica
 export async function POST(request: Request) {
   try {
-    const formData = await request.formData()
-    const files = formData.getAll('files') as File[]
+    const body = await request.json()
+    const {
+      employeeId,
+      startDate,
+      endDate,
+      days,
+      reason,
+      doctor,
+      hospital,
+      status,
+      notes,
+      categoryId,
+    } = body
 
-    // Extrair dados do FormData
-    const employeeId = formData.get('employeeId') as string
-    const categoryId = formData.get('categoryId') as string
-    const startDate = new Date(formData.get('startDate') as string)
-    const endDate = new Date(formData.get('endDate') as string)
-    const days = parseInt(formData.get('days') as string)
-    const reason = formData.get('reason') as string
-    const doctor = formData.get('doctor') as string
-    const hospital = formData.get('hospital') as string
-    const notes = formData.get('notes') as string
-    const status = formData.get('status') as string || "AFASTADO"
+    // Validar datas
+    const start = new Date(startDate)
+    const end = new Date(endDate)
+    if (start > end) {
+      return NextResponse.json(
+        { error: "A data de início deve ser anterior à data de término" },
+        { status: 400 }
+      )
+    }
 
     // Criar a licença médica
-    const medicalLeave = await prisma.medicalLeave.create({
+    const medicalLeave = await prisma.medicalleave.create({
       data: {
+        id: uuidv4(),
         employeeId,
         categoryId,
-        startDate,
-        endDate,
+        startDate: start,
+        endDate: end,
         days,
         reason,
         doctor,
         hospital,
-        notes,
         status,
-        files: {
-          create: files.map(file => ({
-            name: file.name,
-            type: file.type,
-            url: `/uploads/medical-leaves/${Date.now()}-${file.name}`, // Nome único para o arquivo
-          }))
-        }
+        notes,
+        updatedAt: new Date(),
       },
-      include: {
-        employee: {
-          select: {
-            id: true,
-            name: true,
-            matricula: true,
-            department: {
-              select: {
-                id: true,
-                name: true
-              }
-            }
-          }
-        },
-        category: {
-          select: {
-            id: true,
-            name: true
-          }
-        },
-        files: true
-      }
     })
-
-    // Se houver arquivos, fazer upload
-    if (files.length > 0) {
-      try {
-        // Criar diretório se não existir
-        const uploadDir = join(process.cwd(), "public", "uploads", "medical-leaves")
-        console.log("Diretório de upload:", uploadDir)
-        
-        if (!existsSync(uploadDir)) {
-          console.log("Criando diretório de upload")
-          mkdirSync(uploadDir, { recursive: true })
-        }
-
-        // Fazer upload de cada arquivo
-        await Promise.all(files.map(async (file) => {
-          console.log("Iniciando upload do arquivo:", file.name, file.type)
-          
-          // Gerar nome único para o arquivo
-          const timestamp = Date.now()
-          const uniqueFileName = `${timestamp}-${file.name}`
-          const filePath = join(uploadDir, uniqueFileName)
-          console.log("Caminho completo do arquivo:", filePath)
-
-          // Converter o arquivo para buffer
-          const bytes = await file.arrayBuffer()
-          const buffer = Buffer.from(bytes)
-          console.log("Tamanho do buffer:", buffer.length)
-
-          // Salvar o arquivo
-          writeFileSync(filePath, buffer)
-          console.log("Arquivo salvo com sucesso")
-        }))
-      } catch (error) {
-        console.error("Erro ao fazer upload dos arquivos:", error)
-        // Não vamos lançar o erro aqui, pois o registro já foi criado no banco
-      }
-    }
 
     return NextResponse.json(medicalLeave)
   } catch (error) {
     console.error("Erro ao criar licença médica:", error)
     return NextResponse.json(
-      { 
-        error: "Erro ao criar licença médica",
-        details: error instanceof Error ? error.message : "Erro desconhecido"
-      },
+      { error: "Erro ao criar licença médica", details: error.message },
       { status: 500 }
     )
   }
@@ -213,7 +156,7 @@ export async function PUT(request: Request) {
     const status = formData.get('status') as string
 
     // Buscar a licença médica atual
-    const currentLeave = await prisma.medicalLeave.findUnique({
+    const currentLeave = await prisma.medicalleave.findUnique({
       where: { id },
       include: { 
         employee: true,
@@ -229,7 +172,7 @@ export async function PUT(request: Request) {
     }
 
     // Atualizar a licença médica
-    const medicalLeave = await prisma.medicalLeave.update({
+    const medicalLeave = await prisma.medicalleave.update({
       where: { id },
       data: {
         startDate,
@@ -350,7 +293,7 @@ export async function DELETE(request: Request) {
       )
     }
 
-    await prisma.medicalLeave.delete({
+    await prisma.medicalleave.delete({
       where: { id }
     })
 
