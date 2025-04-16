@@ -117,7 +117,7 @@ interface EmployeeWithRelations extends Employee {
   positionlevel?: { id: string; name: string }
   shift?: { id: string; name: string }
   history?: EmployeeHistory[]
-  medicalLeaves?: {
+  medicalleave?: {
     id: string
     startDate: string
     endDate?: string
@@ -227,7 +227,7 @@ export function EmployeesTab({
 
     // Depois verifica se tem atestado médico ativo
     const today = new Date()
-    const hasActiveMedicalLeave = employee.medicalLeaves?.some(leave => {
+    const hasActiveMedicalLeave = employee.medicalleave?.some(leave => {
       const startDate = new Date(leave.startDate)
       const endDate = leave.endDate ? new Date(leave.endDate) : null
       return startDate <= today && (!endDate || endDate >= today)

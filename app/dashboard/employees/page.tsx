@@ -39,6 +39,25 @@ async function getData() {
           id: true,
           name: true
         }
+      },
+      medicalleave: {
+        where: {
+          status: "AFASTADO",
+          endDate: {
+            gte: new Date()
+          }
+        },
+        select: {
+          id: true,
+          startDate: true,
+          endDate: true,
+          status: true,
+          reason: true,
+          notes: true,
+          days: true,
+          doctor: true,
+          hospital: true
+        }
       }
     },
     orderBy: {
