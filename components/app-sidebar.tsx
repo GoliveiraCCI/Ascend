@@ -4,7 +4,7 @@ import type React from "react"
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { BarChart3, FileText, Home, Settings, Users, Building2, BookOpen, FileCheck, UserCircle } from "lucide-react"
+import { BarChart3, FileText, Home, Settings, Users, Building2, BookOpen, FileCheck, UserCircle, FileUp } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { useSidebar } from "@/components/sidebar-provider"
@@ -61,6 +61,12 @@ export function AppSidebar({ className }: SidebarProps) {
       icon: BookOpen,
       href: "/trainings",
       active: pathname === "/trainings" || pathname.startsWith("/trainings/"),
+    },
+    {
+      label: "Uploads",
+      icon: FileUp,
+      href: "/bulk-import",
+      active: pathname === "/bulk-import" || pathname.startsWith("/bulk-import/"),
     },
     {
       label: "Departamentos",

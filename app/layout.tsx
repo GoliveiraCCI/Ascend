@@ -13,6 +13,7 @@ import {
   GraduationCap,
   Stethoscope,
   Trophy,
+  FileUp,
 } from "lucide-react"
 
 const inter = Inter({ subsets: ["latin"] })
@@ -26,6 +27,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     { name: "Avaliações", href: "/evaluations", icon: Star },
     { name: "Treinamentos", href: "/trainings", icon: GraduationCap },
     { name: "Licenças Médicas", href: "/medical-leaves", icon: Stethoscope },
+    { name: "Uploads", href: "/bulk-import", icon: FileUp },
   ]
 
   return (

@@ -9,6 +9,7 @@ import { ResponsiveContainer } from "recharts"
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Legend, Tooltip } from "recharts"
 import { LineChart, Line, XAxis, YAxis, CartesianGrid } from "recharts"
 import { Document, Page, Text, View, StyleSheet, PDFViewer } from '@react-pdf/renderer';
+import { BarChart, Bar } from "recharts"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -472,7 +473,7 @@ export default function EmployeeProfilePage() {
         </Button>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-3">
+      <div className="grid gap-6 md:grid-cols-2">
         {/* Informações do Funcionário */}
         <Card className="md:col-span-1">
           <CardHeader>
@@ -557,7 +558,7 @@ export default function EmployeeProfilePage() {
 
         {/* Gráfico de Radar - Última Avaliação */}
         {evaluation && (
-          <Card className="md:col-span-2">
+          <Card className="md:col-span-1">
             <CardHeader className="p-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -655,6 +656,170 @@ export default function EmployeeProfilePage() {
               </div>
             </CardContent>
           </Card>
+        )}
+
+        {/* Gráficos de Médias - Lado a Lado */}
+        {evaluation && (
+          <>
+            {/* Gráfico de Radar - Médias de Todas as Avaliações */}
+            <Card className="md:col-span-2">
+              <CardHeader className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-lg">Médias de Todas as Avaliações</CardTitle>
+                    <CardDescription>Autoavaliação vs Avaliação do Gestor</CardDescription>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="bg-blue-100 text-blue-700 border-blue-200">
+                      Auto: {(evaluation.evaluationanswer.reduce((sum, a) => sum + (a.selfScore || 0), 0) / evaluation.evaluationanswer.length).toFixed(1)}
+                    </Badge>
+                    <Badge variant="outline" className="bg-green-100 text-green-700 border-green-200">
+                      Gestor: {(evaluation.evaluationanswer.reduce((sum, a) => sum + (a.managerScore || 0), 0) / evaluation.evaluationanswer.length).toFixed(1)}
+                    </Badge>
+                    <Badge variant="outline" className="bg-purple-100 text-purple-700 border-purple-200">
+                      Média: {((evaluation.evaluationanswer.reduce((sum, a) => sum + (a.selfScore || 0), 0) / evaluation.evaluationanswer.length * 0.4) + 
+                              (evaluation.evaluationanswer.reduce((sum, a) => sum + (a.managerScore || 0), 0) / evaluation.evaluationanswer.length * 0.6)).toFixed(1)}
+                    </Badge>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="p-4">
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="h-[400px] w-full flex items-center justify-center col-span-2">
+                    <div className="w-full h-full max-w-[800px] mx-auto relative">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <RadarChart
+                          cx="50%"
+                          cy="50%"
+                          outerRadius="90%"
+                          margin={{ top: 30, right: 30, bottom: 30, left: 30 }}
+                          data={Array.from(new Set(evaluation.evaluationanswer.map(a => a.evaluationquestion.category.name)))
+                            .map(category => {
+                              const categoryAnswers = evaluation.evaluationanswer.filter(a => a.evaluationquestion.category.name === category);
+                              const selfAverage = Number((categoryAnswers.reduce((sum, a) => sum + (a.selfScore || 0), 0) / categoryAnswers.length).toFixed(1));
+                              const managerAverage = Number((categoryAnswers.reduce((sum, a) => sum + (a.managerScore || 0), 0) / categoryAnswers.length).toFixed(1));
+                              
+                              return {
+                                category,
+                                self: selfAverage,
+                                manager: managerAverage
+                              };
+                            })}
+                        >
+                          <PolarGrid stroke="#e5e7eb" />
+                          <PolarAngleAxis 
+                            dataKey="category" 
+                            tick={{ fill: '#374151', fontSize: 12, fontWeight: 500 }}
+                            tickFormatter={(value, index) => {
+                              const data = Array.from(new Set(evaluation.evaluationanswer.map(a => a.evaluationquestion.category.name)))
+                                .map(category => {
+                                  const categoryAnswers = evaluation.evaluationanswer.filter(a => a.evaluationquestion.category.name === category);
+                                  const selfAverage = Number((categoryAnswers.reduce((sum, a) => sum + (a.selfScore || 0), 0) / categoryAnswers.length).toFixed(1));
+                                  const managerAverage = Number((categoryAnswers.reduce((sum, a) => sum + (a.managerScore || 0), 0) / categoryAnswers.length).toFixed(1));
+                                  return { category, selfAverage, managerAverage };
+                                });
+                              const item = data[index];
+                              return `${value}\n${item.selfAverage.toFixed(1)}/${item.managerAverage.toFixed(1)}`;
+                            }}
+                          />
+                          <PolarRadiusAxis 
+                            angle={30} 
+                            domain={[0, 5]} 
+                            tick={{ fill: '#374151', fontSize: 12, fontWeight: 500 }}
+                            tickFormatter={(value) => value.toFixed(1)}
+                          />
+                          <Radar
+                            name="Autoavaliação"
+                            dataKey="self"
+                            stroke="#3b82f6"
+                            fill="#3b82f6"
+                            fillOpacity={0.6}
+                          />
+                          <Radar
+                            name="Gestor"
+                            dataKey="manager"
+                            stroke="#10b981"
+                            fill="#10b981"
+                            fillOpacity={0.6}
+                          />
+                          <Legend 
+                            verticalAlign="bottom"
+                            align="center"
+                            wrapperStyle={{ 
+                              paddingTop: '20px',
+                              fontSize: '12px',
+                              fontWeight: 500,
+                              position: 'absolute',
+                              bottom: '0',
+                              left: '50%',
+                              transform: 'translateX(-50%)'
+                            }}
+                          />
+                        </RadarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+
+                  {/* Gráfico de Barras - Comparação de Médias */}
+                  <div className="h-[400px] w-full flex items-center justify-center">
+                    <div className="w-full h-full max-w-[800px] mx-auto relative">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart
+                          data={Array.from(new Set(evaluation.evaluationanswer.map(a => a.evaluationquestion.category.name)))
+                            .map(category => {
+                              const categoryAnswers = evaluation.evaluationanswer.filter(a => a.evaluationquestion.category.name === category);
+                              const selfAverage = Number((categoryAnswers.reduce((sum, a) => sum + (a.selfScore || 0), 0) / categoryAnswers.length).toFixed(1));
+                              const managerAverage = Number((categoryAnswers.reduce((sum, a) => sum + (a.managerScore || 0), 0) / categoryAnswers.length).toFixed(1));
+                              const weightedAverage = (selfAverage * 0.4) + (managerAverage * 0.6);
+                              
+                              return {
+                                category: category.split(' ').map(word => word[0]).join(''),
+                                weightedAverage,
+                                lastEvaluation: weightedAverage
+                              };
+                            })}
+                          margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                        >
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis 
+                            dataKey="category" 
+                            tick={{ fontSize: 10 }}
+                            interval={0}
+                          />
+                          <YAxis 
+                            domain={[0, 5]} 
+                            tick={{ fontSize: 10 }}
+                            tickFormatter={(value) => value.toFixed(1)}
+                          />
+                          <Tooltip 
+                            formatter={(value) => value.toFixed(1)}
+                            labelFormatter={(label) => {
+                              const fullName = Array.from(new Set(evaluation.evaluationanswer.map(a => a.evaluationquestion.category.name)))
+                                .find(cat => cat.split(' ').map(word => word[0]).join('') === label);
+                              return fullName;
+                            }}
+                          />
+                          <Legend />
+                          <Bar
+                            name="Média Ponderada"
+                            dataKey="weightedAverage"
+                            fill="#3b82f6"
+                            radius={[4, 4, 0, 0]}
+                          />
+                          <Bar
+                            name="Última Avaliação"
+                            dataKey="lastEvaluation"
+                            fill="#10b981"
+                            radius={[4, 4, 0, 0]}
+                          />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </>
         )}
       </div>
 

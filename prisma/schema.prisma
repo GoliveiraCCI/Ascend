@@ -141,25 +141,25 @@ model evaluationcategory {
 }
 
 model evaluationquestion {
-  id          String       @id
-  categoryId  String
-  category    evaluationcategory @relation(fields: [categoryId], references: [id])
-  templateId  String?
-  template    evaluationtemplate? @relation("TemplateQuestions", fields: [templateId], references: [id])
-  text        String
-  answers     evaluationanswer[]
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime
+  id         String              @id
+  categoryId String
+  text       String
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime
+  templateId String?
+  answers    evaluationanswer[]
+  category   evaluationcategory  @relation(fields: [categoryId], references: [id])
+  template   evaluationtemplate? @relation("TemplateQuestions", fields: [templateId], references: [id])
 
   @@index([categoryId])
   @@index([templateId])
 }
 
 model evaluationtemplate {
-  id          String       @id
+  id          String               @id
   name        String
   description String?
-  createdAt   DateTime     @default(now())
+  createdAt   DateTime             @default(now())
   updatedAt   DateTime
   evaluation  evaluation[]
   questions   evaluationquestion[] @relation("TemplateQuestions")
