@@ -1,18 +1,17 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { randomUUID } from "crypto"
 
 export async function GET() {
   try {
     console.log("Iniciando busca de categorias...")
-    console.log("Verificando cliente Prisma:", !!prisma)
-
     const categories = await prisma.medicalleavecategory.findMany({
       orderBy: {
         name: "asc",
       },
     })
 
-    console.log("Categorias encontradas:", categories.length)
+    console.log(`Total de categorias encontradas: ${categories.length}`)
     return NextResponse.json(categories)
   } catch (error) {
     console.error("Erro ao buscar categorias:", error)
@@ -25,13 +24,24 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json()
-    const { name, description } = body
+    const { name, description } = await request.json()
+
+    if (!name) {
+      return NextResponse.json(
+        { error: "O nome da categoria é obrigatório" },
+        { status: 400 }
+      )
+    }
+
+    const now = new Date()
 
     const category = await prisma.medicalleavecategory.create({
       data: {
+        id: randomUUID(),
         name,
-        description,
+        description: description || "",
+        createdAt: now,
+        updatedAt: now,
       },
     })
 
