@@ -180,6 +180,14 @@ interface Evaluator {
   email: string;
 }
 
+interface EvaluationCategory {
+  id: string;
+  name: string;
+  description: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 // Função para classificar pontuações
 const getScoreClass = (score: number | null) => {
   if (score === null) return "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100"
@@ -228,7 +236,7 @@ export default function EvaluationsPage() {
   const [statusFilter, setStatusFilter] = useState("all")
   const [sortField, setSortField] = useState("date")
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc")
-  const [activeTab, setActiveTab] = useState("list")
+  const [activeTab, setActiveTab] = useState<"evaluations" | "templates" | "categories">("evaluations")
   const [isNewEvaluationOpen, setIsNewEvaluationOpen] = useState(false)
   const [isTemplateDialogOpen, setIsTemplateDialogOpen] = useState(false)
   const [isApplyEvaluationOpen, setIsApplyEvaluationOpen] = useState(false)
@@ -272,6 +280,13 @@ export default function EvaluationsPage() {
     departmentScores: []
   })
   const [evaluators, setEvaluators] = useState<Evaluator[]>([])
+  const [categories, setCategories] = useState<EvaluationCategory[]>([])
+  const [showNewCategoryDialog, setShowNewCategoryDialog] = useState(false)
+  const [newCategory, setNewCategory] = useState<Partial<EvaluationCategory>>({
+    name: "",
+    description: "",
+  })
+  const [editingCategory, setEditingCategory] = useState<EvaluationCategory | null>(null)
   const router = useRouter()
 
   // Filtrar e ordenar avaliações
@@ -412,7 +427,7 @@ export default function EvaluationsPage() {
 
   // Efeito para carregar avaliações quando a página carregar
   useEffect(() => {
-    if (activeTab === 'list') {
+    if (activeTab === 'evaluations') {
       fetchEvaluations()
     }
   }, [activeTab])
@@ -454,7 +469,7 @@ export default function EvaluationsPage() {
         throw new Error('Erro ao buscar categorias')
       }
       const data = await response.json()
-      setEvaluationCategories(data)
+      setCategories(data)
     } catch (error) {
       console.error('Erro ao buscar categorias:', error)
       toast({
@@ -897,6 +912,71 @@ export default function EvaluationsPage() {
     }
   };
 
+  const handleCreateCategory = async () => {
+    try {
+      const response = await fetch("/api/evaluations/categories", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(newCategory),
+      })
+
+      if (!response.ok) {
+        throw new Error("Erro ao criar categoria")
+      }
+
+      const createdCategory = await response.json()
+      setCategories([...categories, createdCategory])
+      setShowNewCategoryDialog(false)
+      setNewCategory({ name: "", description: "" })
+    } catch (error) {
+      console.error("Erro ao criar categoria:", error)
+    }
+  }
+
+  const handleEditCategory = async () => {
+    if (!editingCategory) return
+
+    try {
+      const response = await fetch(`/api/evaluations/categories/${editingCategory.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(editingCategory),
+      })
+
+      if (!response.ok) {
+        throw new Error("Erro ao atualizar categoria")
+      }
+
+      const updatedCategory = await response.json()
+      setCategories(categories.map(cat => 
+        cat.id === updatedCategory.id ? updatedCategory : cat
+      ))
+      setEditingCategory(null)
+    } catch (error) {
+      console.error("Erro ao atualizar categoria:", error)
+    }
+  }
+
+  const handleDeleteCategory = async (categoryId: string) => {
+    try {
+      const response = await fetch(`/api/evaluations/categories/${categoryId}`, {
+        method: "DELETE",
+      })
+
+      if (!response.ok) {
+        throw new Error("Erro ao excluir categoria")
+      }
+
+      setCategories(categories.filter(cat => cat.id !== categoryId))
+    } catch (error) {
+      console.error("Erro ao excluir categoria:", error)
+    }
+  }
+
   return (
     <div className="animate-in flex flex-col gap-8 p-4 md:p-8">
       <div className="flex flex-col gap-2">
@@ -904,14 +984,15 @@ export default function EvaluationsPage() {
         <p className="text-muted-foreground">Gerenciar e acompanhar avaliações de desempenho dos funcionários</p>
       </div>
 
-      <Tabs defaultValue="list" value={activeTab} onValueChange={setActiveTab} className="w-full">
+      <Tabs defaultValue="evaluations" value={activeTab} onValueChange={setActiveTab} className="w-full">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <TabsList className="grid w-full grid-cols-2 md:w-auto">
-            <TabsTrigger value="list">Lista de Avaliações</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-3 md:w-auto">
+            <TabsTrigger value="evaluations">Lista de Avaliações</TabsTrigger>
             <TabsTrigger value="templates">Modelos de Avaliação</TabsTrigger>
+            <TabsTrigger value="categories">Descrição de Cargo</TabsTrigger>
           </TabsList>
           <div className="flex flex-wrap items-center gap-2">
-            {activeTab === 'list' && (
+            {activeTab === 'evaluations' && (
               <>
                 <Dialog open={isNewEvaluationOpen} onOpenChange={setIsNewEvaluationOpen}>
                   <DialogTrigger asChild>
@@ -1073,7 +1154,7 @@ export default function EvaluationsPage() {
                 }
               }}>
                 <DialogTrigger asChild>
-                  <Button variant="outline">
+                  <Button variant="outline" className="bg-black text-white hover:bg-black/90">
                     <Plus className="mr-2 h-4 w-4" />
                     Novo Modelo
                   </Button>
@@ -1187,10 +1268,49 @@ export default function EvaluationsPage() {
                 </DialogContent>
               </Dialog>
             )}
+            {activeTab === 'categories' && (
+              <Dialog open={showNewCategoryDialog} onOpenChange={setShowNewCategoryDialog}>
+                <DialogTrigger asChild>
+                  <Button>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Nova Categoria
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Nova Categoria</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-sm font-medium">Nome</label>
+                      <Input
+                        value={newCategory.name}
+                        onChange={(e) => setNewCategory({ ...newCategory, name: e.target.value })}
+                        placeholder="Nome da categoria"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">Descrição</label>
+                      <Input
+                        value={newCategory.description || ""}
+                        onChange={(e) => setNewCategory({ ...newCategory, description: e.target.value })}
+                        placeholder="Descrição da categoria"
+                      />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setShowNewCategoryDialog(false)}>
+                      Cancelar
+                    </Button>
+                    <Button onClick={handleCreateCategory}>Criar</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            )}
           </div>
         </div>
 
-        <TabsContent value="list" className="animate-fade">
+        <TabsContent value="evaluations" className="animate-fade">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div className="flex flex-col gap-2 md:flex-row md:items-center">
               <div className="relative">
@@ -1589,6 +1709,47 @@ export default function EvaluationsPage() {
             </div>
           </div>
         </TabsContent>
+
+        <TabsContent value="categories" className="animate-fade">
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-semibold">Categorias de Descrição de Cargo</h2>
+            </div>
+
+            <div className="grid gap-4">
+              {categories.map((category) => (
+                <Card key={category.id}>
+                  <CardHeader>
+                    <div className="flex justify-between items-center">
+                      <CardTitle>{category.name}</CardTitle>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setEditingCategory(category)}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDeleteCategory(category.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-muted-foreground">
+                      {category.description || "Sem descrição"}
+                    </p>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        </TabsContent>
       </Tabs>
 
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
@@ -1701,6 +1862,38 @@ export default function EvaluationsPage() {
                 'Duplicar Modelo'
               )}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!editingCategory} onOpenChange={() => setEditingCategory(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar Categoria</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium">Nome</label>
+              <Input
+                value={editingCategory?.name || ""}
+                onChange={(e) => setEditingCategory({ ...editingCategory!, name: e.target.value })}
+                placeholder="Nome da categoria"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Descrição</label>
+              <Input
+                value={editingCategory?.description || ""}
+                onChange={(e) => setEditingCategory({ ...editingCategory!, description: e.target.value })}
+                placeholder="Descrição da categoria"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingCategory(null)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleEditCategory}>Salvar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
