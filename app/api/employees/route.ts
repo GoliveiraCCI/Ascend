@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { Prisma } from "@prisma/client"
+import { getCurrentUser } from "@/lib/auth"
+import { createId } from "@paralleldrive/cuid2"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -134,61 +136,96 @@ export async function POST(request: Request) {
   try {
     const body = await request.json()
     const {
-      matricula,
       name,
       email,
+      positionId,
+      departmentId,
+      matricula,
       cpf,
       birthDate,
       hireDate,
       terminationDate,
-      departmentId,
-      positionId,
       positionLevelId,
       shiftId,
       phone,
       address,
+      active = true
     } = body
+
+    // Verificar se a matrícula já existe para um funcionário ativo
+    const existingMatricula = await prisma.employee.findFirst({
+      where: {
+        matricula,
+        active: true
+      }
+    })
+
+    if (existingMatricula) {
+      return NextResponse.json(
+        { error: "Já existe um funcionário ativo com esta matrícula" },
+        { status: 400, headers: corsHeaders }
+      )
+    }
+
+    // Verificar se o email já existe para um funcionário ativo
+    const existingEmail = await prisma.employee.findFirst({
+      where: {
+        email,
+        active: true
+      }
+    })
+
+    if (existingEmail) {
+      return NextResponse.json(
+        { error: "Este email já está cadastrado para outro funcionário" },
+        { status: 400, headers: corsHeaders }
+      )
+    }
 
     const employee = await prisma.employee.create({
       data: {
-        matricula,
+        id: createId(),
         name,
         email,
+        positionId,
+        departmentId,
+        matricula,
         cpf,
         birthDate: new Date(birthDate),
         hireDate: new Date(hireDate),
         terminationDate: terminationDate ? new Date(terminationDate) : null,
-        departmentId,
-        positionId,
-        positionLevelId,
-        shiftId,
-        phone,
-        address,
+        positionLevelId: positionLevelId || null,
+        shiftId: shiftId || null,
+        phone: phone || null,
+        address: address || null,
+        active,
+        userId: "system",
+        updatedAt: new Date(),
+        createdAt: new Date()
       },
+    })
+
+    // Criar histórico inicial
+    await prisma.employeehistory.create({
+      data: {
+        id: createId(),
+        employeeId: employee.id,
+        departmentId,
+        positionLevelId: positionLevelId || null,
+        shiftId: shiftId || null,
+        startDate: new Date(hireDate),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        userId: "system"
+      }
     })
 
     return NextResponse.json(employee, { headers: corsHeaders })
   } catch (error) {
     console.error("Erro ao criar funcionário:", error)
-    
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      if (error.code === "P2002") {
-        return NextResponse.json(
-          { error: "P2002", message: "Este email já está cadastrado para outro funcionário" },
-          { 
-            status: 400,
-            headers: corsHeaders,
-          }
-        )
-      }
-    }
-
     return NextResponse.json(
-      { message: "Erro ao criar funcionário" },
-      { 
-        status: 500,
-        headers: corsHeaders,
-      }
+      { error: "Erro ao criar funcionário" },
+      { status: 500, headers: corsHeaders }
     )
   }
 }
@@ -199,15 +236,15 @@ export async function PUT(request: Request) {
     const body = await request.json()
     const {
       id,
-      matricula,
       name,
       email,
+      positionId,
+      departmentId,
+      matricula,
       cpf,
       birthDate,
       hireDate,
       terminationDate,
-      departmentId,
-      positionId,
       positionLevelId,
       shiftId,
       phone,
@@ -215,93 +252,34 @@ export async function PUT(request: Request) {
       active
     } = body
 
-    // Buscar o cargo associado à faixa
-    const positionLevel = await prisma.positionLevel.findUnique({
-      where: { id: positionLevelId },
-      include: { position: true }
-    })
-
-    if (!positionLevel) {
-      return NextResponse.json(
-        { error: "Faixa de cargo não encontrada" },
-        { 
-          status: 404,
-          headers: corsHeaders,
-        }
-      )
-    }
-
-    // Atualizar o funcionário
     const employee = await prisma.employee.update({
       where: { id },
       data: {
-        matricula,
         name,
         email,
+        positionId,
+        departmentId,
+        matricula,
         cpf,
         birthDate: new Date(birthDate),
         hireDate: new Date(hireDate),
         terminationDate: terminationDate ? new Date(terminationDate) : null,
-        departmentId,
-        positionId: positionLevel.positionId,
-        positionLevelId,
-        shiftId,
-        phone,
-        address,
-        active
+        positionLevelId: positionLevelId || null,
+        shiftId: shiftId || null,
+        phone: phone || null,
+        address: address || null,
+        active,
+        userId: "system",
+        updatedAt: new Date()
       },
-      include: {
-        department: true,
-        position: true,
-        shift: true,
-        positionLevel: true
-      }
     })
-
-    // Verificar se houve mudança de cargo, departamento ou turno
-    const currentHistory = await prisma.employeeHistory.findFirst({
-      where: {
-        employeeId: id,
-        endDate: null
-      }
-    })
-
-    if (currentHistory) {
-      if (
-        currentHistory.positionLevelId !== positionLevelId ||
-        currentHistory.departmentId !== departmentId ||
-        currentHistory.shiftId !== shiftId
-      ) {
-        // Encerrar o histórico atual
-        await prisma.employeeHistory.update({
-          where: { id: currentHistory.id },
-          data: {
-            endDate: new Date()
-          }
-        })
-
-        // Criar novo registro de histórico
-        await prisma.employeeHistory.create({
-          data: {
-            employeeId: id,
-            positionLevelId,
-            departmentId,
-            shiftId,
-            startDate: new Date()
-          }
-        })
-      }
-    }
 
     return NextResponse.json(employee, { headers: corsHeaders })
   } catch (error) {
     console.error("Erro ao atualizar funcionário:", error)
     return NextResponse.json(
       { error: "Erro ao atualizar funcionário" },
-      { 
-        status: 500,
-        headers: corsHeaders,
-      }
+      { status: 500, headers: corsHeaders }
     )
   }
 }
@@ -310,34 +288,29 @@ export async function PUT(request: Request) {
 export async function DELETE(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
-    const id = searchParams.get("id")
+    const id = searchParams.get('id')
 
     if (!id) {
       return NextResponse.json(
-        { error: "ID não fornecido" },
-        { 
-          status: 400,
-          headers: corsHeaders,
-        }
+        { error: "ID do funcionário não fornecido" },
+        { status: 400, headers: corsHeaders }
       )
     }
 
-    await prisma.employee.delete({
-      where: { id }
+    const employee = await prisma.employee.update({
+      where: { id },
+      data: {
+        active: false,
+        userId: "system",
+      },
     })
 
-    return NextResponse.json(
-      { message: "Funcionário excluído com sucesso" },
-      { headers: corsHeaders }
-    )
+    return NextResponse.json(employee, { headers: corsHeaders })
   } catch (error) {
     console.error("Erro ao excluir funcionário:", error)
     return NextResponse.json(
       { error: "Erro ao excluir funcionário" },
-      { 
-        status: 500,
-        headers: corsHeaders,
-      }
+      { status: 500, headers: corsHeaders }
     )
   }
 } 
