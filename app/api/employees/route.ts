@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { Prisma } from "@prisma/client"
 import { getCurrentUser } from "@/lib/auth"
 import { createId } from "@paralleldrive/cuid2"
+import { randomUUID } from "crypto"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -37,62 +38,12 @@ export async function GET(request: Request) {
     console.log("Iniciando busca de funcionários...")
     
     const employees = await prisma.employee.findMany({
-      where: {
-        active: true
-      },
-      select: {
-        id: true,
-        name: true,
-        matricula: true,
-        email: true,
-        cpf: true,
-        birthDate: true,
-        hireDate: true,
-        terminationDate: true,
-        active: true,
-        department: {
-          select: {
-            id: true,
-            name: true
-          }
-        },
-        position: {
-          select: {
-            id: true,
-            title: true
-          }
-        },
-        positionlevel: {
-          select: {
-            id: true,
-            name: true
-          }
-        },
-        shift: {
-          select: {
-            id: true,
-            name: true
-          }
-        },
-        medicalleave: {
-          where: {
-            status: "AFASTADO",
-            endDate: {
-              gte: new Date()
-            }
-          },
-          select: {
-            id: true,
-            startDate: true,
-            endDate: true,
-            status: true,
-            reason: true,
-            notes: true,
-            days: true,
-            doctor: true,
-            hospital: true
-          }
-        }
+      include: {
+        department: true,
+        position: true,
+        positionlevel: true,
+        shift: true,
+        user: true
       },
       orderBy: {
         name: 'asc'
@@ -185,24 +136,20 @@ export async function POST(request: Request) {
     const employee = await prisma.employee.create({
       data: {
         id: createId(),
-        name,
-        email,
-        positionId,
-        departmentId,
-        matricula,
-        cpf,
-        birthDate: new Date(birthDate),
-        hireDate: new Date(hireDate),
-        terminationDate: terminationDate ? new Date(terminationDate) : null,
-        positionLevelId: positionLevelId || null,
-        shiftId: shiftId || null,
-        phone: phone || null,
-        address: address || null,
-        active,
-        userId: "system",
-        updatedAt: new Date(),
-        createdAt: new Date()
-      },
+        name: body.name,
+        matricula: body.matricula,
+        email: body.email,
+        cpf: body.cpf,
+        birthDate: new Date(body.birthDate).toISOString(),
+        hireDate: new Date(body.hireDate).toISOString(),
+        departmentId: body.departmentId,
+        positionId: body.positionId,
+        positionLevelId: body.positionLevelId,
+        shiftId: body.shiftId,
+        active: true,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }
     })
 
     // Criar histórico inicial
@@ -213,7 +160,7 @@ export async function POST(request: Request) {
         departmentId,
         positionLevelId: positionLevelId || null,
         shiftId: shiftId || null,
-        startDate: new Date(hireDate),
+        startDate: new Date(body.hireDate).toISOString(),
         createdAt: new Date(),
         updatedAt: new Date(),
         userId: "system"
@@ -252,29 +199,30 @@ export async function PUT(request: Request) {
       active
     } = body
 
-    const employee = await prisma.employee.update({
-      where: { id },
-      data: {
-        name,
-        email,
-        positionId,
-        departmentId,
-        matricula,
-        cpf,
-        birthDate: new Date(birthDate),
-        hireDate: new Date(hireDate),
-        terminationDate: terminationDate ? new Date(terminationDate) : null,
-        positionLevelId: positionLevelId || null,
-        shiftId: shiftId || null,
-        phone: phone || null,
-        address: address || null,
-        active,
-        userId: "system",
-        updatedAt: new Date()
+    const updatedEmployee = await prisma.employee.update({
+      where: {
+        id: id
       },
+      data: {
+        name: name,
+        matricula: matricula,
+        email: email,
+        cpf: cpf,
+        birthDate: birthDate,
+        hireDate: hireDate,
+        terminationDate: terminationDate,
+        departmentId: departmentId,
+        positionId: positionId,
+        positionLevelId: positionLevelId,
+        shiftId: shiftId,
+        phone: phone,
+        address: address,
+        active: active,
+        updatedAt: new Date()
+      }
     })
 
-    return NextResponse.json(employee, { headers: corsHeaders })
+    return NextResponse.json(updatedEmployee, { headers: corsHeaders })
   } catch (error) {
     console.error("Erro ao atualizar funcionário:", error)
     return NextResponse.json(
@@ -297,12 +245,10 @@ export async function DELETE(request: Request) {
       )
     }
 
-    const employee = await prisma.employee.update({
-      where: { id },
-      data: {
-        active: false,
-        userId: "system",
-      },
+    const employee = await prisma.employee.delete({
+      where: {
+        id: id
+      }
     })
 
     return NextResponse.json(employee, { headers: corsHeaders })

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { randomUUID } from "crypto"
 
 // GET - Listar todos os turnos
 export async function GET() {
@@ -7,7 +8,8 @@ export async function GET() {
     const shifts = await prisma.shift.findMany({
       select: {
         id: true,
-        name: true
+        name: true,
+        description: true
       },
       orderBy: {
         name: "asc"
@@ -28,14 +30,42 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { name, startTime, endTime, description } = body
+    const { name, description } = body
+
+    // Validar campos obrigatórios
+    if (!name) {
+      return NextResponse.json(
+        { error: "O nome do turno é obrigatório" },
+        { status: 400 }
+      )
+    }
+
+    // Verificar se o usuário system existe
+    let systemUser = await prisma.user.findUnique({
+      where: { id: "system" }
+    })
+
+    // Se não existir, criar o usuário system
+    if (!systemUser) {
+      systemUser = await prisma.user.create({
+        data: {
+          id: "system",
+          name: "System",
+          email: "system@system.com",
+          role: "SYSTEM",
+          updatedAt: new Date()
+        }
+      })
+    }
 
     const shift = await prisma.shift.create({
       data: {
+        id: randomUUID(),
         name,
-        startTime,
-        endTime,
-        description
+        description,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        userId: "system"
       }
     })
 
@@ -53,15 +83,14 @@ export async function POST(request: Request) {
 export async function PUT(request: Request) {
   try {
     const body = await request.json()
-    const { id, name, startTime, endTime, description } = body
+    const { id, name, description } = body
 
     const shift = await prisma.shift.update({
       where: { id },
       data: {
         name,
-        startTime,
-        endTime,
-        description
+        description,
+        updatedAt: new Date()
       }
     })
 

@@ -14,10 +14,14 @@ model department {
   updatedAt       DateTime
   code            String            @unique(map: "Department_code_key")
   description     String?
+  userId          String            @default("system") @db.VarChar(255)
+  user            user              @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   employee        employee[]
   employeehistory employeehistory[]
   position        position[]
   training        training[]
+
+  @@index([userId], map: "department_userId_fkey")
 }
 
 model employee {
@@ -39,10 +43,12 @@ model employee {
   shiftId             String?
   positionLevelId     String?
   onMedicalLeave      Boolean               @default(false)
+  userId              String                @default("system") @db.VarChar(255)
   department          department            @relation(fields: [departmentId], references: [id], map: "Employee_departmentId_fkey")
   position            position              @relation(fields: [positionId], references: [id], map: "Employee_positionId_fkey")
   positionlevel       positionlevel?        @relation(fields: [positionLevelId], references: [id], map: "Employee_positionLevelId_fkey")
   shift               shift?                @relation(fields: [shiftId], references: [id], map: "Employee_shiftId_fkey")
+  user                user                  @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   employeehistory     employeehistory[]
   evaluation          evaluation[]
   medicalleave        medicalleave[]
@@ -54,6 +60,7 @@ model employee {
   @@index([positionLevelId], map: "Employee_positionLevelId_idx")
   @@index([shiftId], map: "Employee_shiftId_idx")
   @@index([terminationDate], map: "Employee_terminationDate_idx")
+  @@index([userId], map: "employee_userId_fkey")
 }
 
 model employeehistory {
@@ -66,15 +73,18 @@ model employeehistory {
   endDate         DateTime?
   createdAt       DateTime       @default(now())
   updatedAt       DateTime
+  userId          String         @default("system") @db.VarChar(255)
   department      department?    @relation(fields: [departmentId], references: [id], map: "EmployeeHistory_departmentId_fkey")
   employee        employee       @relation(fields: [employeeId], references: [id], map: "EmployeeHistory_employeeId_fkey")
   positionlevel   positionlevel? @relation(fields: [positionLevelId], references: [id], map: "EmployeeHistory_positionLevelId_fkey")
   shift           shift?         @relation(fields: [shiftId], references: [id], map: "EmployeeHistory_shiftId_fkey")
+  user            user           @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@index([departmentId], map: "EmployeeHistory_departmentId_fkey")
   @@index([employeeId], map: "EmployeeHistory_employeeId_fkey")
   @@index([positionLevelId], map: "EmployeeHistory_positionLevelId_fkey")
   @@index([shiftId], map: "EmployeeHistory_shiftId_fkey")
+  @@index([userId], map: "employeehistory_userId_fkey")
 }
 
 model evaluation {
@@ -123,21 +133,30 @@ model evaluationanswer {
   managerComment     String?            @db.Text
   createdAt          DateTime           @default(now())
   updatedAt          DateTime
+  userId             String             @default("system") @db.VarChar(255)
   evaluation         evaluation         @relation(fields: [evaluationId], references: [id], map: "EvaluationAnswer_evaluationId_fkey")
   evaluationquestion evaluationquestion @relation(fields: [questionId], references: [id], map: "EvaluationAnswer_questionId_fkey")
+  user               user               @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@unique([evaluationId, questionId], map: "EvaluationAnswer_evaluationId_questionId_key")
   @@index([evaluationId], map: "EvaluationAnswer_evaluationId_idx")
   @@index([questionId], map: "EvaluationAnswer_questionId_idx")
+  @@index([userId], map: "evaluationanswer_userId_fkey")
 }
 
 model evaluationcategory {
   id                 String               @id
   name               String
   description        String?
+  department         String?
   createdAt          DateTime             @default(now())
   updatedAt          DateTime
+  position           String?
+  userId             String               @default("system") @db.VarChar(255)
+  user               user                 @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   evaluationquestion evaluationquestion[]
+
+  @@index([userId], map: "evaluationcategory_userId_fkey")
 }
 
 model evaluationquestion {
@@ -147,12 +166,15 @@ model evaluationquestion {
   createdAt  DateTime            @default(now())
   updatedAt  DateTime
   templateId String?
+  userId     String              @default("system") @db.VarChar(255)
   answers    evaluationanswer[]
   category   evaluationcategory  @relation(fields: [categoryId], references: [id])
   template   evaluationtemplate? @relation("TemplateQuestions", fields: [templateId], references: [id])
+  user       user                @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@index([categoryId])
   @@index([templateId])
+  @@index([userId], map: "evaluationquestion_userId_fkey")
 }
 
 model evaluationtemplate {
@@ -161,8 +183,12 @@ model evaluationtemplate {
   description String?
   createdAt   DateTime             @default(now())
   updatedAt   DateTime
+  userId      String               @default("system") @db.VarChar(255)
   evaluation  evaluation[]
   questions   evaluationquestion[] @relation("TemplateQuestions")
+  user        user                 @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([userId], map: "evaluationtemplate_userId_fkey")
 }
 
 model file {
@@ -172,9 +198,12 @@ model file {
   url            String
   medicalLeaveId String
   createdAt      DateTime     @default(now())
+  userId         String       @default("system") @db.VarChar(255)
   medicalleave   medicalleave @relation(fields: [medicalLeaveId], references: [id], map: "File_medicalLeaveId_fkey")
+  user           user         @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@index([medicalLeaveId], map: "File_medicalLeaveId_fkey")
+  @@index([userId], map: "file_userId_fkey")
 }
 
 model medicalleave {
@@ -191,12 +220,15 @@ model medicalleave {
   hospital             String?
   notes                String?
   categoryId           String?
+  userId               String                @default("system") @db.VarChar(255)
   file                 file[]
   medicalleavecategory medicalleavecategory? @relation(fields: [categoryId], references: [id], map: "MedicalLeave_categoryId_fkey")
   employee             employee              @relation(fields: [employeeId], references: [id], map: "MedicalLeave_employeeId_fkey")
+  user                 user                  @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@index([categoryId], map: "MedicalLeave_categoryId_fkey")
   @@index([employeeId], map: "MedicalLeave_employeeId_fkey")
+  @@index([userId], map: "medicalleave_userId_fkey")
 }
 
 model medicalleavecategory {
@@ -205,7 +237,11 @@ model medicalleavecategory {
   description  String
   createdAt    DateTime       @default(now())
   updatedAt    DateTime
+  userId       String         @default("system") @db.VarChar(255)
   medicalleave medicalleave[]
+  user         user           @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([userId], map: "medicalleavecategory_userId_fkey")
 }
 
 model notification {
@@ -230,11 +266,14 @@ model position {
   createdAt     DateTime        @default(now())
   updatedAt     DateTime
   description   String?
+  userId        String          @default("system") @db.VarChar(255)
   employee      employee[]
   department    department      @relation(fields: [departmentId], references: [id], map: "Position_departmentId_fkey")
+  user          user            @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   positionlevel positionlevel[]
 
   @@index([departmentId], map: "Position_departmentId_fkey")
+  @@index([userId], map: "position_userId_fkey")
 }
 
 model positionlevel {
@@ -244,11 +283,14 @@ model positionlevel {
   positionId      String
   createdAt       DateTime          @default(now())
   updatedAt       DateTime
+  userId          String            @default("system") @db.VarChar(255)
   employee        employee[]
   employeehistory employeehistory[]
   position        position          @relation(fields: [positionId], references: [id], map: "PositionLevel_positionId_fkey")
+  user            user              @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@index([positionId], map: "PositionLevel_positionId_fkey")
+  @@index([userId], map: "positionlevel_userId_fkey")
 }
 
 model shift {
@@ -257,8 +299,12 @@ model shift {
   description     String?
   createdAt       DateTime          @default(now())
   updatedAt       DateTime
+  userId          String            @default("system") @db.VarChar(255)
   employee        employee[]
   employeehistory employeehistory[]
+  user            user              @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([userId], map: "shift_userId_fkey")
 }
 
 model training {
@@ -277,7 +323,9 @@ model training {
   createdAt           DateTime              @default(now())
   updatedAt           DateTime
   departmentId        String?
+  userId              String                @default("system") @db.VarChar(255)
   department          department?           @relation(fields: [departmentId], references: [id], map: "Training_departmentId_fkey")
+  user                user                  @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   trainingevaluation  trainingevaluation[]
   trainingmaterial    trainingmaterial[]
   trainingparticipant trainingparticipant[]
@@ -285,6 +333,7 @@ model training {
   trainingsession     trainingsession[]
 
   @@index([departmentId], map: "Training_departmentId_fkey")
+  @@index([userId], map: "training_userId_fkey")
 }
 
 model trainingevaluation {
@@ -296,9 +345,12 @@ model trainingevaluation {
   notes        String?  @db.Text
   createdAt    DateTime @default(now())
   updatedAt    DateTime
+  userId       String   @default("system") @db.VarChar(255)
   training     training @relation(fields: [trainingId], references: [id], map: "TrainingEvaluation_trainingId_fkey")
+  user         user     @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@index([trainingId], map: "TrainingEvaluation_trainingId_fkey")
+  @@index([userId], map: "trainingevaluation_userId_fkey")
 }
 
 model trainingmaterial {
@@ -310,9 +362,12 @@ model trainingmaterial {
   size       Int
   createdAt  DateTime @default(now())
   updatedAt  DateTime
+  userId     String   @default("system") @db.VarChar(255)
   training   training @relation(fields: [trainingId], references: [id], map: "TrainingMaterial_trainingId_fkey")
+  user       user     @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@index([trainingId], map: "TrainingMaterial_trainingId_fkey")
+  @@index([userId], map: "trainingmaterial_userId_fkey")
 }
 
 model trainingparticipant {
@@ -324,11 +379,14 @@ model trainingparticipant {
   notes      String?  @db.Text
   createdAt  DateTime @default(now())
   updatedAt  DateTime
+  userId     String   @default("system") @db.VarChar(255)
   employee   employee @relation(fields: [employeeId], references: [id], map: "TrainingParticipant_employeeId_fkey")
   training   training @relation(fields: [trainingId], references: [id], map: "TrainingParticipant_trainingId_fkey")
+  user       user     @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@unique([trainingId, employeeId], map: "TrainingParticipant_trainingId_employeeId_key")
   @@index([employeeId], map: "TrainingParticipant_employeeId_fkey")
+  @@index([userId], map: "trainingparticipant_userId_fkey")
 }
 
 model trainingphoto {
@@ -338,9 +396,12 @@ model trainingphoto {
   caption    String?
   createdAt  DateTime @default(now())
   updatedAt  DateTime
+  userId     String   @default("system") @db.VarChar(255)
   training   training @relation(fields: [trainingId], references: [id], map: "TrainingPhoto_trainingId_fkey")
+  user       user     @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@index([trainingId], map: "TrainingPhoto_trainingId_fkey")
+  @@index([userId], map: "trainingphoto_userId_fkey")
 }
 
 model trainingsession {
@@ -353,21 +414,73 @@ model trainingsession {
   description String?  @db.Text
   createdAt   DateTime @default(now())
   updatedAt   DateTime
+  userId      String   @default("system") @db.VarChar(255)
   training    training @relation(fields: [trainingId], references: [id], map: "TrainingSession_trainingId_fkey")
+  user        user     @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@index([trainingId], map: "TrainingSession_trainingId_fkey")
+  @@index([userId], map: "trainingsession_userId_fkey")
 }
 
 model user {
-  id            String         @id
-  name          String?
-  email         String?        @unique(map: "User_email_key")
-  password      String?
-  role          String         @default("USER")
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime
-  emailVerified DateTime?
-  image         String?
-  evaluation    evaluation[]
-  notification  notification[]
+  id                              String                 @id
+  name                            String?
+  email                           String?                @unique(map: "User_email_key")
+  password                        String?
+  role                            String                 @default("USER")
+  createdAt                       DateTime               @default(now())
+  updatedAt                       DateTime
+  emailVerified                   DateTime?
+  image                           String?
+  profileId                       String?
+  department                      department[]
+  employee                        employee[]
+  employeehistory                 employeehistory[]
+  evaluation                      evaluation[]
+  evaluationanswer                evaluationanswer[]
+  evaluationcategory              evaluationcategory[]
+  evaluationquestion              evaluationquestion[]
+  evaluationtemplate              evaluationtemplate[]
+  file                            file[]
+  medicalleave                    medicalleave[]
+  medicalleavecategory            medicalleavecategory[]
+  notification                    notification[]
+  position                        position[]
+  positionlevel                   positionlevel[]
+  profile_profile_userIdTouser    profile[]              @relation("profile_userIdTouser")
+  shift                           shift[]
+  training                        training[]
+  trainingevaluation              trainingevaluation[]
+  trainingmaterial                trainingmaterial[]
+  trainingparticipant             trainingparticipant[]
+  trainingphoto                   trainingphoto[]
+  trainingsession                 trainingsession[]
+  profile_user_profileIdToprofile profile?               @relation("user_profileIdToprofile", fields: [profileId], references: [id])
+
+  @@index([profileId], map: "user_profileId_fkey")
+}
+
+model profile {
+  id                           String              @id
+  name                         String
+  description                  String?
+  createdAt                    DateTime            @default(now())
+  updatedAt                    DateTime
+  userId                       String              @default("system") @db.VarChar(255)
+  user_profile_userIdTouser    user                @relation("profile_userIdTouser", fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  profilepermission            profilepermission[]
+  user_user_profileIdToprofile user[]              @relation("user_profileIdToprofile")
+
+  @@index([userId], map: "profile_userId_fkey")
+}
+
+model profilepermission {
+  id         String   @id
+  profileId  String
+  permission String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime
+  profile    profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId], map: "profilepermission_profileId_fkey")
 }

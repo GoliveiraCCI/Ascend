@@ -35,8 +35,6 @@ import {
 interface Shift {
   id: string
   name: string
-  startTime: string
-  endTime: string
   description: string | null
 }
 
@@ -51,8 +49,6 @@ export default function ShiftsTab() {
   const [selectedShift, setSelectedShift] = useState<Shift | null>(null)
   const [formData, setFormData] = useState({
     name: "",
-    startTime: "",
-    endTime: "",
     description: "",
   })
 
@@ -80,12 +76,24 @@ export default function ShiftsTab() {
 
   const handleCreate = async () => {
     try {
+      if (!formData.name.trim()) {
+        toast({
+          variant: "destructive",
+          title: "Erro",
+          description: "O nome do turno é obrigatório"
+        })
+        return
+      }
+
       const response = await fetch("/api/shifts", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          name: formData.name.trim(),
+          description: formData.description?.trim()
+        }),
       })
 
       if (!response.ok) {
@@ -97,8 +105,6 @@ export default function ShiftsTab() {
       setCreateDialogOpen(false)
       setFormData({
         name: "",
-        startTime: "",
-        endTime: "",
         description: "",
       })
       toast({
@@ -137,8 +143,6 @@ export default function ShiftsTab() {
       setSelectedShift(null)
       setFormData({
         name: "",
-        startTime: "",
-        endTime: "",
         description: "",
       })
       toast({
@@ -223,24 +227,6 @@ export default function ShiftsTab() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="startTime">Horário de Início</Label>
-                <Input
-                  id="startTime"
-                  type="time"
-                  value={formData.startTime}
-                  onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="endTime">Horário de Término</Label>
-                <Input
-                  id="endTime"
-                  type="time"
-                  value={formData.endTime}
-                  onChange={(e) => setFormData({ ...formData, endTime: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
                 <Label htmlFor="description">Descrição</Label>
                 <Input
                   id="description"
@@ -260,8 +246,6 @@ export default function ShiftsTab() {
         <TableHeader>
           <TableRow>
             <TableHead>Nome</TableHead>
-            <TableHead>Horário de Início</TableHead>
-            <TableHead>Horário de Término</TableHead>
             <TableHead>Descrição</TableHead>
             <TableHead className="w-[100px]">Ações</TableHead>
           </TableRow>
@@ -269,13 +253,13 @@ export default function ShiftsTab() {
         <TableBody>
           {loading ? (
             <TableRow>
-              <TableCell colSpan={5} className="text-center">
+              <TableCell colSpan={3} className="text-center">
                 Carregando...
               </TableCell>
             </TableRow>
           ) : filteredShifts.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={5} className="text-center">
+              <TableCell colSpan={3} className="text-center">
                 Nenhum turno encontrado
               </TableCell>
             </TableRow>
@@ -283,8 +267,6 @@ export default function ShiftsTab() {
             filteredShifts.map((shift) => (
               <TableRow key={shift.id}>
                 <TableCell>{shift.name}</TableCell>
-                <TableCell>{shift.startTime}</TableCell>
-                <TableCell>{shift.endTime}</TableCell>
                 <TableCell>{shift.description}</TableCell>
                 <TableCell>
                   <DropdownMenu>
@@ -299,8 +281,6 @@ export default function ShiftsTab() {
                           setSelectedShift(shift)
                           setFormData({
                             name: shift.name,
-                            startTime: shift.startTime,
-                            endTime: shift.endTime,
                             description: shift.description || "",
                           })
                           setEditDialogOpen(true)
@@ -338,24 +318,6 @@ export default function ShiftsTab() {
                 id="edit-name"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-startTime">Horário de Início</Label>
-              <Input
-                id="edit-startTime"
-                type="time"
-                value={formData.startTime}
-                onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-endTime">Horário de Término</Label>
-              <Input
-                id="edit-endTime"
-                type="time"
-                value={formData.endTime}
-                onChange={(e) => setFormData({ ...formData, endTime: e.target.value })}
               />
             </div>
             <div className="space-y-2">

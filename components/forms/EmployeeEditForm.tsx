@@ -406,8 +406,7 @@ export function EmployeeEditForm({
                           <FormLabel>Departamento</FormLabel>
                           <Select 
                             onValueChange={field.onChange} 
-                            value={field.value} 
-                            disabled
+                            value={field.value}
                           >
                             <FormControl>
                               <SelectTrigger>
@@ -445,8 +444,7 @@ export function EmployeeEditForm({
                           <FormLabel>Cargo</FormLabel>
                           <Select 
                             onValueChange={field.onChange} 
-                            value={field.value} 
-                            disabled
+                            value={field.value}
                           >
                             <FormControl>
                               <SelectTrigger>
@@ -486,8 +484,7 @@ export function EmployeeEditForm({
                           <FormLabel>Nível do Cargo</FormLabel>
                           <Select 
                             onValueChange={field.onChange} 
-                            value={field.value} 
-                            disabled
+                            value={field.value}
                           >
                             <FormControl>
                               <SelectTrigger>
@@ -525,8 +522,7 @@ export function EmployeeEditForm({
                           <FormLabel>Turno</FormLabel>
                           <Select 
                             onValueChange={field.onChange} 
-                            value={field.value} 
-                            disabled
+                            value={field.value}
                           >
                             <FormControl>
                               <SelectTrigger>

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { randomUUID } from "crypto"
 
 export async function GET() {
   try {
@@ -63,9 +64,13 @@ export async function POST(request: Request) {
     // Criar o departamento
     const department = await prisma.department.create({
       data: {
+        id: randomUUID(),
         name,
         code,
         description,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        userId: "system" // Usando o valor padrão definido no schema
       },
     })
 

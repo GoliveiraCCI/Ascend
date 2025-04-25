@@ -43,9 +43,8 @@ export async function PUT(
       },
       data: {
         name: data.name,
-        startTime: data.startTime,
-        endTime: data.endTime,
         description: data.description,
+        updatedAt: new Date()
       },
     })
 

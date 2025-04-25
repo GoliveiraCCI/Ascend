@@ -84,7 +84,8 @@ export async function POST(request: Request) {
     const category = await prisma.evaluationcategory.create({
       data: {
         name: data.name,
-        description: data.description
+        description: data.description,
+        department: data.department
       }
     })
 

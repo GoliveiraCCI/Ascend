@@ -2,6 +2,7 @@ export interface EvaluationCategory {
   id: string
   name: string
   description?: string
+  department?: string
   questions: EvaluationQuestion[]
   createdAt: Date
   updatedAt: Date

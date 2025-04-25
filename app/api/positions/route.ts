@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { randomUUID } from "crypto"
 
 export async function GET() {
   try {
@@ -68,19 +69,27 @@ export async function POST(request: Request) {
     // Criar o cargo com suas faixas
     const position = await prisma.position.create({
       data: {
+        id: randomUUID(),
         title,
         description,
         departmentId,
-        positionLevels: {
-          create: positionLevels.map((level: any) => ({
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        userId: "system",
+        positionlevel: {
+          create: positionLevels.map(level => ({
+            id: randomUUID(),
             name: level.name,
             salary: level.salary,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            userId: "system"
           })),
         },
       },
       include: {
         department: true,
-        positionLevels: true,
+        positionlevel: true,
       },
     })
 

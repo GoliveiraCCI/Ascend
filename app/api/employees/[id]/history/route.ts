@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { createId } from "@paralleldrive/cuid2"
+import { randomUUID } from "crypto"
 
 export async function GET(
   request: NextRequest,
@@ -98,14 +99,16 @@ export async function POST(
     // Criar novo registro de histórico
     const history = await prisma.employeehistory.create({
       data: {
-        id: createId(),
+        id: randomUUID(),
         employeeId: id,
+        departmentId,
+        positionLevelId,
+        shiftId,
         startDate: new Date(startDate),
         endDate: endDate ? new Date(endDate) : null,
-        positionLevelId,
-        departmentId,
-        shiftId,
-        updatedAt: new Date()
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        userId: "system"
       },
       include: {
         department: true,
