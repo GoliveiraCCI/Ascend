@@ -27,64 +27,79 @@ export default function FormsPage() {
   const [shifts, setShifts] = useState<Shift[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        console.log("Iniciando busca de dados...")
-        
-        // Buscar funcionários
-        const employeesResponse = await fetch("/api/employees")
-        if (!employeesResponse.ok) {
-          const errorData = await employeesResponse.json()
-          console.error("Erro na resposta da API:", errorData)
-          throw new Error(errorData.details || "Erro ao buscar funcionários")
+  const fetchData = async () => {
+    try {
+      console.log("Iniciando busca de dados...")
+      const [employeesRes, departmentsRes, positionsRes, positionLevelsRes, shiftsRes] = await Promise.all([
+        fetch("/api/employees"),
+        fetch("/api/departments"),
+        fetch("/api/positions"),
+        fetch("/api/position-levels"),
+        fetch("/api/shifts")
+      ])
+
+      const employeesData = await employeesRes.json()
+      const departmentsData = await departmentsRes.json()
+      const positionsData = await positionsRes.json()
+      const positionLevelsData = await positionLevelsRes.json()
+      const shiftsData = await shiftsRes.json()
+
+      // Processar as datas dos funcionários
+      const processedEmployees = employeesData.map((emp: any) => {
+        try {
+          return {
+            ...emp,
+            hireDate: emp.hireDate ? new Date(emp.hireDate).toISOString() : null,
+            terminationDate: emp.terminationDate ? new Date(emp.terminationDate).toISOString() : null,
+            birthDate: emp.birthDate ? new Date(emp.birthDate).toISOString() : null
+          }
+        } catch (error) {
+          console.error(`Erro ao processar datas do funcionário ${emp.name}:`, error)
+          return {
+            ...emp,
+            hireDate: null,
+            terminationDate: null,
+            birthDate: null
+          }
         }
-        const employeesData = await employeesResponse.json()
-        console.log("Funcionários encontrados:", employeesData.length)
-        setEmployees(employeesData)
+      })
 
-        // Buscar departamentos
-        const departmentsResponse = await fetch("/api/departments")
-        if (!departmentsResponse.ok) throw new Error("Erro ao buscar departamentos")
-        const departmentsData = await departmentsResponse.json()
-        console.log("Departamentos encontrados:", departmentsData.length)
-        setDepartments(departmentsData)
+      console.log("Funcionários encontrados:", processedEmployees.length)
+      console.log("Detalhes dos funcionários:", processedEmployees.map((emp: any) => ({
+        id: emp.id,
+        name: emp.name,
+        hireDate: emp.hireDate ? new Date(emp.hireDate).toLocaleDateString() : "Data inválida",
+        terminationDate: emp.terminationDate ? new Date(emp.terminationDate).toLocaleDateString() : null,
+        department: emp.department?.name,
+        position: emp.position?.title,
+        positionLevel: emp.positionlevel?.name,
+        shift: emp.shift?.name
+      })))
+      console.log("Departamentos encontrados:", departmentsData.length)
+      console.log("Cargos encontrados:", positionsData.length)
+      console.log("Níveis de cargo encontrados:", positionLevelsData.length)
+      console.log("Turnos encontrados:", shiftsData.length)
 
-        // Buscar cargos
-        const positionsResponse = await fetch("/api/positions")
-        if (!positionsResponse.ok) throw new Error("Erro ao buscar cargos")
-        const positionsData = await positionsResponse.json()
-        console.log("Cargos encontrados:", positionsData.length)
-        setPositions(positionsData)
-
-        // Buscar níveis de cargo
-        const positionLevelsResponse = await fetch("/api/position-levels")
-        if (!positionLevelsResponse.ok) throw new Error("Erro ao buscar níveis de cargo")
-        const positionLevelsData = await positionLevelsResponse.json()
-        console.log("Níveis de cargo encontrados:", positionLevelsData.length)
-        setPositionLevels(positionLevelsData)
-
-        // Buscar turnos
-        const shiftsResponse = await fetch("/api/shifts")
-        if (!shiftsResponse.ok) throw new Error("Erro ao buscar turnos")
-        const shiftsData = await shiftsResponse.json()
-        console.log("Turnos encontrados:", shiftsData.length)
-        setShifts(shiftsData)
-
-        setIsLoading(false)
-      } catch (error) {
-        console.error("Erro ao buscar dados:", error)
-        toast({
-          title: "Erro",
-          description: "Ocorreu um erro ao carregar os dados.",
-          variant: "destructive",
-        })
-        setIsLoading(false)
-      }
+      setEmployees(processedEmployees)
+      setDepartments(departmentsData)
+      setPositions(positionsData)
+      setPositionLevels(positionLevelsData)
+      setShifts(shiftsData)
+      setIsLoading(false)
+    } catch (error) {
+      console.error("Erro ao buscar dados:", error)
+      toast({
+        title: "Erro",
+        description: "Erro ao buscar dados. Por favor, tente novamente.",
+        variant: "destructive",
+      })
+      setIsLoading(false)
     }
+  }
 
+  useEffect(() => {
     fetchData()
-  }, [toast])
+  }, [])
 
   if (isLoading) {
     return (
@@ -115,6 +130,7 @@ export default function FormsPage() {
                 positions={positions}
                 positionLevels={positionLevels}
                 shifts={shifts}
+                onSuccess={fetchData}
               />
             </Card>
           </TabsContent>

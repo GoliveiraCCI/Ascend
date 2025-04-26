@@ -75,15 +75,40 @@ async function getData() {
   const positions = await prisma.position.findMany({
     select: {
       id: true,
-      title: true
+      title: true,
+      departmentId: true,
+      positionlevel: {
+        select: {
+          id: true,
+          name: true,
+          positionId: true
+        }
+      }
     }
   })
 
   const positionLevels = await prisma.positionLevel.findMany({
     select: {
       id: true,
-      name: true
+      name: true,
+      positionId: true
     }
+  })
+
+  console.log("Dados carregados:", {
+    totalPositions: positions.length,
+    totalPositionLevels: positionLevels.length,
+    positions: positions.map(p => ({
+      id: p.id,
+      title: p.title,
+      departmentId: p.departmentId,
+      positionlevel: p.positionlevel
+    })),
+    positionLevels: positionLevels.map(l => ({
+      id: l.id,
+      name: l.name,
+      positionId: l.positionId
+    }))
   })
 
   const shifts = await prisma.shift.findMany({

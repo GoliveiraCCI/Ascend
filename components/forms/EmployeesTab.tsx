@@ -152,6 +152,7 @@ interface EmployeesTabProps {
   positions: Position[]
   positionLevels: PositionLevel[]
   shifts: Shift[]
+  onSuccess?: () => void
 }
 
 export function EmployeesTab({
@@ -159,7 +160,8 @@ export function EmployeesTab({
   departments = [],
   positions = [],
   positionLevels = [],
-  shifts = []
+  shifts = [],
+  onSuccess
 }: EmployeesTabProps) {
   console.log("=== EmployeesTab montado ===")
   console.log("Props recebidas:", {
@@ -167,8 +169,24 @@ export function EmployeesTab({
     totalDepartments: departments.length,
     totalPositions: positions.length,
     totalPositionLevels: positionLevels.length,
-    totalShifts: shifts.length
+    totalShifts: shifts.length,
+    employees: employees.map(emp => ({
+      id: emp.id,
+      name: emp.name,
+      hireDate: emp.hireDate,
+      terminationDate: emp.terminationDate,
+      department: emp.department?.name,
+      position: emp.position?.title
+    }))
   })
+
+  // Log detalhado dos cargos e seus departamentos
+  console.log("Detalhes dos cargos:", positions.map(pos => ({
+    id: pos.id,
+    title: pos.title,
+    departmentId: pos.departmentId,
+    department: departments.find(d => d.id === pos.departmentId)?.name
+  })))
 
   if (employees.length > 0) {
     const firstEmployee = employees[0]
@@ -180,7 +198,9 @@ export function EmployeesTab({
       position: firstEmployee.position?.title,
       positionLevel: firstEmployee.positionlevel?.name,
       shift: firstEmployee.shift?.name,
-      active: firstEmployee.active
+      active: firstEmployee.active,
+      hireDate: firstEmployee.hireDate,
+      terminationDate: firstEmployee.terminationDate
     })
   }
 
@@ -196,25 +216,44 @@ export function EmployeesTab({
   const router = useRouter()
 
   useEffect(() => {
-    console.log("EmployeesTab montado com:", {
-      totalEmployees: employees?.length || 0,
-      totalDepartments: departments?.length || 0,
-      totalPositions: positions?.length || 0,
-      totalPositionLevels: positionLevels?.length || 0,
-      totalShifts: shifts?.length || 0
+    console.log("=== EmployeesTab montado ===")
+    console.log("Props recebidas:", {
+      totalEmployees: employees.length,
+      totalDepartments: departments.length,
+      totalPositions: positions.length,
+      totalPositionLevels: positionLevels.length,
+      totalShifts: shifts.length,
+      employees: employees.map(emp => ({
+        id: emp.id,
+        name: emp.name,
+        hireDate: emp.hireDate,
+        terminationDate: emp.terminationDate,
+        department: emp.department?.name,
+        position: emp.position?.title
+      }))
     })
 
-    if (employees?.length > 0) {
+    // Log detalhado dos cargos e seus departamentos
+    console.log("Detalhes dos cargos:", positions.map(pos => ({
+      id: pos.id,
+      title: pos.title,
+      departmentId: pos.departmentId,
+      department: departments.find(d => d.id === pos.departmentId)?.name
+    })))
+
+    if (employees.length > 0) {
       const firstEmployee = employees[0]
-      console.log("Exemplo do primeiro funcionário:", {
+      console.log("Detalhes do primeiro funcionário:", {
         id: firstEmployee.id,
         name: firstEmployee.name,
         matricula: firstEmployee.matricula,
-        department: firstEmployee.department,
-        position: firstEmployee.position,
-        positionLevel: firstEmployee.positionlevel,
-        shift: firstEmployee.shift,
-        historyCount: firstEmployee.history?.length || 0
+        department: firstEmployee.department?.name,
+        position: firstEmployee.position?.title,
+        positionLevel: firstEmployee.positionlevel?.name,
+        shift: firstEmployee.shift?.name,
+        active: firstEmployee.active,
+        hireDate: firstEmployee.hireDate,
+        terminationDate: firstEmployee.terminationDate
       })
     }
   }, [employees, departments, positions, positionLevels, shifts])
@@ -285,6 +324,9 @@ export function EmployeesTab({
   }, [filteredEmployees])
 
   const calculateStats = useMemo(() => {
+    console.log("=== Calculando estatísticas ===")
+    console.log("Total de funcionários:", employees.length)
+    
     const stats: EmployeeStats = {
       hires: Array(12).fill(0),
       terminations: Array(12).fill(0),
@@ -295,23 +337,58 @@ export function EmployeesTab({
     const months = Array.from({ length: 12 }, (_, i) => {
       const date = new Date(today.getFullYear(), today.getMonth() - i, 1)
       return {
-        start: date,
-        end: new Date(date.getFullYear(), date.getMonth() + 1, 0),
+        start: new Date(date.getFullYear(), date.getMonth(), 1),
+        end: new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59),
         label: `${String(date.getMonth() + 1).padStart(2, '0')}-${date.getFullYear()}`,
       }
     }).reverse()
 
+    employees.forEach((emp) => {
+      if (emp.hireDate) {
+        const hireDate = new Date(emp.hireDate)
+        console.log(`Processando data de contratação: ${emp.name} - ${hireDate.toLocaleDateString()}`)
+        
+        const monthIndex = months.findIndex((month) => 
+          hireDate >= month.start && hireDate <= month.end
+        )
+        
+        if (monthIndex >= 0) {
+          stats.hires[monthIndex]++
+          console.log(`Contratação encontrada: ${emp.name} em ${hireDate.toLocaleDateString()} (${months[monthIndex].label})`)
+        }
+      }
+
+      if (emp.terminationDate) {
+        const terminationDate = new Date(emp.terminationDate)
+        console.log(`Processando data de desligamento: ${emp.name} - ${terminationDate.toLocaleDateString()}`)
+        
+        const monthIndex = months.findIndex((month) => 
+          terminationDate >= month.start && terminationDate <= month.end
+        )
+        
+        if (monthIndex >= 0) {
+          stats.terminations[monthIndex]++
+          console.log(`Desligamento encontrado: ${emp.name} em ${terminationDate.toLocaleDateString()} (${months[monthIndex].label})`)
+        }
+      }
+    })
+
     months.forEach((month, index) => {
       stats.labels[index] = month.label
-      stats.hires[index] = employees.filter((emp) => {
-        const hireDate = new Date(emp.hireDate)
-        return hireDate >= month.start && hireDate <= month.end
-      }).length
+      console.log(`Mês ${month.label}:`, {
+        hires: stats.hires[index],
+        terminations: stats.terminations[index],
+        period: {
+          start: month.start.toLocaleDateString(),
+          end: month.end.toLocaleDateString()
+        }
+      })
+    })
 
-      stats.terminations[index] = employees.filter((emp) => {
-        const terminationDate = emp.terminationDate ? new Date(emp.terminationDate) : null
-        return terminationDate && terminationDate >= month.start && terminationDate <= month.end
-      }).length
+    console.log("Estatísticas finais:", {
+      hires: stats.hires,
+      terminations: stats.terminations,
+      labels: stats.labels
     })
 
     return { stats, months }
@@ -351,6 +428,15 @@ export function EmployeesTab({
       title: {
         display: false
       },
+      tooltip: {
+        callbacks: {
+          label: function(context: any) {
+            const label = context.dataset.label || '';
+            const value = context.raw || 0;
+            return `${label}: ${value}`;
+          }
+        }
+      }
     },
     scales: {
       y: {
@@ -617,6 +703,7 @@ export function EmployeesTab({
         onSuccess={() => {
           setIsEditDialogOpen(false)
           setSelectedEmployee(null)
+          onSuccess?.()
         }}
       />
 

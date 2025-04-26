@@ -6,7 +6,8 @@ export async function GET() {
     const positionLevels = await prisma.positionlevel.findMany({
       select: {
         id: true,
-        name: true
+        name: true,
+        positionId: true
       },
       orderBy: {
         name: "asc"

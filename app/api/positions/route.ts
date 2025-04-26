@@ -7,7 +7,13 @@ export async function GET() {
     const positions = await prisma.position.findMany({
       include: {
         department: true,
-        positionlevel: true,
+        positionlevel: {
+          select: {
+            id: true,
+            name: true,
+            positionId: true
+          }
+        }
       },
       orderBy: {
         title: 'asc'

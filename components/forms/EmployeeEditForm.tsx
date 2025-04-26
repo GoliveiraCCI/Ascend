@@ -99,6 +99,8 @@ export function EmployeeEditForm({
 }: EmployeeEditFormProps) {
   const { toast } = useToast()
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [filteredPositions, setFilteredPositions] = useState(positions)
+  const [filteredPositionLevels, setFilteredPositionLevels] = useState(positionLevels)
 
   const form = useForm<z.infer<typeof employeeFormSchema>>({
     resolver: zodResolver(employeeFormSchema),
@@ -119,13 +121,55 @@ export function EmployeeEditForm({
     },
   })
 
+  // Inicializar os níveis de cargo
+  useEffect(() => {
+    console.log("Inicializando níveis de cargo:", positionLevels)
+    setFilteredPositionLevels(positionLevels)
+  }, [positionLevels])
+
+  // Efeito para filtrar cargos quando o departamento muda
+  useEffect(() => {
+    const selectedDepartmentId = form.watch("departmentId")
+    console.log("Efeito de filtragem de cargos - Departamento selecionado:", {
+      selectedDepartmentId,
+      positions: positions.map(p => ({
+        id: p.id,
+        title: p.title,
+        departmentId: p.departmentId
+      }))
+    })
+
+    if (selectedDepartmentId) {
+      const filtered = positions.filter(pos => pos.departmentId === selectedDepartmentId)
+      setFilteredPositions(filtered)
+      
+      // Se o cargo atual não pertence ao departamento selecionado, limpa o cargo
+      const currentPositionId = form.getValues("positionId")
+      if (currentPositionId) {
+        const currentPosition = positions.find(p => p.id === currentPositionId)
+        if (currentPosition?.departmentId !== selectedDepartmentId) {
+          form.setValue("positionId", "")
+          form.setValue("positionLevelId", "")
+        }
+      }
+    } else {
+      setFilteredPositions([])
+      form.setValue("positionId", "")
+      form.setValue("positionLevelId", "")
+    }
+  }, [form.watch("departmentId"), positions, form])
+
   // Resetar o formulário quando o employee mudar
   useEffect(() => {
     if (employee) {
       console.log("Dados do funcionário recebidos:", employee)
       console.log("Listas de opções:", {
         departments: departments.map(d => ({ id: d.id, name: d.name })),
-        positions: positions.map(p => ({ id: p.id, title: p.title })),
+        positions: positions.map(p => ({ 
+          id: p.id, 
+          title: p.title,
+          departmentId: p.departmentId
+        })),
         positionLevels: positionLevels.map(l => ({ id: l.id, name: l.name })),
         shifts: shifts.map(s => ({ id: s.id, name: s.name }))
       })
@@ -159,6 +203,37 @@ export function EmployeeEditForm({
       })
     }
   }, [employee, form, departments, positions, positionLevels, shifts])
+
+  // Efeito para filtrar níveis quando o departamento ou cargo muda
+  useEffect(() => {
+    const selectedDepartmentId = form.watch("departmentId")
+    const selectedPositionId = form.watch("positionId")
+    
+    console.log("Efeito de filtragem de níveis - Departamento e Cargo:", {
+      selectedDepartmentId,
+      selectedPositionId,
+      positions: positions.map(p => ({
+        id: p.id,
+        title: p.title,
+        departmentId: p.departmentId,
+        positionlevel: p.positionlevel
+      }))
+    })
+
+    if (selectedDepartmentId && selectedPositionId) {
+      const selectedPosition = positions.find(p => p.id === selectedPositionId)
+      console.log("Cargo encontrado:", selectedPosition)
+      
+      // Filtrar os níveis que pertencem ao cargo selecionado
+      const filteredLevels = positionLevels.filter(level => level.positionId === selectedPositionId)
+      console.log("Níveis filtrados:", filteredLevels)
+      setFilteredPositionLevels(filteredLevels)
+    } else {
+      console.log("Departamento ou cargo não selecionado, limpando níveis")
+      setFilteredPositionLevels([])
+      form.setValue("positionLevelId", "")
+    }
+  }, [form.watch("departmentId"), form.watch("positionId"), positions, positionLevels, form])
 
   const onSubmit = async (values: z.infer<typeof employeeFormSchema>) => {
     try {
@@ -433,11 +508,11 @@ export function EmployeeEditForm({
                     control={form.control}
                     name="positionId"
                     render={({ field }) => {
-                      const selectedPosition = positions.find(p => p.id === field.value)
+                      const selectedPosition = filteredPositions.find(p => p.id === field.value)
                       console.log("Campo positionId:", {
                         value: field.value,
                         selectedPosition,
-                        allPositions: positions
+                        allPositions: filteredPositions
                       })
                       return (
                         <FormItem>
@@ -454,7 +529,7 @@ export function EmployeeEditForm({
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              {positions.map((pos) => (
+                              {filteredPositions.map((pos) => (
                                 <SelectItem key={pos.id} value={pos.id}>
                                   {pos.title}
                                 </SelectItem>
@@ -473,11 +548,11 @@ export function EmployeeEditForm({
                     control={form.control}
                     name="positionLevelId"
                     render={({ field }) => {
-                      const selectedLevel = positionLevels.find(l => l.id === field.value)
+                      const selectedLevel = filteredPositionLevels.find(l => l.id === field.value)
                       console.log("Campo positionLevelId:", {
                         value: field.value,
                         selectedLevel,
-                        allLevels: positionLevels
+                        allLevels: filteredPositionLevels
                       })
                       return (
                         <FormItem>
@@ -494,7 +569,7 @@ export function EmployeeEditForm({
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              {positionLevels.map((level) => (
+                              {filteredPositionLevels.map((level) => (
                                 <SelectItem key={level.id} value={level.id}>
                                   {level.name}
                                 </SelectItem>
