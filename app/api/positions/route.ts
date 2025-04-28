@@ -2,9 +2,15 @@ import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { randomUUID } from "crypto"
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url)
+    const departmentId = searchParams.get("departmentId")
+
     const positions = await prisma.position.findMany({
+      where: departmentId ? {
+        departmentId
+      } : undefined,
       include: {
         department: true,
         positionlevel: {

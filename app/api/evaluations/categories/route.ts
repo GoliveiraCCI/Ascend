@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { PrismaClient } from '@prisma/client'
+import { randomUUID } from 'crypto'
 
 const prisma = new PrismaClient()
 
@@ -27,43 +28,6 @@ export async function GET() {
     
     console.log(`Categorias encontradas: ${categories.length}`)
     
-    // Se não houver categorias, criar algumas categorias padrão
-    if (categories.length === 0) {
-      console.log('Nenhuma categoria encontrada. Criando categorias padrão...')
-      
-      const defaultCategories = [
-        { name: 'Desempenho Técnico', description: 'Avaliação das habilidades técnicas do funcionário' },
-        { name: 'Comunicação', description: 'Avaliação das habilidades de comunicação' },
-        { name: 'Trabalho em Equipe', description: 'Avaliação da capacidade de trabalhar em equipe' },
-        { name: 'Liderança', description: 'Avaliação das habilidades de liderança' },
-        { name: 'Iniciativa', description: 'Avaliação da proatividade e iniciativa do funcionário' }
-      ]
-      
-      for (const category of defaultCategories) {
-        await prisma.evaluationcategory.create({
-          data: category
-        })
-      }
-      
-      console.log('Categorias padrão criadas com sucesso')
-      
-      // Buscar as categorias novamente
-      const newCategories = await prisma.evaluationcategory.findMany({
-        include: {
-          evaluationquestion: {
-            orderBy: {
-              text: 'asc'
-            }
-          }
-        },
-        orderBy: {
-          name: 'asc'
-        }
-      })
-      
-      return NextResponse.json(newCategories)
-    }
-
     return NextResponse.json(categories)
   } catch (error) {
     console.error('Erro ao buscar categorias:', error)
@@ -80,12 +44,40 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const data = await request.json()
+    const now = new Date()
     
+    // Validar campos obrigatórios
+    if (!data.name) {
+      return NextResponse.json(
+        { error: 'O nome da categoria é obrigatório' },
+        { status: 400 }
+      )
+    }
+
+    if (!data.department?.name || !data.position?.title) {
+      return NextResponse.json(
+        { error: 'Departamento e cargo são obrigatórios' },
+        { status: 400 }
+      )
+    }
+
+    if (!data.description) {
+      return NextResponse.json(
+        { error: 'A descrição é obrigatória' },
+        { status: 400 }
+      )
+    }
+
+    // Criar a categoria
     const category = await prisma.evaluationcategory.create({
       data: {
+        id: randomUUID(),
         name: data.name,
         description: data.description,
-        department: data.department
+        department: data.department.name,
+        position: data.position.title,
+        createdAt: now,
+        updatedAt: now
       }
     })
 
@@ -93,7 +85,7 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error('Erro ao criar categoria:', error)
     return NextResponse.json(
-      { error: 'Erro ao criar categoria' },
+      { error: 'Erro ao criar categoria', details: error instanceof Error ? error.message : 'Erro desconhecido' },
       { status: 500 }
     )
   }

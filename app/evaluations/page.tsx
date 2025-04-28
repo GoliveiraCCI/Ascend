@@ -186,6 +186,14 @@ interface EvaluationCategory {
   description: string | null;
   createdAt: string;
   updatedAt: string;
+  department?: Department;
+  position?: Position;
+  categories?: string[];
+}
+
+interface Position {
+  id: string;
+  title: string;
 }
 
 // Função para classificar pontuações
@@ -282,11 +290,18 @@ export default function EvaluationsPage() {
   const [evaluators, setEvaluators] = useState<Evaluator[]>([])
   const [categories, setCategories] = useState<EvaluationCategory[]>([])
   const [showNewCategoryDialog, setShowNewCategoryDialog] = useState(false)
+  const [editingCategory, setEditingCategory] = useState<EvaluationCategory | null>(null)
   const [newCategory, setNewCategory] = useState<Partial<EvaluationCategory>>({
     name: "",
     description: "",
+    departmentId: "",
+    positionId: "",
+    categories: [] as string[]
   })
-  const [editingCategory, setEditingCategory] = useState<EvaluationCategory | null>(null)
+  const [selectedDepartment, setSelectedDepartment] = useState("")
+  const [positions, setPositions] = useState<Position[]>([])
+  const [departments, setDepartments] = useState<Department[]>([])
+  const [categoryInput, setCategoryInput] = useState("")
   const router = useRouter()
 
   // Filtrar e ordenar avaliações
@@ -466,16 +481,18 @@ export default function EvaluationsPage() {
     try {
       const response = await fetch('/api/evaluations/categories')
       if (!response.ok) {
-        throw new Error('Erro ao buscar categorias')
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Erro ao buscar categorias')
       }
       const data = await response.json()
+      console.log('Categorias recebidas:', data) // Adicionando log para debug
       setCategories(data)
     } catch (error) {
       console.error('Erro ao buscar categorias:', error)
       toast({
         title: "Erro",
-        description: "Não foi possível carregar as categorias de avaliação.",
-        variant: "destructive",
+        description: error instanceof Error ? error.message : "Erro ao carregar categorias",
+        variant: "destructive"
       })
     }
   }
@@ -914,68 +931,294 @@ export default function EvaluationsPage() {
 
   const handleCreateCategory = async () => {
     try {
-      const response = await fetch("/api/evaluations/categories", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(newCategory),
-      })
-
-      if (!response.ok) {
-        throw new Error("Erro ao criar categoria")
+      if (!newCategory.name) {
+        toast({
+          title: "Erro",
+          description: "Digite o nome da categoria",
+          variant: "destructive"
+        })
+        return
       }
 
-      const createdCategory = await response.json()
-      setCategories([...categories, createdCategory])
+      if (!newCategory.departmentId) {
+        toast({
+          title: "Erro",
+          description: "Selecione um departamento",
+          variant: "destructive"
+        })
+        return
+      }
+
+      if (!newCategory.positionId) {
+        toast({
+          title: "Erro",
+          description: "Selecione um cargo",
+          variant: "destructive"
+        })
+        return
+      }
+
+      if (!newCategory.categories || newCategory.categories.length === 0) {
+        toast({
+          title: "Erro",
+          description: "Adicione pelo menos uma categoria",
+          variant: "destructive"
+        })
+        return
+      }
+
+      // Encontrar o departamento e cargo selecionados
+      const selectedDepartment = departments.find(d => d.id === newCategory.departmentId)
+      const selectedPosition = positions.find(p => p.id === newCategory.positionId)
+
+      if (!selectedDepartment || !selectedPosition) {
+        toast({
+          title: "Erro",
+          description: "Departamento ou cargo não encontrado",
+          variant: "destructive"
+        })
+        return
+      }
+
+      // Criar uma categoria para cada item no array
+      const createdCategories = await Promise.all(
+        newCategory.categories.map(async (category) => {
+          const response = await fetch('/api/evaluations/categories', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              name: newCategory.name,
+              description: category,
+              department: selectedDepartment,
+              position: selectedPosition
+            })
+          })
+
+          if (!response.ok) {
+            const errorData = await response.json()
+            throw new Error(errorData.error || 'Erro ao criar categoria')
+          }
+
+          return response.json()
+        })
+      )
+
+      setCategories([...categories, ...createdCategories])
       setShowNewCategoryDialog(false)
-      setNewCategory({ name: "", description: "" })
+      setNewCategory({ name: "", description: "", departmentId: "", positionId: "", categories: [] })
+      setSelectedDepartment("")
+      setCategoryInput("")
+      
+      toast({
+        title: "Sucesso",
+        description: "Categorias criadas com sucesso"
+      })
     } catch (error) {
-      console.error("Erro ao criar categoria:", error)
+      console.error("Erro ao criar categorias:", error)
+      toast({
+        title: "Erro",
+        description: "Erro ao criar categorias",
+        variant: "destructive"
+      })
     }
   }
 
   const handleEditCategory = async () => {
-    if (!editingCategory) return
-
     try {
+      if (!editingCategory) return
+
+      if (!editingCategory.departmentId) {
+        toast({
+          title: "Erro",
+          description: "Selecione um departamento",
+          variant: "destructive"
+        })
+        return
+      }
+
+      if (!editingCategory.positionId) {
+        toast({
+          title: "Erro",
+          description: "Selecione um cargo",
+          variant: "destructive"
+        })
+        return
+      }
+
+      if (!editingCategory.categories || editingCategory.categories.length === 0) {
+        toast({
+          title: "Erro",
+          description: "Adicione pelo menos uma categoria",
+          variant: "destructive"
+        })
+        return
+      }
+
+      if (!editingCategory.description) {
+        toast({
+          title: "Erro",
+          description: "Adicione uma descrição",
+          variant: "destructive"
+        })
+        return
+      }
+
       const response = await fetch(`/api/evaluations/categories/${editingCategory.id}`, {
-        method: "PUT",
+        method: 'PUT',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json'
         },
-        body: JSON.stringify(editingCategory),
+        body: JSON.stringify(editingCategory)
       })
 
       if (!response.ok) {
-        throw new Error("Erro ao atualizar categoria")
+        throw new Error('Erro ao atualizar descrição de cargo')
       }
 
       const updatedCategory = await response.json()
-      setCategories(categories.map(cat => 
-        cat.id === updatedCategory.id ? updatedCategory : cat
-      ))
+      setCategories(categories.map(cat => cat.id === updatedCategory.id ? updatedCategory : cat))
       setEditingCategory(null)
+      setSelectedDepartment("")
+      setCategoryInput("")
+      
+      toast({
+        title: "Sucesso",
+        description: "Descrição de cargo atualizada com sucesso"
+      })
     } catch (error) {
       console.error("Erro ao atualizar categoria:", error)
+      toast({
+        title: "Erro",
+        description: "Erro ao atualizar descrição de cargo",
+        variant: "destructive"
+      })
     }
   }
 
-  const handleDeleteCategory = async (categoryId: string) => {
+  const handleDeleteCategory = async (id: string) => {
+    if (!confirm("Tem certeza que deseja excluir esta descrição de cargo?")) {
+      return
+    }
+
     try {
-      const response = await fetch(`/api/evaluations/categories/${categoryId}`, {
-        method: "DELETE",
+      const response = await fetch(`/api/evaluations/categories/${id}`, {
+        method: 'DELETE'
       })
 
       if (!response.ok) {
-        throw new Error("Erro ao excluir categoria")
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Erro ao excluir descrição de cargo')
       }
 
-      setCategories(categories.filter(cat => cat.id !== categoryId))
+      setCategories(categories.filter(cat => cat.id !== id))
+      toast({
+        title: "Sucesso",
+        description: "Descrição de cargo excluída com sucesso"
+      })
     } catch (error) {
       console.error("Erro ao excluir categoria:", error)
+      toast({
+        title: "Erro",
+        description: error instanceof Error ? error.message : "Erro ao excluir descrição de cargo",
+        variant: "destructive"
+      })
     }
   }
+
+  useEffect(() => {
+    fetchDepartments()
+    fetchCategories()
+  }, [])
+
+  const fetchDepartments = async () => {
+    try {
+      const response = await fetch('/api/departments')
+      if (!response.ok) throw new Error('Erro ao buscar departamentos')
+      const data = await response.json()
+      setDepartments(data)
+    } catch (error) {
+      console.error('Erro ao buscar departamentos:', error)
+      toast({
+        title: "Erro",
+        description: "Erro ao carregar departamentos",
+        variant: "destructive"
+      })
+    }
+  }
+
+  useEffect(() => {
+    if (selectedDepartment) {
+      fetchPositions(selectedDepartment)
+      setNewCategory(prev => ({ ...prev, departmentId: selectedDepartment, positionId: "" }))
+    } else {
+      setPositions([])
+      setNewCategory(prev => ({ ...prev, departmentId: "", positionId: "" }))
+    }
+  }, [selectedDepartment])
+
+  const fetchPositions = async (departmentId: string) => {
+    try {
+      const response = await fetch(`/api/positions?departmentId=${departmentId}`)
+      if (!response.ok) throw new Error('Erro ao buscar cargos')
+      const data = await response.json()
+      setPositions(data)
+    } catch (error) {
+      console.error('Erro ao buscar cargos:', error)
+      toast({
+        title: "Erro",
+        description: "Erro ao carregar cargos",
+        variant: "destructive"
+      })
+    }
+  }
+
+  const handleAddCategory = () => {
+    if (!categoryInput.trim()) return
+    
+    setNewCategory(prev => ({
+      ...prev,
+      categories: [...(prev.categories || []), categoryInput.trim()]
+    }))
+    setCategoryInput("")
+  }
+
+  const handleRemoveCategory = (index: number) => {
+    setNewCategory(prev => ({
+      ...prev,
+      categories: prev.categories?.filter((_, i) => i !== index) || []
+    }))
+  }
+
+  useEffect(() => {
+    if (editingCategory?.departmentId) {
+      fetchPositions(editingCategory.departmentId)
+    }
+  }, [editingCategory?.departmentId])
+
+  // Agrupar categorias por nome
+  const groupedCategories = categories.reduce((acc, category) => {
+    if (!acc[category.name]) {
+      acc[category.name] = {
+        id: category.id,
+        name: category.name,
+        department: category.department,
+        position: category.position,
+        categories: []
+      }
+    }
+    if (category.description) {
+      acc[category.name].categories.push(category.description)
+    }
+    return acc
+  }, {} as Record<string, {
+    id: string
+    name: string
+    department?: Department
+    position?: Position
+    categories: string[]
+  }>)
 
   return (
     <div className="animate-in flex flex-col gap-8 p-4 md:p-8">
@@ -1276,26 +1519,96 @@ export default function EvaluationsPage() {
                     Nova Categoria
                   </Button>
                 </DialogTrigger>
-                <DialogContent>
+                <DialogContent className="max-h-[90vh] overflow-y-auto">
                   <DialogHeader>
                     <DialogTitle>Nova Categoria</DialogTitle>
                   </DialogHeader>
                   <div className="space-y-4">
-                    <div>
-                      <label className="text-sm font-medium">Nome</label>
+                    <div className="space-y-2">
+                      <Label>Nome da Categoria</Label>
                       <Input
-                        value={newCategory.name}
-                        onChange={(e) => setNewCategory({ ...newCategory, name: e.target.value })}
-                        placeholder="Nome da categoria"
+                        value={newCategory.name || ""}
+                        onChange={(e) => setNewCategory(prev => ({ ...prev, name: e.target.value }))}
+                        placeholder="Digite o nome da categoria"
                       />
                     </div>
-                    <div>
-                      <label className="text-sm font-medium">Descrição</label>
-                      <Input
-                        value={newCategory.description || ""}
-                        onChange={(e) => setNewCategory({ ...newCategory, description: e.target.value })}
-                        placeholder="Descrição da categoria"
-                      />
+
+                    <div className="space-y-2">
+                      <Label>Departamento</Label>
+                      <Select 
+                        value={selectedDepartment} 
+                        onValueChange={(value) => {
+                          setSelectedDepartment(value)
+                          setNewCategory(prev => ({ ...prev, departmentId: value }))
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione um departamento" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {departments.map((department) => (
+                            <SelectItem key={department.id} value={department.id}>
+                              {department.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Cargo</Label>
+                      <Select 
+                        value={newCategory.positionId} 
+                        onValueChange={(value) => setNewCategory(prev => ({ ...prev, positionId: value }))}
+                        disabled={!selectedDepartment}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione um cargo" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {positions.map((position) => (
+                            <SelectItem key={position.id} value={position.id}>
+                              {position.title}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Categorias</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          value={categoryInput}
+                          onChange={(e) => setCategoryInput(e.target.value)}
+                          placeholder="Digite uma categoria"
+                          onKeyPress={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault()
+                              handleAddCategory()
+                            }
+                          }}
+                        />
+                        <Button type="button" onClick={handleAddCategory} variant="secondary">
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      {newCategory.categories && newCategory.categories.length > 0 && (
+                        <div className="mt-2 space-y-2">
+                          {newCategory.categories.map((category, index) => (
+                            <div key={index} className="flex items-center justify-between bg-secondary p-2 rounded-md">
+                              <span>{category}</span>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleRemoveCategory(index)}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
                   <DialogFooter>
@@ -1711,43 +2024,54 @@ export default function EvaluationsPage() {
         </TabsContent>
 
         <TabsContent value="categories" className="animate-fade">
-          <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <h2 className="text-xl font-semibold">Categorias de Descrição de Cargo</h2>
+          <div className="flex flex-col h-[calc(100vh-200px)]">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold">Descrições de Cargo</h2>
             </div>
 
-            <div className="grid gap-4">
-              {categories.map((category) => (
-                <Card key={category.id}>
-                  <CardHeader>
-                    <div className="flex justify-between items-center">
-                      <CardTitle>{category.name}</CardTitle>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => setEditingCategory(category)}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDeleteCategory(category.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+            <ScrollArea className="flex-1">
+              <div className="grid gap-4 pr-4">
+                {Object.values(groupedCategories).map((group) => (
+                  <Card key={group.id}>
+                    <CardHeader>
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <CardTitle className="text-lg">{group.name}</CardTitle>
+                          <CardDescription>
+                            {group.department} - {group.position}
+                          </CardDescription>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setEditingCategory(group)}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDeleteCategory(group.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-muted-foreground">
-                      {category.description || "Sem descrição"}
-                    </p>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-2">
+                        {group.categories.map((category, index) => (
+                          <Badge key={index} variant="secondary" className="mr-2 mb-2">
+                            {category}
+                          </Badge>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </ScrollArea>
           </div>
         </TabsContent>
       </Tabs>
@@ -1867,25 +2191,100 @@ export default function EvaluationsPage() {
       </Dialog>
 
       <Dialog open={!!editingCategory} onOpenChange={() => setEditingCategory(null)}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Editar Categoria</DialogTitle>
+            <DialogTitle>Editar Descrição de Cargo</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <div>
-              <label className="text-sm font-medium">Nome</label>
-              <Input
-                value={editingCategory?.name || ""}
-                onChange={(e) => setEditingCategory({ ...editingCategory!, name: e.target.value })}
-                placeholder="Nome da categoria"
-              />
+            <div className="space-y-2">
+              <Label>Departamento</Label>
+              <Select 
+                value={editingCategory?.departmentId || ""} 
+                onValueChange={(value) => {
+                  setSelectedDepartment(value)
+                  setEditingCategory(prev => prev ? { ...prev, departmentId: value } : null)
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione um departamento" />
+                </SelectTrigger>
+                <SelectContent>
+                  {departments.map((department) => (
+                    <SelectItem key={department.id} value={department.id}>
+                      {department.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-            <div>
-              <label className="text-sm font-medium">Descrição</label>
-              <Input
+
+            <div className="space-y-2">
+              <Label>Cargo</Label>
+              <Select 
+                value={editingCategory?.positionId || ""} 
+                onValueChange={(value) => setEditingCategory(prev => prev ? { ...prev, positionId: value } : null)}
+                disabled={!editingCategory?.departmentId}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione um cargo" />
+                </SelectTrigger>
+                <SelectContent>
+                  {positions.map((position) => (
+                    <SelectItem key={position.id} value={position.id}>
+                      {position.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Categorias</Label>
+              <div className="flex gap-2">
+                <Input
+                  value={categoryInput}
+                  onChange={(e) => setCategoryInput(e.target.value)}
+                  placeholder="Digite uma categoria"
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      handleAddCategory()
+                    }
+                  }}
+                />
+                <Button type="button" onClick={handleAddCategory} variant="secondary">
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+              {editingCategory?.categories && editingCategory.categories.length > 0 && (
+                <div className="mt-2 space-y-2">
+                  {editingCategory.categories.map((category, index) => (
+                    <div key={index} className="flex items-center justify-between bg-secondary p-2 rounded-md">
+                      <span>{category}</span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => {
+                          setEditingCategory(prev => prev ? {
+                            ...prev,
+                            categories: prev.categories?.filter((_, i) => i !== index) || []
+                          } : null)
+                        }}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label>Descrição</Label>
+              <Textarea
                 value={editingCategory?.description || ""}
-                onChange={(e) => setEditingCategory({ ...editingCategory!, description: e.target.value })}
-                placeholder="Descrição da categoria"
+                onChange={(e) => setEditingCategory(prev => prev ? { ...prev, description: e.target.value } : null)}
+                placeholder="Descrição detalhada do cargo"
               />
             </div>
           </div>
@@ -1900,4 +2299,5 @@ export default function EvaluationsPage() {
     </div>
   )
 }
+
 
