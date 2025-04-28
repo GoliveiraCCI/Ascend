@@ -9,6 +9,10 @@ interface SummaryTabProps {
 }
 
 export function SummaryTab({ evaluation }: SummaryTabProps) {
+  // Calcular a média da nota esperada
+  const expectedScoreAvg = evaluation.answers?.reduce((acc: number, ans: any) => 
+    acc + (ans.expectedScore || 0), 0) / (evaluation.answers?.length || 1)
+
   return (
     <div className="space-y-6">
       <Card>
@@ -33,6 +37,14 @@ export function SummaryTab({ evaluation }: SummaryTabProps) {
                 {evaluation.isCompleted ? "Concluída" : "Em Andamento"}
               </Badge>
             </div>
+            <div>
+              <p className="text-sm text-gray-500">Média Esperada</p>
+              <p className="font-medium text-center">
+                <Badge variant="secondary">
+                  {expectedScoreAvg.toFixed(1)}
+                </Badge>
+              </p>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -45,11 +57,12 @@ export function SummaryTab({ evaluation }: SummaryTabProps) {
           {evaluation.categories.map((category: any) => {
             const selfAvg = category.answers.reduce((acc: number, ans: any) => acc + (ans.selfScore || 0), 0) / category.answers.length
             const managerAvg = category.answers.reduce((acc: number, ans: any) => acc + (ans.managerScore || 0), 0) / category.answers.length
+            const expectedAvg = category.answers.reduce((acc: number, ans: any) => acc + (ans.expectedScore || 0), 0) / category.answers.length
             
             return (
               <div key={category.id} className="space-y-2">
                 <h3 className="font-medium">{category.name}</h3>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-3 gap-4">
                   <div>
                     <p className="text-sm text-gray-500">Autoavaliação</p>
                     <ScoreIndicator score={selfAvg} size="md" />
@@ -57,6 +70,10 @@ export function SummaryTab({ evaluation }: SummaryTabProps) {
                   <div>
                     <p className="text-sm text-gray-500">Avaliação do Gestor</p>
                     <ScoreIndicator score={managerAvg} size="md" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">Nota Esperada</p>
+                    <ScoreIndicator score={expectedAvg} size="md" variant="secondary" />
                   </div>
                 </div>
               </div>

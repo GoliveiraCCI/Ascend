@@ -71,6 +71,7 @@ export async function POST(request: Request) {
             id: uuidv4(),
             text: q.text.trim(),
             categoryId: q.categoryId,
+            expectedScore: q.expectedScore || 7.0,
             createdAt: now,
             updatedAt: now
           }))

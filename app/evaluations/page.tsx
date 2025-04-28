@@ -106,7 +106,9 @@ interface Template {
 interface CustomQuestion {
   id: string
   text: string
-  categoryId: string
+  expectedScore?: number
+  jobDescriptionId?: string
+  jobDescriptionCategoryId?: string
 }
 
 interface Evaluation {
@@ -156,6 +158,7 @@ interface Evaluation {
     managerScore: number | null;
     selfComment: string | null;
     managerComment: string | null;
+    expectedScore?: number;
   }>;
 }
 
@@ -248,7 +251,6 @@ export default function EvaluationsPage() {
   const [isNewEvaluationOpen, setIsNewEvaluationOpen] = useState(false)
   const [isTemplateDialogOpen, setIsTemplateDialogOpen] = useState(false)
   const [isApplyEvaluationOpen, setIsApplyEvaluationOpen] = useState(false)
-  const [selectedQuestions, setSelectedQuestions] = useState<CustomQuestion[]>([])
   const [questionScores, setQuestionScores] = useState<Record<string, number>>({})
   const [questionComments, setQuestionComments] = useState<Record<string, string>>({})
   const [newTemplateName, setNewTemplateName] = useState("")
@@ -303,6 +305,9 @@ export default function EvaluationsPage() {
   const [departments, setDepartments] = useState<Department[]>([])
   const [categoryInput, setCategoryInput] = useState("")
   const router = useRouter()
+  const [selectedJobDescription, setSelectedJobDescription] = useState("")
+  const [selectedJobDescriptionCategory, setSelectedJobDescriptionCategory] = useState("")
+  const [newQuestionExpectedScore, setNewQuestionExpectedScore] = useState<string>("")
 
   // Filtrar e ordenar avaliações
   const filteredEvaluations = evaluations
@@ -349,10 +354,20 @@ export default function EvaluationsPage() {
 
   // Adicionar nova pergunta personalizada
   const handleAddCustomQuestion = () => {
-    if (newQuestionText.trim() === "" || !newQuestionCategory) {
+    if (newQuestionText.trim() === "" || !selectedJobDescription || !selectedJobDescriptionCategory || !newQuestionExpectedScore) {
       toast({
         title: "Erro",
-        description: "Preencha o texto da pergunta e selecione uma categoria.",
+        description: "Preencha o texto da pergunta, selecione uma descrição de cargo, sua categoria e a nota esperada.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    const score = parseFloat(newQuestionExpectedScore)
+    if (isNaN(score) || score < 0 || score > 10) {
+      toast({
+        title: "Erro",
+        description: "A nota esperada deve estar entre 0 e 10.",
         variant: "destructive",
       })
       return
@@ -361,29 +376,19 @@ export default function EvaluationsPage() {
     const newQuestion = {
       id: Date.now().toString(),
       text: newQuestionText.trim(),
-      categoryId: newQuestionCategory,
+      expectedScore: score,
+      jobDescriptionId: selectedJobDescription,
+      jobDescriptionCategoryId: selectedJobDescriptionCategory
     }
 
     setCustomQuestions([...customQuestions, newQuestion])
     setNewQuestionText("")
-    setNewQuestionCategory("")
+    setNewQuestionExpectedScore("")
   }
 
   // Remover pergunta personalizada
   const removeCustomQuestion = (questionId: string) => {
     setCustomQuestions(customQuestions.filter(q => q.id !== questionId))
-    setSelectedQuestions(selectedQuestions.filter(q => q.id !== questionId))
-  }
-
-  // Alternar seleção de pergunta
-  const toggleQuestionSelection = (question: CustomQuestion) => {
-    setSelectedQuestions(prev => {
-      if (prev.some(q => q.id === question.id)) {
-        return prev.filter(q => q.id !== question.id)
-      } else {
-        return [...prev, question]
-      }
-    })
   }
 
   // Atualizar pontuação de questão
@@ -571,11 +576,11 @@ export default function EvaluationsPage() {
   // Salvar novo modelo de avaliação
   const saveTemplate = async () => {
     try {
-      // Validar se há questões selecionadas
-      if (selectedQuestions.length === 0) {
+      // Validar se há questões
+      if (customQuestions.length === 0) {
         toast({
           title: "Erro",
-          description: "Selecione pelo menos uma questão para o modelo.",
+          description: "Adicione pelo menos uma questão para o modelo.",
           variant: "destructive",
         })
         return
@@ -592,11 +597,33 @@ export default function EvaluationsPage() {
       }
 
       // Validar se todas as questões têm texto e categoria
-      const invalidQuestions = selectedQuestions.filter(q => !q.text || !q.categoryId)
-      if (invalidQuestions.length > 0) {
+      const validQuestions = customQuestions.filter(
+        q => q.text && q.text.trim() && q.jobDescriptionId && q.jobDescriptionCategoryId
+      )
+
+      if (validQuestions.length === 0) {
         toast({
           title: "Erro",
           description: "Todas as questões devem ter texto e categoria.",
+          variant: "destructive",
+        })
+        return
+      }
+
+      // Verificar se as categorias existem
+      const categoryIds = validQuestions.map(q => q.jobDescriptionCategoryId)
+      const categoriesResponse = await fetch('/api/evaluations/categories')
+      if (!categoriesResponse.ok) {
+        throw new Error('Erro ao verificar categorias')
+      }
+      const existingCategories = await categoriesResponse.json()
+      const existingCategoryIds = existingCategories.map((cat: any) => cat.id)
+
+      const invalidCategories = categoryIds.filter(id => !existingCategoryIds.includes(id))
+      if (invalidCategories.length > 0) {
+        toast({
+          title: "Erro",
+          description: "Uma ou mais categorias selecionadas não existem. Por favor, selecione categorias válidas.",
           variant: "destructive",
         })
         return
@@ -610,9 +637,10 @@ export default function EvaluationsPage() {
         body: JSON.stringify({
           name: newTemplateName.trim(),
           description: newTemplateDescription.trim(),
-          questions: selectedQuestions.map(question => ({
-            text: question.text,
-            categoryId: question.categoryId
+          questions: validQuestions.map(question => ({
+            text: question.text.trim(),
+            categoryId: question.jobDescriptionCategoryId,
+            expectedScore: parseFloat(question.expectedScore) || 7.0
           }))
         }),
       })
@@ -630,10 +658,11 @@ export default function EvaluationsPage() {
       setIsTemplateDialogOpen(false)
       setNewTemplateName("")
       setNewTemplateDescription("")
-      setSelectedQuestions([])
       setCustomQuestions([])
       setNewQuestionText("")
-      setNewQuestionCategory("")
+      setSelectedJobDescription("")
+      setSelectedJobDescriptionCategory("")
+      setNewQuestionExpectedScore("")
     } catch (error) {
       console.error('Erro ao criar modelo de avaliação:', error)
       toast({
@@ -985,21 +1014,21 @@ export default function EvaluationsPage() {
         newCategory.categories.map(async (category) => {
           const response = await fetch('/api/evaluations/categories', {
             method: 'POST',
-            headers: {
+        headers: {
               'Content-Type': 'application/json'
-            },
+        },
             body: JSON.stringify({
               name: newCategory.name,
               description: category,
               department: selectedDepartment,
               position: selectedPosition
             })
-          })
+      })
 
-          if (!response.ok) {
+      if (!response.ok) {
             const errorData = await response.json()
             throw new Error(errorData.error || 'Erro ao criar categoria')
-          }
+      }
 
           return response.json()
         })
@@ -1027,7 +1056,7 @@ export default function EvaluationsPage() {
 
   const handleEditCategory = async () => {
     try {
-      if (!editingCategory) return
+    if (!editingCategory) return
 
       if (!editingCategory.departmentId) {
         toast({
@@ -1220,6 +1249,46 @@ export default function EvaluationsPage() {
     categories: string[]
   }>)
 
+  const handleUpdateEvaluation = async () => {
+    try {
+      const response = await fetch(`/api/evaluations/${editingEvaluation?.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          employeeId: editingEvaluation?.employeeId,
+          modelId: editingEvaluation?.modelId,
+          evaluatorId: editingEvaluation?.evaluatorId,
+          answers: editingEvaluation?.answers.map(answer => ({
+            questionId: answer.questionId,
+            score: answer.score,
+            comments: answer.comments,
+            expectedScore: answer.expectedScore
+          }))
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Erro ao atualizar avaliação')
+      }
+
+      const data = await response.json()
+      setEvaluations(evaluations.map(e => e.id === data.id ? data : e))
+      setEditingEvaluation(null)
+      setShowEditEvaluationModal(false)
+    } catch (error) {
+      console.error('Erro ao atualizar avaliação:', error)
+    }
+  }
+
+  useEffect(() => {
+    if (selectedJobDescription) {
+      console.log('Descrição de cargo selecionada:', selectedJobDescription)
+      console.log('Categorias disponíveis:', groupedCategories[selectedJobDescription]?.categories)
+    }
+  }, [selectedJobDescription])
+
   return (
     <div className="animate-in flex flex-col gap-8 p-4 md:p-8">
       <div className="flex flex-col gap-2">
@@ -1402,7 +1471,7 @@ export default function EvaluationsPage() {
                     Novo Modelo
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="sm:max-w-[700px]">
+                <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-y-auto">
                   <DialogHeader>
                     <DialogTitle>Criar Modelo de Avaliação</DialogTitle>
                     <DialogDescription>
@@ -1410,77 +1479,107 @@ export default function EvaluationsPage() {
                     </DialogDescription>
                   </DialogHeader>
                   <div className="grid gap-4 py-4">
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="template-name" className="text-right">
-                        Nome do Modelo
-                      </Label>
+                    <div className="grid gap-2">
+                      <Label htmlFor="template-name">Nome do Modelo</Label>
                       <Input
                         id="template-name"
                         value={newTemplateName}
                         onChange={(e) => setNewTemplateName(e.target.value)}
                         placeholder="Ex: Avaliação Técnica"
-                        className="col-span-3"
                       />
                     </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="template-description" className="text-right">
-                        Descrição
-                      </Label>
+                    <div className="grid gap-2">
+                      <Label htmlFor="template-description">Descrição</Label>
                       <Textarea
                         id="template-description"
                         value={newTemplateDescription}
                         onChange={(e) => setNewTemplateDescription(e.target.value)}
                         placeholder="Descreva o propósito deste modelo de avaliação"
-                        className="col-span-3"
                       />
                     </div>
-                    <div className="grid grid-cols-4 gap-4">
-                      <Label className="text-right pt-2">Perguntas</Label>
-                      <div className="col-span-3 space-y-4">
+                    <div className="grid gap-2">
+                      <Label>Adicionar Nova Pergunta</Label>
+                      <div className="space-y-4">
+                        <div className="flex flex-col gap-4">
                         <div className="flex items-center gap-2">
                           <Input
                             placeholder="Nova pergunta personalizada"
                             value={newQuestionText}
                             onChange={(e) => setNewQuestionText(e.target.value)}
+                              className="flex-1"
                           />
-                          <Select value={newQuestionCategory} onValueChange={setNewQuestionCategory}>
+                          </div>
+                          
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Select value={selectedJobDescription} onValueChange={setSelectedJobDescription}>
                             <SelectTrigger className="w-[180px]">
-                              <SelectValue placeholder="Categoria" />
+                                <SelectValue placeholder="Descrição de Cargo" />
                             </SelectTrigger>
                             <SelectContent>
-                              {evaluationCategories.map((category) => (
-                                <SelectItem key={category.id} value={category.id}>
-                                  {typeof category.name === 'string' ? category.name : 'Categoria sem nome'}
+                                {Object.values(groupedCategories).map((group) => (
+                                  <SelectItem key={group.id} value={group.id}>
+                                    {group.name}
                                 </SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
+
+                            <Select 
+                              value={selectedJobDescriptionCategory} 
+                              onValueChange={setSelectedJobDescriptionCategory}
+                              disabled={!selectedJobDescription}
+                            >
+                              <SelectTrigger className="w-[180px]">
+                                <SelectValue placeholder="Categoria do Cargo" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {selectedJobDescription && 
+                                 Object.values(groupedCategories)
+                                   .find(group => group.id === selectedJobDescription)
+                                   ?.categories
+                                   ?.map((category, index) => (
+                                     <SelectItem key={index} value={category}>
+                                       {category}
+                                     </SelectItem>
+                                   ))
+                                }
+                              </SelectContent>
+                            </Select>
+
+                            <Input
+                              type="number"
+                              min="0"
+                              max="10"
+                              step="0.1"
+                              placeholder="Nota esperada"
+                              value={newQuestionExpectedScore}
+                              onChange={(e) => setNewQuestionExpectedScore(e.target.value)}
+                              className="w-[120px]"
+                            />
+
                           <Button type="button" onClick={handleAddCustomQuestion}>
                             Adicionar
                           </Button>
                         </div>
+                        </div>
+
                         <ScrollArea className="h-[300px] rounded-md border p-4">
-                          {evaluationCategories.map((category) => {
-                            const categoryQuestions = customQuestions.filter((q) => q.categoryId === category.id)
-                            if (categoryQuestions.length === 0) return null
-                            
-                            return (
-                              <Collapsible key={category.id} className="mb-4">
-                                <CollapsibleTrigger className="flex w-full items-center justify-between rounded-md bg-secondary p-2 text-left font-medium hover:bg-secondary/80">
-                                  {typeof category.name === 'string' ? category.name : 'Categoria sem nome'}
-                                  <ChevronDown className="h-4 w-4" />
-                                </CollapsibleTrigger>
-                                <CollapsibleContent className="pt-2">
-                                  {categoryQuestions.map((question) => (
-                                    <div key={question.id} className="flex items-center gap-2 py-2">
-                                      <Checkbox
-                                        id={question.id}
-                                        checked={selectedQuestions.some(q => q.id === question.id)}
-                                        onCheckedChange={() => toggleQuestionSelection(question)}
-                                      />
-                                      <label htmlFor={question.id} className="text-sm flex-1">
-                                        {question.text}
-                                      </label>
+                          {customQuestions.map((question) => (
+                            <div key={question.id} className="flex items-center gap-2 py-2 border-b border-gray-200 last:border-b-0">
+                              <div className="flex-1">
+                                <p className="font-medium">{question.text}</p>
+                                <div className="text-xs text-muted-foreground">
+                                  {question.jobDescriptionId && (
+                                    <span>Descrição: {groupedCategories[question.jobDescriptionId]?.name}</span>
+                                  )}
+                                  {question.jobDescriptionCategoryId && (
+                                    <span> - Categoria: {question.jobDescriptionCategoryId}</span>
+                                  )}
+                                  {question.expectedScore && (
+                                    <span> - Nota esperada: {question.expectedScore}</span>
+                                  )}
+                                </div>
+                              </div>
                                       <Button
                                         variant="ghost"
                                         size="icon"
@@ -1491,19 +1590,14 @@ export default function EvaluationsPage() {
                                       </Button>
                                     </div>
                                   ))}
-                                </CollapsibleContent>
-                              </Collapsible>
-                            )
-                          })}
                         </ScrollArea>
                       </div>
                     </div>
                   </div>
                   <DialogFooter>
                     <Button
-                      type="submit"
                       onClick={saveTemplate}
-                      disabled={!newTemplateName || selectedQuestions.length === 0}
+                      disabled={!newTemplateName || customQuestions.length === 0}
                     >
                       Salvar Modelo
                     </Button>
@@ -1578,7 +1672,7 @@ export default function EvaluationsPage() {
                     <div className="space-y-2">
                       <Label>Categorias</Label>
                       <div className="flex gap-2">
-                        <Input
+                      <Input
                           value={categoryInput}
                           onChange={(e) => setCategoryInput(e.target.value)}
                           placeholder="Digite uma categoria"
@@ -2033,33 +2127,33 @@ export default function EvaluationsPage() {
               <div className="grid gap-4 pr-4">
                 {Object.values(groupedCategories).map((group) => (
                   <Card key={group.id}>
-                    <CardHeader>
-                      <div className="flex justify-between items-center">
+                  <CardHeader>
+                    <div className="flex justify-between items-center">
                         <div>
                           <CardTitle className="text-lg">{group.name}</CardTitle>
                           <CardDescription>
                             {group.department} - {group.position}
                           </CardDescription>
                         </div>
-                        <div className="flex gap-2">
-                          <Button
-                            variant="ghost"
-                            size="icon"
+                      <div className="flex gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
                             onClick={() => setEditingCategory(group)}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
                             onClick={() => handleDeleteCategory(group.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
-                    </CardHeader>
-                    <CardContent>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
                       <div className="space-y-2">
                         {group.categories.map((category, index) => (
                           <Badge key={index} variant="secondary" className="mr-2 mb-2">
@@ -2067,10 +2161,10 @@ export default function EvaluationsPage() {
                           </Badge>
                         ))}
                       </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
             </ScrollArea>
           </div>
         </TabsContent>
@@ -2241,7 +2335,7 @@ export default function EvaluationsPage() {
             <div className="space-y-2">
               <Label>Categorias</Label>
               <div className="flex gap-2">
-                <Input
+              <Input
                   value={categoryInput}
                   onChange={(e) => setCategoryInput(e.target.value)}
                   placeholder="Digite uma categoria"
@@ -2255,7 +2349,7 @@ export default function EvaluationsPage() {
                 <Button type="button" onClick={handleAddCategory} variant="secondary">
                   <Plus className="h-4 w-4" />
                 </Button>
-              </div>
+            </div>
               {editingCategory?.categories && editingCategory.categories.length > 0 && (
                 <div className="mt-2 space-y-2">
                   {editingCategory.categories.map((category, index) => (

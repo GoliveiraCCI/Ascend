@@ -54,6 +54,18 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
+    // Verificar se existem avaliações usando este modelo
+    const evaluations = await prisma.evaluation.findMany({
+      where: { templateId: params.id }
+    })
+
+    if (evaluations.length > 0) {
+      return NextResponse.json(
+        { error: 'Não é possível excluir este modelo pois existem avaliações vinculadas a ele' },
+        { status: 400 }
+      )
+    }
+
     const template = await prisma.evaluationtemplate.delete({
       where: { id: params.id }
     })

@@ -2,11 +2,9 @@
 
 import { useEffect, useState } from "react"
 import { useRouter, useParams } from "next/navigation"
-import { ArrowLeft, Download, FileText, Printer, Send, User, Building2, UserCog, Calendar, UserCheck, UserCog2 } from "lucide-react"
+import { ArrowLeft, Download, FileText, Printer, Send, User, Building2, UserCog, Calendar, UserCheck, UserCog2, CheckCircle, AlertCircle } from "lucide-react"
 import html2canvas from "html2canvas"
 import jsPDF from "jspdf"
-import { ResponsiveContainer } from "recharts"
-import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Legend } from "recharts"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -19,8 +17,7 @@ import { toast } from "@/components/ui/use-toast"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { CheckCircle, AlertCircle } from "lucide-react"
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert"
 
 interface EvaluationAnswer {
   id: string
@@ -184,6 +181,11 @@ export default function EvaluationDetailsPage() {
       setIsSaving(true)
       setAlert(null)
 
+      // Verificar se evaluation e evaluationanswer existem
+      if (!evaluation?.evaluationanswer) {
+        throw new Error("Dados da avaliação não encontrados")
+      }
+
       // Preparar as respostas para envio
       const answers = evaluation.evaluationanswer.map(answer => ({
         id: answer.id,
@@ -318,7 +320,6 @@ export default function EvaluationDetailsPage() {
 
   return (
     <div className="animate-in flex flex-col gap-8 p-4 md:p-8">
-      {/* Alert */}
       {alert && (
         <Alert variant={alert.type === "success" ? "default" : "destructive"} className="mb-4">
           {alert.type === "success" ? (
@@ -330,7 +331,6 @@ export default function EvaluationDetailsPage() {
           <AlertDescription>{alert.message}</AlertDescription>
         </Alert>
       )}
-
       <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <div className="flex items-center gap-2">
           <Button variant="outline" size="icon" onClick={handleGoBack}>
@@ -430,31 +430,46 @@ export default function EvaluationDetailsPage() {
                 <div className="flex justify-between">
                   <span className="text-sm font-medium">Pontuação (Autoavaliação):</span>
                   <span
-                    className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${getScoreClass(
-                      evaluation.selfScore,
-                    )}`}
+                    className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
+                      evaluation.selfScore === null ? "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100" :
+                      evaluation.selfScore >= 9 ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100" :
+                      evaluation.selfScore >= 8 ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100" :
+                      evaluation.selfScore >= 7 ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100" :
+                      evaluation.selfScore >= 6 ? "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-100" :
+                      "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100"
+                    }`}
                   >
-                    {evaluation.selfScore?.toFixed(1) || "0"}/10
+                    {evaluation.selfScore === null ? "Pendente" : evaluation.selfScore.toFixed(1) || "0"}/10
                   </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm font-medium">Pontuação (Gestor):</span>
                   <span
-                    className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${getScoreClass(
-                      evaluation.managerScore,
-                    )}`}
+                    className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
+                      evaluation.managerScore === null ? "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100" :
+                      evaluation.managerScore >= 9 ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100" :
+                      evaluation.managerScore >= 8 ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100" :
+                      evaluation.managerScore >= 7 ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100" :
+                      evaluation.managerScore >= 6 ? "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-100" :
+                      "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100"
+                    }`}
                   >
-                    {evaluation.managerScore?.toFixed(1) || "0"}/10
+                    {evaluation.managerScore === null ? "Pendente" : evaluation.managerScore.toFixed(1) || "0"}/10
                   </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm font-medium">Pontuação Final:</span>
                   <span
-                    className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${getScoreClass(
-                      evaluation.finalScore,
-                    )}`}
+                    className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
+                      evaluation.finalScore === null ? "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100" :
+                      evaluation.finalScore >= 9 ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100" :
+                      evaluation.finalScore >= 8 ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100" :
+                      evaluation.finalScore >= 7 ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100" :
+                      evaluation.finalScore >= 6 ? "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-100" :
+                      "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100"
+                    }`}
                   >
-                    {evaluation.finalScore?.toFixed(1) || "0"}/10
+                    {evaluation.finalScore === null ? "Pendente" : evaluation.finalScore.toFixed(1) || "0"}/10
                   </span>
                 </div>
               </div>
@@ -476,166 +491,52 @@ export default function EvaluationDetailsPage() {
               </TabsList>
               <div id="evaluation-content">
                 <TabsContent value="overview" className="space-y-4">
-                  <div className="grid grid-cols-1 gap-4">
-                    {/* Gráfico Radar - Médias Brutas */}
-                    <Card>
-                      <CardHeader>
-                        <CardTitle>Comparativo por Categoria</CardTitle>
-                        <CardDescription>Autoavaliação vs Avaliação do Gestor</CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="h-[400px]">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <RadarChart
-                              cx="50%"
-                              cy="50%"
-                              outerRadius="80%"
-                              data={Array.from(new Set(evaluation.evaluationanswer.map(a => a.evaluationquestion.category.name)))
-                                .map(category => {
-                                  const categoryAnswers = evaluation.evaluationanswer.filter(a => a.evaluationquestion.category.name === category);
-                                  const selfAverage = Number((categoryAnswers.reduce((sum, a) => sum + (a.selfScore || 0), 0) / categoryAnswers.length).toFixed(1));
-                                  const managerAverage = Number((categoryAnswers.reduce((sum, a) => sum + (a.managerScore || 0), 0) / categoryAnswers.length).toFixed(1));
-                                  
-                                  return {
-                                    category,
-                                    self: selfAverage,
-                                    manager: managerAverage
-                                  };
-                                })}
-                            >
-                              <PolarGrid stroke="#e5e7eb" />
-                              <PolarAngleAxis 
-                                dataKey="category" 
-                                tick={{ fill: '#374151', fontSize: 12, fontWeight: 500 }}
-                                tickFormatter={(value, index) => {
-                                  const data = Array.from(new Set(evaluation.evaluationanswer.map(a => a.evaluationquestion.category.name)))
-                                    .map(category => {
-                                      const categoryAnswers = evaluation.evaluationanswer.filter(a => a.evaluationquestion.category.name === category);
-                                      const selfAverage = Number((categoryAnswers.reduce((sum, a) => sum + (a.selfScore || 0), 0) / categoryAnswers.length).toFixed(1));
-                                      const managerAverage = Number((categoryAnswers.reduce((sum, a) => sum + (a.managerScore || 0), 0) / categoryAnswers.length).toFixed(1));
-                                      return { category, selfAverage, managerAverage };
-                                    });
-                                  const item = data[index];
-                                  return `${value}\n${item.selfAverage}/${item.managerAverage}`;
-                                }}
-                              />
-                              <PolarRadiusAxis 
-                                angle={30} 
-                                domain={[0, 5]} 
-                                tick={{ fill: '#374151', fontSize: 12, fontWeight: 500 }}
-                              />
-                              <Radar
-                                name="Autoavaliação"
-                                dataKey="self"
-                                stroke="#3b82f6"
-                                fill="#3b82f6"
-                                fillOpacity={0.6}
-                              />
-                              <Radar
-                                name="Gestor"
-                                dataKey="manager"
-                                stroke="#10b981"
-                                fill="#10b981"
-                                fillOpacity={0.6}
-                              />
-                              <Legend 
-                                wrapperStyle={{ 
-                                  paddingTop: '20px',
-                                  fontSize: '12px',
-                                  fontWeight: 500
-                                }}
-                              />
-                              <foreignObject x="80%" y="5%" width="100" height="50">
-                                <div className="flex flex-col gap-1">
-                                  <Badge variant="outline" className="bg-blue-100 text-blue-700 border-blue-200">
-                                    Auto: {Number((evaluation.evaluationanswer.reduce((sum, a) => sum + (a.selfScore || 0), 0) / evaluation.evaluationanswer.length).toFixed(1))}
-                                  </Badge>
-                                  <Badge variant="outline" className="bg-green-100 text-green-700 border-green-200">
-                                    Gestor: {Number((evaluation.evaluationanswer.reduce((sum, a) => sum + (a.managerScore || 0), 0) / evaluation.evaluationanswer.length).toFixed(1))}
-                                  </Badge>
+                  <div className="flex flex-col gap-4">
+                    <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-2">
+                        <UserCog className="h-4 w-4" />
+                        <span className="text-sm font-medium">Gestor</span>
                       </div>
-                              </foreignObject>
-                            </RadarChart>
-                          </ResponsiveContainer>
+                      <div className="flex items-center gap-2">
+                        <User className="h-4 w-4" />
+                        <span className="text-sm font-medium">Colaborador</span>
                       </div>
-                      </CardContent>
-                    </Card>
+                    </div>
 
-                    {/* Gráfico Radar - Média Ponderada */}
-                    <Card>
-                      <CardHeader>
-                        <CardTitle>Média Ponderada por Categoria</CardTitle>
-                        <CardDescription>Média Final (40% Autoavaliação + 60% Gestor)</CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="h-[400px]">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <RadarChart
-                              cx="50%"
-                              cy="50%"
-                              outerRadius="80%"
-                              data={Array.from(new Set(evaluation.evaluationanswer.map(a => a.evaluationquestion.category.name)))
-                                .map(category => {
-                                  const categoryAnswers = evaluation.evaluationanswer.filter(a => a.evaluationquestion.category.name === category);
-                                  const selfAverage = categoryAnswers.reduce((sum, a) => sum + (a.selfScore || 0), 0) / categoryAnswers.length;
-                                  const managerAverage = categoryAnswers.reduce((sum, a) => sum + (a.managerScore || 0), 0) / categoryAnswers.length;
-                                  const finalAverage = Number(((selfAverage * 0.4) + (managerAverage * 0.6)).toFixed(1));
-                                  
-                                  return {
-                                    category,
-                                    final: finalAverage
-                                  };
-                                })}
-                            >
-                              <PolarGrid stroke="#e5e7eb" />
-                              <PolarAngleAxis 
-                                dataKey="category" 
-                                tick={{ fill: '#374151', fontSize: 12, fontWeight: 500 }}
-                                tickFormatter={(value, index) => {
-                                  const data = Array.from(new Set(evaluation.evaluationanswer.map(a => a.evaluationquestion.category.name)))
-                                    .map(category => {
-                                      const categoryAnswers = evaluation.evaluationanswer.filter(a => a.evaluationquestion.category.name === category);
-                                      const selfAverage = categoryAnswers.reduce((sum, a) => sum + (a.selfScore || 0), 0) / categoryAnswers.length;
-                                      const managerAverage = categoryAnswers.reduce((sum, a) => sum + (a.managerScore || 0), 0) / categoryAnswers.length;
-                                      const finalAverage = Number(((selfAverage * 0.4) + (managerAverage * 0.6)).toFixed(1));
-                                      return { category, finalAverage };
-                                    });
-                                  const item = data[index];
-                                  return `${value}\n${item.finalAverage}`;
-                                }}
-                              />
-                              <PolarRadiusAxis 
-                                angle={30} 
-                                domain={[0, 5]} 
-                                tick={{ fill: '#374151', fontSize: 12, fontWeight: 500 }}
-                              />
-                              <Radar
-                                name="Média Final"
-                                dataKey="final"
-                                stroke="#8b5cf6"
-                                fill="#8b5cf6"
-                                fillOpacity={0.6}
-                              />
-                              <Legend 
-                                wrapperStyle={{ 
-                                  paddingTop: '20px',
-                                  fontSize: '12px',
-                                  fontWeight: 500
-                                }}
-                              />
-                              <foreignObject x="80%" y="5%" width="100" height="50">
-                                <div className="flex flex-col gap-1">
-                                  <Badge variant="outline" className="bg-purple-100 text-purple-700 border-purple-200">
-                                    Média: {((evaluation.evaluationanswer.reduce((sum, a) => sum + (a.selfScore || 0), 0) / evaluation.evaluationanswer.length * 0.4) + 
-                                                      (evaluation.evaluationanswer.reduce((sum, a) => sum + (a.managerScore || 0), 0) / evaluation.evaluationanswer.length * 0.6)).toFixed(1)}
-                                  </Badge>
+                    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                      {evaluation?.evaluationanswer?.map((answer) => (
+                        <Card key={answer.id}>
+                          <CardHeader>
+                            <CardTitle className="text-base">{answer.evaluationquestion?.text || 'Questão sem título'}</CardTitle>
+                            <CardDescription>{answer.evaluationquestion?.description || ''}</CardDescription>
+                          </CardHeader>
+                          <CardContent className="flex flex-col gap-4">
+                            <div className="flex items-center gap-4">
+                              <div className="flex items-center gap-2">
+                                <Badge variant="outline" className={getScoreClass(answer.managerScore)}>
+                                  {answer.managerScore}
+                                </Badge>
+                                <span className="text-sm font-medium">{getScoreLabel(answer.managerScore)}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Badge variant="outline" className={getScoreClass(answer.selfScore)}>
+                                  {answer.selfScore}
+                                </Badge>
+                                <span className="text-sm font-medium">{getScoreLabel(answer.selfScore)}</span>
+                              </div>
                             </div>
-                              </foreignObject>
-                            </RadarChart>
-                          </ResponsiveContainer>
-                        </div>
-                      </CardContent>
-                    </Card>
+                            <div className="flex flex-col gap-2">
+                              <Label>Comentário do Gestor</Label>
+                              <Textarea value={answer.managerComment} readOnly />
+                            </div>
+                            <div className="flex flex-col gap-2">
+                              <Label>Comentário do Colaborador</Label>
+                              <Textarea value={answer.selfComment} readOnly />
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
                   </div>
                 </TabsContent>
 
@@ -656,43 +557,64 @@ export default function EvaluationDetailsPage() {
 
                   {/* Questões */}
                   <div className="grid gap-1">
-                    {Array.from(new Set(evaluation.evaluationanswer.map(answer => answer.evaluationquestion.category.name))).map(category => {
+                    {Array.from(new Set(evaluation?.evaluationanswer?.map(answer => answer?.evaluationquestion?.category?.name) || [])).map(category => {
                       // Calcular a média da categoria
-                      const categoryAnswers = evaluation.evaluationanswer.filter(
-                        answer => answer.evaluationquestion.category.name === category
-                      )
-                      const selfAverage = categoryAnswers.reduce((acc, answer) => acc + (answer.selfScore ?? 0), 0) / categoryAnswers.length
-                      const managerAverage = categoryAnswers.reduce((acc, answer) => acc + (answer.managerScore ?? 0), 0) / categoryAnswers.length
-                      const finalAverage = Number(((selfAverage * 0.4) + (managerAverage * 0.6)).toFixed(1))
+                      const categoryAnswers = evaluation?.evaluationanswer?.filter(
+                        answer => answer?.evaluationquestion?.category?.name === category
+                      ) || [];
+                      const selfAverage = categoryAnswers.reduce((acc, answer) => acc + (answer?.selfScore ?? 0), 0) / (categoryAnswers.length || 1);
+                      const managerAverage = categoryAnswers.reduce((acc, answer) => acc + (answer?.managerScore ?? 0), 0) / (categoryAnswers.length || 1);
+                      const finalAverage = Number(((selfAverage * 0.4) + (managerAverage * 0.6)).toFixed(1));
                       
                       return (
                         <Card key={category} className="border border-gray-300 hover:border-gray-400 transition-colors">
                           <CardHeader className="bg-gray-50 p-2 border-b border-gray-300">
-                      <div className="flex items-center justify-between">
+                            <div className="flex items-center justify-between">
                               <CardTitle className="text-base font-bold">{category}</CardTitle>
-                        <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-2">
                                 <div className="flex items-center gap-1">
                                   <Badge variant="secondary" className="bg-blue-100 text-blue-700 hover:bg-blue-100 px-1.5 py-0.5">
                                     Autoavaliação
                                   </Badge>
-                                  <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-xs font-medium ${getScoreClass(selfAverage)}`}>
-                                    {selfAverage.toFixed(1)}
+                                  <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-xs font-medium ${
+                                    selfAverage === null ? "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100" :
+                                    selfAverage >= 9 ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100" :
+                                    selfAverage >= 8 ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100" :
+                                    selfAverage >= 7 ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100" :
+                                    selfAverage >= 6 ? "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-100" :
+                                    "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100"
+                                  }`}>
+                                    {selfAverage === null ? "Pendente" : selfAverage.toFixed(1)}
                                   </span>
                                 </div>
                                 <div className="flex items-center gap-1">
                                   <Badge variant="secondary" className="bg-green-100 text-green-700 hover:bg-green-100 px-1.5 py-0.5">
                                     Gestor
                                   </Badge>
-                                  <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-xs font-medium ${getScoreClass(managerAverage)}`}>
-                                    {managerAverage.toFixed(1)}
+                                  <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-xs font-medium ${
+                                    managerAverage === null ? "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100" :
+                                    managerAverage >= 9 ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100" :
+                                    managerAverage >= 8 ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100" :
+                                    managerAverage >= 7 ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100" :
+                                    managerAverage >= 6 ? "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-100" :
+                                    "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100"
+                                  }`}>
+                                    {managerAverage === null ? "Pendente" : managerAverage.toFixed(1)}
                                   </span>
                                 </div>
                                 <div className="flex items-center gap-1">
                                   <Badge variant="secondary" className="bg-gray-100 text-gray-700 hover:bg-gray-100 px-1.5 py-0.5">
                                     Média
                                   </Badge>
-                                  <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-xs font-medium ${getScoreClass(finalAverage)}`}>
-                                    {finalAverage.toFixed(1)}
+                                  <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-xs font-medium ${
+                                    finalAverage === null ? "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100" :
+                                    finalAverage >= 9 ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100" :
+                                    finalAverage >= 8 ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100" :
+                                    finalAverage >= 7 ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100" :
+                                    finalAverage >= 6 ? "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-100" :
+                                    "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100"
+                                  }`}>
+                                    {finalAverage === null ? "Pendente" : finalAverage.toFixed(1)}
                                   </span>
                                 </div>
                               </div>
@@ -701,8 +623,8 @@ export default function EvaluationDetailsPage() {
                           <CardContent className="p-2">
                             <div className="grid gap-1">
                               {evaluation.evaluationanswer
-                                .filter(answer => answer.evaluationquestion.category.name === category)
-                                .map((answer) => (
+                                ?.filter(answer => answer?.evaluationquestion?.category?.name === category)
+                                ?.map((answer) => (
                                   <Card key={answer.id} className="overflow-hidden border border-gray-300 hover:border-gray-400 transition-colors">
                                     <CardHeader className="bg-gray-50 p-2 border-b border-gray-300">
                                       <CardTitle className="text-sm font-medium">{answer.evaluationquestion.text}</CardTitle>
@@ -715,13 +637,18 @@ export default function EvaluationDetailsPage() {
                                             <Badge variant="secondary" className="bg-blue-100 text-blue-700 hover:bg-blue-100 px-1.5 py-0.5">
                                               Autoavaliação
                                             </Badge>
-                          <span
-                                              className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-xs font-medium ${getScoreClass(
-                                                answer.selfScore ?? 0
-                            )}`}
-                          >
-                                              {(answer.selfScore ?? 0).toFixed(1)}
-                          </span>
+                                            <span
+                                              className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-xs font-medium ${
+                                                answer.selfScore === null ? "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100" :
+                                                answer.selfScore >= 9 ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100" :
+                                                answer.selfScore >= 8 ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100" :
+                                                answer.selfScore >= 7 ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100" :
+                                                answer.selfScore >= 6 ? "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-100" :
+                                                "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100"
+                                              }`}
+                                            >
+                                              {answer.selfScore === null ? "Pendente" : answer.selfScore.toFixed(1)}
+                                            </span>
                                           </div>
                                           <div className="rounded-lg bg-gray-50 p-1.5 border border-gray-200 min-h-[60px]">
                                             <p className="text-xs text-muted-foreground whitespace-pre-wrap break-words">
@@ -736,13 +663,18 @@ export default function EvaluationDetailsPage() {
                                             <Badge variant="secondary" className="bg-green-100 text-green-700 hover:bg-green-100 px-1.5 py-0.5">
                                               Avaliação do Gestor
                                             </Badge>
-                          <span
-                                              className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-xs font-medium ${getScoreClass(
-                                                answer.managerScore ?? 0
-                            )}`}
-                          >
-                                              {(answer.managerScore ?? 0).toFixed(1)}
-                          </span>
+                                            <span
+                                              className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-xs font-medium ${
+                                                answer.managerScore === null ? "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100" :
+                                                answer.managerScore >= 9 ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100" :
+                                                answer.managerScore >= 8 ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100" :
+                                                answer.managerScore >= 7 ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100" :
+                                                answer.managerScore >= 6 ? "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-100" :
+                                                "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100"
+                                              }`}
+                                            >
+                                              {answer.managerScore === null ? "Pendente" : answer.managerScore.toFixed(1)}
+                                            </span>
                                           </div>
                                           <div className="rounded-lg bg-gray-50 p-1.5 border border-gray-200 min-h-[60px]">
                                             <p className="text-xs text-muted-foreground whitespace-pre-wrap break-words">
@@ -757,8 +689,8 @@ export default function EvaluationDetailsPage() {
                                         <div className="rounded-full bg-gray-50 px-2 py-0.5 border border-gray-200">
                                           <span className="text-xs font-medium text-muted-foreground">
                                             Diferença: {Math.abs((answer.managerScore ?? 0) - (answer.selfScore ?? 0)).toFixed(1)}
-                          </span>
-                        </div>
+                                          </span>
+                                        </div>
                                       </div>
                                     </CardContent>
                                   </Card>
@@ -768,7 +700,7 @@ export default function EvaluationDetailsPage() {
                         </Card>
                       )
                     })}
-                      </div>
+                  </div>
 
                   {/* Pontuação Final */}
                   <Card className="border border-gray-300 hover:border-gray-400 transition-colors">
@@ -780,27 +712,48 @@ export default function EvaluationDetailsPage() {
                             <Badge variant="secondary" className="bg-blue-100 text-blue-700 hover:bg-blue-100 px-1.5 py-0.5">
                               Autoavaliação
                             </Badge>
-                            <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-xs font-medium ${getScoreClass(evaluation.selfScore)}`}>
-                              {evaluation.selfScore?.toFixed(1) || "0.0"}
-                          </span>
+                            <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-xs font-medium ${
+                              evaluation.selfScore === null ? "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100" :
+                              evaluation.selfScore >= 9 ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100" :
+                              evaluation.selfScore >= 8 ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100" :
+                              evaluation.selfScore >= 7 ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100" :
+                              evaluation.selfScore >= 6 ? "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-100" :
+                              "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100"
+                            }`}>
+                              {evaluation.selfScore === null ? "Pendente" : evaluation.selfScore.toFixed(1) || "0.0"}
+                            </span>
                           </div>
                           <div className="flex items-center gap-1">
                             <Badge variant="secondary" className="bg-green-100 text-green-700 hover:bg-green-100 px-1.5 py-0.5">
                               Gestor
                             </Badge>
-                            <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-xs font-medium ${getScoreClass(evaluation.managerScore)}`}>
-                              {evaluation.managerScore?.toFixed(1) || "0.0"}
-                          </span>
+                            <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-xs font-medium ${
+                              evaluation.managerScore === null ? "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100" :
+                              evaluation.managerScore >= 9 ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100" :
+                              evaluation.managerScore >= 8 ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100" :
+                              evaluation.managerScore >= 7 ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100" :
+                              evaluation.managerScore >= 6 ? "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-100" :
+                              "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100"
+                            }`}>
+                              {evaluation.managerScore === null ? "Pendente" : evaluation.managerScore.toFixed(1) || "0.0"}
+                            </span>
                           </div>
                           <div className="flex items-center gap-1">
                             <Badge variant="secondary" className="bg-gray-100 text-gray-700 hover:bg-gray-100 px-1.5 py-0.5">
                               Final
                             </Badge>
-                            <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-xs font-medium ${getScoreClass(evaluation.finalScore)}`}>
-                              {evaluation.finalScore?.toFixed(1) || "0.0"}
-                          </span>
+                            <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-xs font-medium ${
+                              evaluation.finalScore === null ? "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100" :
+                              evaluation.finalScore >= 9 ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100" :
+                              evaluation.finalScore >= 8 ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100" :
+                              evaluation.finalScore >= 7 ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100" :
+                              evaluation.finalScore >= 6 ? "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-100" :
+                              "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100"
+                            }`}>
+                              {evaluation.finalScore === null ? "Pendente" : evaluation.finalScore.toFixed(1) || "0.0"}
+                            </span>
+                          </div>
                         </div>
-                      </div>
                       </div>
                     </CardHeader>
                   </Card>
@@ -944,9 +897,9 @@ export default function EvaluationDetailsPage() {
                   </div>
 
                   {/* Questões do Template */}
-                  {evaluation.evaluationtemplate && (
+                  {evaluation?.evaluationtemplate && (
                     <div className="space-y-6">
-                      {Array.from(new Set(evaluation.evaluationtemplate.questions.map(q => q.category.name))).map(category => (
+                      {Array.from(new Set(evaluation?.evaluationtemplate?.questions?.map(q => q?.category?.name) || [])).map(category => (
                         <Card key={category}>
                           <CardHeader>
                             <CardTitle>{category}</CardTitle>
@@ -954,8 +907,8 @@ export default function EvaluationDetailsPage() {
                           <CardContent>
                             <div className="space-y-4">
                               {evaluation.evaluationanswer
-                                .filter((answer) => answer.evaluationquestion.category.name === category)
-                                .map((answer) => (
+                                ?.filter(answer => answer?.evaluationquestion?.category?.name === category)
+                                ?.map((answer) => (
                                   <div key={answer.id} className="space-y-2">
                                     <div className="flex items-start justify-between">
                                       <div className="flex-1">
@@ -989,7 +942,7 @@ export default function EvaluationDetailsPage() {
                                                   >
                                                     {score}
                                                   </button>
-                        </div>
+                                                </div>
                                               ))}
                                             </div>
                                           </div>
@@ -1022,9 +975,9 @@ export default function EvaluationDetailsPage() {
                                                   >
                                                     {score}
                                                   </button>
-                              </div>
-                            ))}
-                        </div>
+                                                </div>
+                                              ))}
+                                            </div>
                                           </div>
                                         )}
                                       </div>
@@ -1033,7 +986,7 @@ export default function EvaluationDetailsPage() {
                                       {evaluationType === "self" ? (
                                         <>
                                           <Label htmlFor={`self-comment-${answer.id}`}>Seu comentário:</Label>
-                          <Textarea
+                                          <Textarea
                                             id={`self-comment-${answer.id}`}
                                             value={answer.selfComment || ""}
                                             onChange={(e) => {
@@ -1046,7 +999,7 @@ export default function EvaluationDetailsPage() {
                                               setEvaluation({ ...evaluation, evaluationanswer: newAnswers })
                                             }}
                                             placeholder="Adicione um comentário sobre sua avaliação..."
-                            className="min-h-[80px]"
+                                            className="min-h-[80px]"
                                             disabled={!isEditing}
                                           />
                                         </>
@@ -1071,9 +1024,9 @@ export default function EvaluationDetailsPage() {
                                           />
                                         </>
                                       )}
-                        </div>
-                      </div>
-                            ))}
+                                    </div>
+                                  </div>
+                                ))}
                             </div>
                           </CardContent>
                         </Card>
@@ -1087,10 +1040,10 @@ export default function EvaluationDetailsPage() {
                       <CardTitle>Comentários Gerais</CardTitle>
                     </CardHeader>
                     <CardContent>
-                    <div className="space-y-4">
-                      <div>
+                      <div className="space-y-4">
+                        <div>
                           <Label>Pontos Fortes</Label>
-                        <Textarea
+                          <Textarea
                             value={evaluationType === "self" ? evaluation.selfStrengths || "" : evaluation.managerStrengths || ""}
                             onChange={(e) => {
                               console.log("Pontos fortes alterados para:", e.target.value)
@@ -1102,11 +1055,11 @@ export default function EvaluationDetailsPage() {
                             }}
                             placeholder="Liste os pontos fortes do colaborador..."
                             disabled={!isEditing}
-                        />
-                      </div>
-                      <div>
+                          />
+                        </div>
+                        <div>
                           <Label>Pontos de Melhoria</Label>
-                        <Textarea
+                          <Textarea
                             value={evaluationType === "self" ? evaluation.selfImprovements || "" : evaluation.managerImprovements || ""}
                             onChange={(e) => {
                               console.log("Pontos de melhoria alterados para:", e.target.value)
@@ -1118,11 +1071,11 @@ export default function EvaluationDetailsPage() {
                             }}
                             placeholder="Liste os pontos de melhoria do colaborador..."
                             disabled={!isEditing}
-                        />
-                      </div>
-                      <div>
+                          />
+                        </div>
+                        <div>
                           <Label>Metas e Objetivos</Label>
-                        <Textarea
+                          <Textarea
                             value={evaluationType === "self" ? evaluation.selfGoals || "" : evaluation.managerGoals || ""}
                             onChange={(e) => {
                               console.log("Metas e objetivos alterados para:", e.target.value)
@@ -1134,9 +1087,9 @@ export default function EvaluationDetailsPage() {
                             }}
                             placeholder="Liste as metas e objetivos do colaborador..."
                             disabled={!isEditing}
-                        />
+                          />
+                        </div>
                       </div>
-                    </div>
                     </CardContent>
                   </Card>
 

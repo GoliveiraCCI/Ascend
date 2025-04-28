@@ -28,8 +28,8 @@ export default function FormsPage() {
   const [isLoading, setIsLoading] = useState(true)
 
   const fetchData = async () => {
-    try {
-      console.log("Iniciando busca de dados...")
+      try {
+        console.log("Iniciando busca de dados...")
       const [employeesRes, departmentsRes, positionsRes, positionLevelsRes, shiftsRes] = await Promise.all([
         fetch("/api/employees"),
         fetch("/api/departments"),
@@ -75,27 +75,27 @@ export default function FormsPage() {
         positionLevel: emp.positionlevel?.name,
         shift: emp.shift?.name
       })))
-      console.log("Departamentos encontrados:", departmentsData.length)
+        console.log("Departamentos encontrados:", departmentsData.length)
       console.log("Cargos encontrados:", positionsData.length)
       console.log("Níveis de cargo encontrados:", positionLevelsData.length)
       console.log("Turnos encontrados:", shiftsData.length)
 
       setEmployees(processedEmployees)
-      setDepartments(departmentsData)
-      setPositions(positionsData)
-      setPositionLevels(positionLevelsData)
-      setShifts(shiftsData)
-      setIsLoading(false)
-    } catch (error) {
-      console.error("Erro ao buscar dados:", error)
-      toast({
-        title: "Erro",
+        setDepartments(departmentsData)
+        setPositions(positionsData)
+        setPositionLevels(positionLevelsData)
+        setShifts(shiftsData)
+        setIsLoading(false)
+      } catch (error) {
+        console.error("Erro ao buscar dados:", error)
+        toast({
+          title: "Erro",
         description: "Erro ao buscar dados. Por favor, tente novamente.",
-        variant: "destructive",
-      })
-      setIsLoading(false)
+          variant: "destructive",
+        })
+        setIsLoading(false)
+      }
     }
-  }
 
   useEffect(() => {
     fetchData()

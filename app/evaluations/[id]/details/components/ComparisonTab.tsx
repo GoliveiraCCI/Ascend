@@ -7,32 +7,34 @@ interface ComparisonTabProps {
 }
 
 export function ComparisonTab({ evaluation }: ComparisonTabProps) {
-  const getDifferenceIndicator = (selfScore: number, managerScore: number) => {
-    const diff = managerScore - selfScore
-    const absDiff = Math.abs(diff)
-
-    if (diff === 0) {
-      return (
-        <div className="flex items-center gap-1 text-gray-500">
-          <Minus className="h-4 w-4" />
-          <span className="text-sm">Igual</span>
-        </div>
-      )
-    }
-
-    if (diff > 0) {
-      return (
-        <div className="flex items-center gap-1 text-green-500">
-          <ArrowUp className="h-4 w-4" />
-          <span className="text-sm">+{absDiff.toFixed(1)}</span>
-        </div>
-      )
-    }
+  const getDifferenceIndicator = (selfScore: number, managerScore: number, expectedScore: number) => {
+    const selfDiff = selfScore - expectedScore
+    const managerDiff = managerScore - expectedScore
+    const absSelfDiff = Math.abs(selfDiff)
+    const absManagerDiff = Math.abs(managerDiff)
 
     return (
-      <div className="flex items-center gap-1 text-red-500">
-        <ArrowDown className="h-4 w-4" />
-        <span className="text-sm">-{absDiff.toFixed(1)}</span>
+      <div className="flex flex-col items-center gap-2">
+        <div className={`flex items-center gap-1 ${selfDiff === 0 ? 'text-gray-500' : selfDiff > 0 ? 'text-green-500' : 'text-red-500'}`}>
+          {selfDiff === 0 ? (
+            <Minus className="h-4 w-4" />
+          ) : selfDiff > 0 ? (
+            <ArrowUp className="h-4 w-4" />
+          ) : (
+            <ArrowDown className="h-4 w-4" />
+          )}
+          <span className="text-sm">{selfDiff === 0 ? 'Igual' : `${selfDiff > 0 ? '+' : '-'}${absSelfDiff.toFixed(1)}`}</span>
+        </div>
+        <div className={`flex items-center gap-1 ${managerDiff === 0 ? 'text-gray-500' : managerDiff > 0 ? 'text-green-500' : 'text-red-500'}`}>
+          {managerDiff === 0 ? (
+            <Minus className="h-4 w-4" />
+          ) : managerDiff > 0 ? (
+            <ArrowUp className="h-4 w-4" />
+          ) : (
+            <ArrowDown className="h-4 w-4" />
+          )}
+          <span className="text-sm">{managerDiff === 0 ? 'Igual' : `${managerDiff > 0 ? '+' : '-'}${absManagerDiff.toFixed(1)}`}</span>
+        </div>
       </div>
     )
   }
@@ -47,21 +49,27 @@ export function ComparisonTab({ evaluation }: ComparisonTabProps) {
           {evaluation.categories.map((category: any) => {
             const selfAvg = category.answers.reduce((acc: number, ans: any) => acc + (ans.selfScore || 0), 0) / category.answers.length
             const managerAvg = category.answers.reduce((acc: number, ans: any) => acc + (ans.managerScore || 0), 0) / category.answers.length
+            const expectedAvg = category.answers.reduce((acc: number, ans: any) => acc + (ans.expectedScore || 0), 0) / category.answers.length
 
             return (
               <div key={category.id} className="space-y-4">
                 <h3 className="font-medium">{category.name}</h3>
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-4 gap-4">
                   <div>
                     <p className="text-sm text-gray-500 mb-2">Autoavaliação</p>
                     <ScoreIndicator score={selfAvg} size="md" />
                   </div>
-                  <div className="flex items-center justify-center">
-                    {getDifferenceIndicator(selfAvg, managerAvg)}
-                  </div>
                   <div>
                     <p className="text-sm text-gray-500 mb-2">Avaliação do Gestor</p>
                     <ScoreIndicator score={managerAvg} size="md" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500 mb-2">Nota Esperada</p>
+                    <ScoreIndicator score={expectedAvg} size="md" variant="secondary" />
+                  </div>
+                  <div className="flex items-center justify-center">
+                    <div className="text-sm text-gray-500 mb-2">Diferença</div>
+                    {getDifferenceIndicator(selfAvg, managerAvg, expectedAvg)}
                   </div>
                 </div>
               </div>

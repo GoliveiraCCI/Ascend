@@ -171,6 +171,7 @@ model evaluationquestion {
   category   evaluationcategory  @relation(fields: [categoryId], references: [id])
   template   evaluationtemplate? @relation("TemplateQuestions", fields: [templateId], references: [id])
   user       user                @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  expectedScore Float            @default(7.0)
 
   @@index([categoryId])
   @@index([templateId])
