@@ -7,22 +7,37 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const { id } = params
     const evaluation = await prisma.evaluation.findUnique({
       where: {
-        id: id,
+        id: params.id,
       },
       include: {
         employee: {
           include: {
             department: true,
+            position: true,
           },
         },
         user: true,
-        evaluationtemplate: true,
+        evaluationtemplate: {
+          include: {
+            questions: {
+              include: {
+                category: true,
+              },
+            },
+          },
+        },
         evaluationanswer: {
           include: {
-            evaluationquestion: true,
+            evaluationquestion: {
+              select: {
+                id: true,
+                text: true,
+                category: true,
+                expectedScore: true,
+              },
+            },
           },
         },
       },
@@ -51,61 +66,87 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
-    const id = await params.id
     const data = await request.json()
+    const evaluationId = params.id
 
+    // Atualizar a avaliação
     const evaluation = await prisma.evaluation.update({
       where: {
-        id: id,
+        id: evaluationId,
       },
       data: {
         employeeId: data.employeeId,
         evaluatorId: data.evaluatorId,
         templateId: data.templateId,
         status: data.status,
-        selfEvaluationStatus: data.selfEvaluationStatus,
-        managerEvaluationStatus: data.managerEvaluationStatus,
-        selfStrengths: data.selfStrengths,
-        selfImprovements: data.selfImprovements,
-        selfGoals: data.selfGoals,
-        selfScore: data.selfScore,
-        managerStrengths: data.managerStrengths,
-        managerImprovements: data.managerImprovements,
-        managerGoals: data.managerGoals,
-        managerScore: data.managerScore,
-        finalScore: data.finalScore,
-        evaluationanswer: {
-          updateMany: data.answers.map((answer: any) => ({
-            where: {
-              id: answer.id,
-            },
-            data: {
-              selfScore: answer.selfScore,
-              managerScore: answer.managerScore,
-              selfComment: answer.selfComment,
-              managerComment: answer.managerComment,
-              expectedScore: answer.expectedScore,
-            },
-          })),
-        },
+        // Atualizar os status baseado nas respostas
+        selfEvaluationStatus: data.evaluationanswer.some(a => a.selfScore !== null) ? "Concluída" : "Pendente",
+        managerEvaluationStatus: data.evaluationanswer.some(a => a.managerScore !== null) ? "Concluída" : "Pendente",
+        selfStrengths: data.selfStrengths || "",
+        selfImprovements: data.selfImprovements || "",
+        selfGoals: data.selfGoals || "",
+        selfScore: data.selfScore || 0,
+        managerStrengths: data.managerStrengths || "",
+        managerImprovements: data.managerImprovements || "",
+        managerGoals: data.managerGoals || "",
+        managerScore: data.managerScore || 0,
+        finalScore: data.finalScore || 0,
+      },
+    })
+
+    // Atualizar as respostas
+    if (data.evaluationanswer && Array.isArray(data.evaluationanswer)) {
+      for (const answer of data.evaluationanswer) {
+        await prisma.evaluationanswer.update({
+          where: {
+            id: answer.id,
+          },
+          data: {
+            selfScore: answer.selfScore || 0,
+            managerScore: answer.managerScore || 0,
+            selfComment: answer.selfComment || "",
+            managerComment: answer.managerComment || "",
+            expectedScore: answer.expectedScore || 0,
+          },
+        })
+      }
+    }
+
+    // Buscar a avaliação atualizada com todos os relacionamentos
+    const updatedEvaluation = await prisma.evaluation.findUnique({
+      where: {
+        id: evaluationId,
       },
       include: {
         employee: {
           include: {
             department: true,
+            position: true,
           },
         },
-        evaluator: true,
-        template: true,
+        user: true,
+        evaluationtemplate: {
+          include: {
+            questions: {
+              include: {
+                category: true,
+              },
+            },
+          },
+        },
         evaluationanswer: {
           include: {
-            question: true,
+            evaluationquestion: {
+              include: {
+                category: true,
+              },
+            },
           },
         },
       },
     })
 
-    return NextResponse.json(evaluation)
+    return NextResponse.json(updatedEvaluation)
   } catch (error) {
     console.error('Erro ao atualizar avaliação:', error)
     return NextResponse.json(

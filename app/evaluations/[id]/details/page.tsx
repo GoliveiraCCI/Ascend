@@ -21,12 +21,16 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert"
 
 interface EvaluationAnswer {
   id: string
+  evaluationId: string
+  questionId: string
   evaluationquestion: {
     id: string
     text: string
     category: {
+      id: string
       name: string
     }
+    expectedScore: number
   }
   selfScore: number | null
   selfComment: string | null
@@ -37,8 +41,12 @@ interface EvaluationAnswer {
 interface Employee {
   id: string
   name: string
-  position: string
+  position: {
+    id: string
+    name: string
+  }
   department: {
+    id: string
     name: string
   }
   matricula: string
@@ -53,7 +61,7 @@ interface User {
 interface EvaluationTemplate {
   id: string
   name: string
-  description: string
+  description: string | null
   questions: {
     id: string
     text: string
@@ -66,11 +74,16 @@ interface EvaluationTemplate {
 
 interface Evaluation {
   id: string
+  employeeId: string
+  evaluatorId: string
+  templateId: string
   employee: Employee
   user: User
   evaluationtemplate: EvaluationTemplate
   date: string
   status: string
+  selfEvaluation: boolean
+  managerEvaluation: boolean
   selfEvaluationStatus: string
   managerEvaluationStatus: string
   selfStrengths: string | null
@@ -103,6 +116,19 @@ const getScoreLabel = (score: number | null) => {
   if (score >= 7) return "Bom"
   if (score >= 6) return "Satisfatório"
   return "Precisa Melhorar"
+}
+
+// Função para calcular a média das notas
+const calculateAverage = (scores: (number | null)[]) => {
+  const validScores = scores.filter((score): score is number => score !== null)
+  if (validScores.length === 0) return null
+  return validScores.reduce((acc, score) => acc + score, 0) / validScores.length
+}
+
+// Função para calcular a média final
+const calculateFinalScore = (selfScore: number | null, managerScore: number | null) => {
+  if (selfScore === null || managerScore === null) return null
+  return (selfScore * 0.4) + (managerScore * 0.6)
 }
 
 export default function EvaluationDetailsPage() {
@@ -179,69 +205,38 @@ export default function EvaluationDetailsPage() {
   const handleSaveEvaluation = async () => {
     try {
       setIsSaving(true)
-      setAlert(null)
-
-      // Verificar se evaluation e evaluationanswer existem
-      if (!evaluation?.evaluationanswer) {
-        throw new Error("Dados da avaliação não encontrados")
-      }
-
-      // Preparar as respostas para envio
-      const answers = evaluation.evaluationanswer.map(answer => ({
-        id: answer.id,
-        score: evaluationType === "self" ? answer.selfScore : answer.managerScore,
-        comment: evaluationType === "self" ? answer.selfComment : answer.managerComment
-      }))
-
-      // Validar se todas as questões foram respondidas
-      const unansweredQuestions = answers.filter(a => a.score === null)
-      if (unansweredQuestions.length > 0) {
-        setAlert({
-          type: "error",
-          message: "Por favor, responda todas as questões antes de salvar"
-        })
-        return
+      
+      // Preparar os dados para envio
+      const data = {
+        ...evaluation,
+        evaluationanswer: evaluation.evaluationanswer.map(answer => ({
+          id: answer.id,
+          selfScore: answer.selfScore || 0,
+          managerScore: answer.managerScore || 0,
+          selfComment: answer.selfComment || "",
+          managerComment: answer.managerComment || ""
+        }))
       }
 
       const response = await fetch(`/api/evaluations/${params.id}`, {
-        method: "PUT",
+        method: 'PUT',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          type: evaluationType,
-          answers,
-          strengths: evaluationType === "self" ? evaluation.selfStrengths : evaluation.managerStrengths,
-          improvements: evaluationType === "self" ? evaluation.selfImprovements : evaluation.managerImprovements,
-          goals: evaluationType === "self" ? evaluation.selfGoals : evaluation.managerGoals
-        }),
+        body: JSON.stringify(data),
       })
 
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || "Erro ao salvar avaliação")
+        throw new Error('Erro ao salvar avaliação')
       }
 
-      // Recarregar os dados da avaliação
       const updatedEvaluation = await response.json()
       setEvaluation(updatedEvaluation)
       setIsEditing(false)
-
-      setAlert({
-        type: "success",
-        message: "Avaliação salva com sucesso!"
-      })
-
-      // Limpar o alerta após 5 segundos
-      setTimeout(() => {
-        setAlert(null)
-      }, 5000)
+      setAlert({ type: "success", message: "Avaliação salva com sucesso!" })
     } catch (error) {
-      console.error("Erro ao salvar avaliação:", error)
-      setAlert({
-        type: "error",
-        message: error instanceof Error ? error.message : "Ocorreu um erro ao salvar a avaliação"
-      })
+      console.error('Erro ao salvar avaliação:', error)
+      setAlert({ type: "error", message: "Erro ao salvar avaliação. Tente novamente." })
     } finally {
       setIsSaving(false)
     }
@@ -298,6 +293,12 @@ export default function EvaluationDetailsPage() {
       })
     })
   }
+
+  // Calcular médias
+  const selfAverage = calculateAverage(evaluation?.evaluationanswer.map(a => a.selfScore) || [])
+  const managerAverage = calculateAverage(evaluation?.evaluationanswer.map(a => a.managerScore) || [])
+  const expectedAverage = calculateAverage(evaluation?.evaluationanswer.map(a => a.evaluationquestion.expectedScore) || [])
+  const finalAverage = calculateFinalScore(selfAverage, managerAverage)
 
   if (loading) {
     return (
@@ -403,12 +404,12 @@ export default function EvaluationDetailsPage() {
                   </span>
                   <span
                     className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
-                      evaluation.selfEvaluationStatus === "Concluída"
+                      evaluation.evaluationanswer.some(a => a.selfScore !== null)
                         ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100"
                         : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100"
                     }`}
                   >
-                    {evaluation.selfEvaluationStatus}
+                    {evaluation.evaluationanswer.some(a => a.selfScore !== null) ? "Concluída" : "Pendente"}
                   </span>
                 </div>
                 <div className="flex justify-between">
@@ -418,12 +419,12 @@ export default function EvaluationDetailsPage() {
                   </span>
                   <span
                     className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
-                      evaluation.managerEvaluationStatus === "Concluída"
+                      evaluation.evaluationanswer.some(a => a.managerScore !== null)
                         ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100"
                         : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100"
                     }`}
                   >
-                    {evaluation.managerEvaluationStatus}
+                    {evaluation.evaluationanswer.some(a => a.managerScore !== null) ? "Concluída" : "Pendente"}
                   </span>
                 </div>
                 <Separator className="my-2" />
@@ -431,45 +432,60 @@ export default function EvaluationDetailsPage() {
                   <span className="text-sm font-medium">Pontuação (Autoavaliação):</span>
                   <span
                     className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
-                      evaluation.selfScore === null ? "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100" :
-                      evaluation.selfScore >= 9 ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100" :
-                      evaluation.selfScore >= 8 ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100" :
-                      evaluation.selfScore >= 7 ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100" :
-                      evaluation.selfScore >= 6 ? "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-100" :
+                      selfAverage === null ? "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100" :
+                      selfAverage >= 9 ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100" :
+                      selfAverage >= 8 ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100" :
+                      selfAverage >= 7 ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100" :
+                      selfAverage >= 6 ? "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-100" :
                       "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100"
                     }`}
                   >
-                    {evaluation.selfScore === null ? "Pendente" : evaluation.selfScore.toFixed(1) || "0"}/10
+                    {selfAverage === null ? "Pendente" : selfAverage.toFixed(1)}/10
                   </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm font-medium">Pontuação (Gestor):</span>
                   <span
                     className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
-                      evaluation.managerScore === null ? "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100" :
-                      evaluation.managerScore >= 9 ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100" :
-                      evaluation.managerScore >= 8 ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100" :
-                      evaluation.managerScore >= 7 ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100" :
-                      evaluation.managerScore >= 6 ? "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-100" :
+                      managerAverage === null ? "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100" :
+                      managerAverage >= 9 ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100" :
+                      managerAverage >= 8 ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100" :
+                      managerAverage >= 7 ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100" :
+                      managerAverage >= 6 ? "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-100" :
                       "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100"
                     }`}
                   >
-                    {evaluation.managerScore === null ? "Pendente" : evaluation.managerScore.toFixed(1) || "0"}/10
+                    {managerAverage === null ? "Pendente" : managerAverage.toFixed(1)}/10
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm font-medium">Nota Esperada:</span>
+                  <span
+                    className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
+                      expectedAverage === null ? "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100" :
+                      expectedAverage >= 9 ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100" :
+                      expectedAverage >= 8 ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100" :
+                      expectedAverage >= 7 ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100" :
+                      expectedAverage >= 6 ? "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-100" :
+                      "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100"
+                    }`}
+                  >
+                    {expectedAverage === null ? "Pendente" : expectedAverage.toFixed(1)}/10
                   </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm font-medium">Pontuação Final:</span>
                   <span
                     className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
-                      evaluation.finalScore === null ? "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100" :
-                      evaluation.finalScore >= 9 ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100" :
-                      evaluation.finalScore >= 8 ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100" :
-                      evaluation.finalScore >= 7 ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100" :
-                      evaluation.finalScore >= 6 ? "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-100" :
+                      finalAverage === null ? "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100" :
+                      finalAverage >= 9 ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100" :
+                      finalAverage >= 8 ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100" :
+                      finalAverage >= 7 ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100" :
+                      finalAverage >= 6 ? "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-100" :
                       "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100"
                     }`}
                   >
-                    {evaluation.finalScore === null ? "Pendente" : evaluation.finalScore.toFixed(1) || "0"}/10
+                    {finalAverage === null ? "Pendente" : finalAverage.toFixed(1)}/10
                   </span>
                 </div>
               </div>
@@ -684,11 +700,16 @@ export default function EvaluationDetailsPage() {
                                         </div>
                                       </div>
 
-                                      {/* Diferença */}
-                                      <div className="mt-1 flex items-center justify-center border-t border-gray-300 pt-1">
+                                      {/* Diferença e Nota Esperada */}
+                                      <div className="mt-1 flex items-center justify-center gap-2 border-t border-gray-300 pt-1">
                                         <div className="rounded-full bg-gray-50 px-2 py-0.5 border border-gray-200">
                                           <span className="text-xs font-medium text-muted-foreground">
                                             Diferença: {Math.abs((answer.managerScore ?? 0) - (answer.selfScore ?? 0)).toFixed(1)}
+                                          </span>
+                                        </div>
+                                        <div className="rounded-full bg-orange-50 px-2 py-0.5 border border-orange-200">
+                                          <span className="text-xs font-medium text-orange-700">
+                                            Nota Esperada: {answer.evaluationquestion.expectedScore.toFixed(1)}
                                           </span>
                                         </div>
                                       </div>
@@ -713,14 +734,14 @@ export default function EvaluationDetailsPage() {
                               Autoavaliação
                             </Badge>
                             <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-xs font-medium ${
-                              evaluation.selfScore === null ? "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100" :
-                              evaluation.selfScore >= 9 ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100" :
-                              evaluation.selfScore >= 8 ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100" :
-                              evaluation.selfScore >= 7 ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100" :
-                              evaluation.selfScore >= 6 ? "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-100" :
+                              selfAverage === null ? "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100" :
+                              selfAverage >= 9 ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100" :
+                              selfAverage >= 8 ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100" :
+                              selfAverage >= 7 ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100" :
+                              selfAverage >= 6 ? "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-100" :
                               "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100"
                             }`}>
-                              {evaluation.selfScore === null ? "Pendente" : evaluation.selfScore.toFixed(1) || "0.0"}
+                              {selfAverage === null ? "Pendente" : selfAverage.toFixed(1)}
                             </span>
                           </div>
                           <div className="flex items-center gap-1">
@@ -728,14 +749,22 @@ export default function EvaluationDetailsPage() {
                               Gestor
                             </Badge>
                             <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-xs font-medium ${
-                              evaluation.managerScore === null ? "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100" :
-                              evaluation.managerScore >= 9 ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100" :
-                              evaluation.managerScore >= 8 ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100" :
-                              evaluation.managerScore >= 7 ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100" :
-                              evaluation.managerScore >= 6 ? "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-100" :
+                              managerAverage === null ? "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100" :
+                              managerAverage >= 9 ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100" :
+                              managerAverage >= 8 ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100" :
+                              managerAverage >= 7 ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100" :
+                              managerAverage >= 6 ? "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-100" :
                               "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100"
                             }`}>
-                              {evaluation.managerScore === null ? "Pendente" : evaluation.managerScore.toFixed(1) || "0.0"}
+                              {managerAverage === null ? "Pendente" : managerAverage.toFixed(1)}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Badge variant="secondary" className="bg-orange-100 text-orange-700 hover:bg-orange-100 px-1.5 py-0.5">
+                              Esperada
+                            </Badge>
+                            <span className="inline-flex items-center rounded-full px-1.5 py-0.5 text-xs font-medium bg-orange-100 text-orange-800">
+                              {expectedAverage === null ? "Pendente" : expectedAverage.toFixed(1)}
                             </span>
                           </div>
                           <div className="flex items-center gap-1">
@@ -743,14 +772,14 @@ export default function EvaluationDetailsPage() {
                               Final
                             </Badge>
                             <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-xs font-medium ${
-                              evaluation.finalScore === null ? "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100" :
-                              evaluation.finalScore >= 9 ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100" :
-                              evaluation.finalScore >= 8 ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100" :
-                              evaluation.finalScore >= 7 ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100" :
-                              evaluation.finalScore >= 6 ? "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-100" :
+                              finalAverage === null ? "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100" :
+                              finalAverage >= 9 ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100" :
+                              finalAverage >= 8 ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100" :
+                              finalAverage >= 7 ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100" :
+                              finalAverage >= 6 ? "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-100" :
                               "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100"
                             }`}>
-                              {evaluation.finalScore === null ? "Pendente" : evaluation.finalScore.toFixed(1) || "0.0"}
+                              {finalAverage === null ? "Pendente" : finalAverage.toFixed(1)}
                             </span>
                           </div>
                         </div>
@@ -990,7 +1019,6 @@ export default function EvaluationDetailsPage() {
                                             id={`self-comment-${answer.id}`}
                                             value={answer.selfComment || ""}
                                             onChange={(e) => {
-                                              console.log("Comentário alterado para:", e.target.value, "na questão:", answer.id)
                                               const newAnswers = evaluation.evaluationanswer.map((a) =>
                                                 a.id === answer.id
                                                   ? { ...a, selfComment: e.target.value }
@@ -1010,7 +1038,6 @@ export default function EvaluationDetailsPage() {
                                             id={`manager-comment-${answer.id}`}
                                             value={answer.managerComment || ""}
                                             onChange={(e) => {
-                                              console.log("Comentário alterado para:", e.target.value, "na questão:", answer.id)
                                               const newAnswers = evaluation.evaluationanswer.map((a) =>
                                                 a.id === answer.id
                                                   ? { ...a, managerComment: e.target.value }
@@ -1044,9 +1071,8 @@ export default function EvaluationDetailsPage() {
                         <div>
                           <Label>Pontos Fortes</Label>
                           <Textarea
-                            value={evaluationType === "self" ? evaluation.selfStrengths || "" : evaluation.managerStrengths || ""}
+                            value={evaluationType === "self" ? (evaluation.selfStrengths || "") : (evaluation.managerStrengths || "")}
                             onChange={(e) => {
-                              console.log("Pontos fortes alterados para:", e.target.value)
                               if (evaluationType === "self") {
                                 setEvaluation({ ...evaluation, selfStrengths: e.target.value })
                               } else {
@@ -1060,9 +1086,8 @@ export default function EvaluationDetailsPage() {
                         <div>
                           <Label>Pontos de Melhoria</Label>
                           <Textarea
-                            value={evaluationType === "self" ? evaluation.selfImprovements || "" : evaluation.managerImprovements || ""}
+                            value={evaluationType === "self" ? (evaluation.selfImprovements || "") : (evaluation.managerImprovements || "")}
                             onChange={(e) => {
-                              console.log("Pontos de melhoria alterados para:", e.target.value)
                               if (evaluationType === "self") {
                                 setEvaluation({ ...evaluation, selfImprovements: e.target.value })
                               } else {
@@ -1076,9 +1101,8 @@ export default function EvaluationDetailsPage() {
                         <div>
                           <Label>Metas e Objetivos</Label>
                           <Textarea
-                            value={evaluationType === "self" ? evaluation.selfGoals || "" : evaluation.managerGoals || ""}
+                            value={evaluationType === "self" ? (evaluation.selfGoals || "") : (evaluation.managerGoals || "")}
                             onChange={(e) => {
-                              console.log("Metas e objetivos alterados para:", e.target.value)
                               if (evaluationType === "self") {
                                 setEvaluation({ ...evaluation, selfGoals: e.target.value })
                               } else {
