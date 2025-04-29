@@ -50,6 +50,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { toast } from "@/components/ui/use-toast"
+import { Badge } from "@/components/ui/badge"
 
 // Sample employee data
 const employee = {
@@ -158,6 +159,7 @@ const medicalLeaveData = [
     reason: "Illness",
     status: "AFASTADO",
     cid: "J11", // CID para gripe
+    category: "Doença Comum"
   },
   {
     id: "ML002",
@@ -167,6 +169,7 @@ const medicalLeaveData = [
     reason: "Medical Appointment",
     status: "AFASTADO",
     cid: "Z00.0", // CID para exame médico geral
+    category: "Consulta Médica"
   },
   {
     id: "ML003",
@@ -176,6 +179,7 @@ const medicalLeaveData = [
     reason: "Surgery Recovery",
     status: "AFASTADO",
     cid: "K40", // CID para hérnia inguinal
+    category: "Cirurgia"
   },
 ]
 
@@ -593,22 +597,27 @@ export default function EmployeeProfile({ params }: { params: Promise<{ id: stri
                       <table className="w-full border-collapse">
                         <thead>
                           <tr className="bg-muted/50">
-                            <th className="border p-2 text-left">Período</th>
+                            <th className="border p-2 text-left">Data de Início</th>
+                            <th className="border p-2 text-left">Data de Término</th>
                             <th className="border p-2 text-left">Dias</th>
                             <th className="border p-2 text-left">Motivo</th>
-                            <th className="border p-2 text-left">CID</th>
+                            <th className="border p-2 text-left">Categoria</th>
+                            <th className="border p-2 text-left">Status</th>
                           </tr>
                         </thead>
                         <tbody>
                           {medicalLeaveData.map((leave) => (
                             <tr key={leave.id}>
-                              <td className="border p-2">
-                                {new Date(leave.startDate).toLocaleDateString()} a{" "}
-                                {new Date(leave.endDate).toLocaleDateString()}
-                              </td>
-                              <td className="border p-2 text-center">{leave.days}</td>
+                              <td className="border p-2">{new Date(leave.startDate).toLocaleDateString()}</td>
+                              <td className="border p-2">{new Date(leave.endDate).toLocaleDateString()}</td>
+                              <td className="border p-2">{leave.days}</td>
                               <td className="border p-2">{leave.reason}</td>
-                              <td className="border p-2">{leave.cid}</td>
+                              <td className="border p-2">{leave.category}</td>
+                              <td className="border p-2">
+                                <Badge variant={leave.status === "AFASTADO" ? "destructive" : "default"}>
+                                  {leave.status}
+                                </Badge>
+                              </td>
                             </tr>
                           ))}
                         </tbody>
@@ -1143,32 +1152,34 @@ export default function EmployeeProfile({ params }: { params: Promise<{ id: stri
           </div>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {medicalLeaveData.map((leave) => (
-              <div
-                key={leave.id}
-                className="flex flex-col rounded-lg border p-4 transition-colors hover:bg-muted sm:flex-row sm:items-center sm:justify-between"
-              >
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-medium">{leave.reason}</h3>
-                    <span className="inline-block rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800 dark:bg-green-900 dark:text-green-100">
-                      {leave.status === "AFASTADO" ? "Aprovado" : leave.status}
-                    </span>
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    {new Date(leave.startDate).toLocaleDateString()} a {new Date(leave.endDate).toLocaleDateString()} •{" "}
-                    {leave.days} dias • CID: {leave.cid}
-                  </p>
-                </div>
-                <div className="mt-2 flex items-center gap-4 sm:mt-0">
-                  <Button variant="ghost" size="sm">
-                    Ver Detalhes
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Data de Início</TableHead>
+                <TableHead>Data de Término</TableHead>
+                <TableHead>Dias</TableHead>
+                <TableHead>Motivo</TableHead>
+                <TableHead>Categoria</TableHead>
+                <TableHead>Status</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {medicalLeaveData.map((leave) => (
+                <TableRow key={leave.id}>
+                  <TableCell>{new Date(leave.startDate).toLocaleDateString()}</TableCell>
+                  <TableCell>{new Date(leave.endDate).toLocaleDateString()}</TableCell>
+                  <TableCell>{leave.days}</TableCell>
+                  <TableCell>{leave.reason}</TableCell>
+                  <TableCell>{leave.category}</TableCell>
+                  <TableCell>
+                    <Badge variant={leave.status === "AFASTADO" ? "destructive" : "default"}>
+                      {leave.status}
+                    </Badge>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </CardContent>
         <CardFooter>
           <Button variant="outline" className="w-full">

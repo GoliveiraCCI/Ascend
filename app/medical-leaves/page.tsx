@@ -120,6 +120,12 @@ interface Employee {
   matricula: string
 }
 
+interface MedicalLeaveCategory {
+  id: string
+  name: string
+  description: string
+}
+
 // Dados de exemplo para atestados médicos
 const medicalLeaves = [
   {
@@ -303,6 +309,9 @@ export default function MedicalLeavesPage() {
   const [filteredEmployees, setFilteredEmployees] = useState<Employee[]>([])
   const [departments, setDepartments] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
+  const [medicalLeaveCategories, setMedicalLeaveCategories] = useState<MedicalLeaveCategory[]>([])
+  const [isNewCategoryOpen, setIsNewCategoryOpen] = useState(false)
+  const [editingCategory, setEditingCategory] = useState<MedicalLeaveCategory | null>(null)
 
   // Estados para novo atestado
   const [newLeaveEmployee, setNewLeaveEmployee] = useState("")
@@ -323,7 +332,150 @@ export default function MedicalLeavesPage() {
   useEffect(() => {
     fetchMedicalLeaves()
     fetchEmployees()
+    fetchMedicalLeaveCategories()
   }, [departmentFilter, statusFilter, searchTerm])
+
+  const fetchMedicalLeaveCategories = async () => {
+    try {
+      const response = await fetch('/api/medical-leave-categories')
+      if (!response.ok) throw new Error('Erro ao buscar categorias')
+      const data = await response.json()
+      setMedicalLeaveCategories(data)
+    } catch (error) {
+      console.error('Erro ao buscar categorias:', error)
+      toast({
+        title: "Erro",
+        description: "Erro ao carregar categorias de afastamento",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const createCategory = async (category: { name: string; description: string }) => {
+    try {
+      const response = await fetch('/api/medical-leave-categories', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(category),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Erro ao criar categoria')
+      }
+
+      const data = await response.json()
+      await fetchMedicalLeaveCategories()
+      setIsNewCategoryOpen(false)
+      toast({
+        title: "Sucesso",
+        description: "Categoria criada com sucesso",
+      })
+    } catch (error) {
+      console.error('Erro ao criar categoria:', error)
+      toast({
+        title: "Erro",
+        description: error instanceof Error ? error.message : "Erro ao criar categoria",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const updateCategory = async (id: string, name: string, description: string) => {
+    try {
+      // Verifica se o ID existe
+      if (!id) {
+        throw new Error('ID da categoria é obrigatório')
+      }
+
+      // Verifica se os campos obrigatórios estão preenchidos
+      if (!name || !description) {
+        throw new Error('Nome e descrição são obrigatórios')
+      }
+
+      const response = await fetch(`/api/medical-leave-categories/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ name, description }),
+      })
+
+      // Verifica se a resposta é válida
+      if (!response.ok) {
+        const errorText = await response.text()
+        let errorMessage = 'Erro ao atualizar categoria'
+        
+        try {
+          const errorData = JSON.parse(errorText)
+          errorMessage = errorData.error || errorMessage
+        } catch (e) {
+          console.error('Erro ao processar resposta:', e)
+          errorMessage = errorText || errorMessage
+        }
+        
+        throw new Error(errorMessage)
+      }
+
+      // Processa a resposta de sucesso
+      const updatedCategory = await response.json()
+      
+      // Atualiza o estado
+      setMedicalLeaveCategories(prevCategories => 
+        prevCategories.map(cat => cat.id === id ? updatedCategory : cat)
+      )
+      
+      // Limpa o estado e fecha o diálogo
+      setIsNewCategoryOpen(false)
+      setEditingCategory(null)
+      
+      // Mostra mensagem de sucesso
+      toast({
+        title: "Sucesso",
+        description: "Categoria atualizada com sucesso",
+      })
+    } catch (error) {
+      console.error('Erro ao atualizar categoria:', error)
+      toast({
+        title: "Erro",
+        description: error instanceof Error ? error.message : "Erro ao atualizar categoria",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const deleteCategory = async (id: string) => {
+    try {
+      const response = await fetch(`/api/medical-leave-categories/${id}`, {
+        method: 'DELETE',
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Erro ao excluir categoria')
+      }
+
+      await fetchMedicalLeaveCategories()
+      toast({
+        title: "Sucesso",
+        description: "Categoria excluída com sucesso",
+      })
+    } catch (error) {
+      console.error('Erro ao excluir categoria:', error)
+      toast({
+        title: "Erro",
+        description: error instanceof Error ? error.message : "Erro ao excluir categoria",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const editCategory = (category: MedicalLeaveCategory) => {
+    setEditingCategory(category)
+    setIsNewCategoryOpen(true)
+  }
 
   // Buscar licenças médicas
   const fetchMedicalLeaves = async () => {
@@ -664,9 +816,10 @@ export default function MedicalLeavesPage() {
 
       <Tabs defaultValue="list" value={activeTab} onValueChange={setActiveTab} className="w-full">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <TabsList className="grid w-full grid-cols-2 md:w-auto">
+          <TabsList className="grid w-full grid-cols-3 md:w-auto">
             <TabsTrigger value="list">Lista de Atestados</TabsTrigger>
             <TabsTrigger value="analytics">Análises</TabsTrigger>
+            <TabsTrigger value="categories">Categorias</TabsTrigger>
           </TabsList>
           <div className="flex flex-wrap items-center gap-2">
             <Dialog open={isNewLeaveOpen} onOpenChange={setIsNewLeaveOpen}>
@@ -1487,6 +1640,60 @@ export default function MedicalLeavesPage() {
             </Card>
           </div>
         </TabsContent>
+
+        <TabsContent value="categories" className="animate-fade">
+          <Card>
+            <CardHeader>
+              <CardTitle>Categorias de Afastamento</CardTitle>
+              <CardDescription>Gerenciar categorias de afastamento médico</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="flex justify-end">
+                  <Button onClick={() => setIsNewCategoryOpen(true)}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Nova Categoria
+                  </Button>
+                </div>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nome</TableHead>
+                      <TableHead>Descrição</TableHead>
+                      <TableHead>Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {medicalLeaveCategories.map((category) => (
+                      <TableRow key={category.id}>
+                        <TableCell>{category.name}</TableCell>
+                        <TableCell>{category.description}</TableCell>
+                        <TableCell>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon">
+                                <MoreHorizontal className="h-4 w-4" />
+                                <span className="sr-only">Abrir menu</span>
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => editCategory(category)}>
+                                Editar
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => deleteCategory(category.id)}>
+                                Excluir
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
 
       <MedicalLeaveDialog
@@ -1498,6 +1705,68 @@ export default function MedicalLeavesPage() {
           fetchMedicalLeaves()
         }}
       />
+
+      {/* Dialog para nova categoria */}
+      <Dialog open={isNewCategoryOpen} onOpenChange={setIsNewCategoryOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>
+              {editingCategory ? 'Editar Categoria' : 'Nova Categoria'} de Afastamento
+            </DialogTitle>
+            <DialogDescription>
+              {editingCategory ? 'Edite' : 'Adicione'} uma categoria de afastamento médico
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="name">Nome</Label>
+              <Input
+                id="name"
+                value={editingCategory?.name || ''}
+                onChange={(e) => setEditingCategory(prev => prev ? { ...prev, name: e.target.value } : { id: '', name: e.target.value, description: '' })}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="description">Descrição</Label>
+              <Textarea
+                id="description"
+                value={editingCategory?.description || ''}
+                onChange={(e) => setEditingCategory(prev => prev ? { ...prev, description: e.target.value } : { id: '', name: '', description: e.target.value })}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setIsNewCategoryOpen(false)
+              setEditingCategory(null)
+            }}>
+              Cancelar
+            </Button>
+            <Button onClick={() => {
+              if (editingCategory && editingCategory.id) {
+                updateCategory(editingCategory.id, editingCategory.name, editingCategory.description)
+              } else {
+                const name = (document.getElementById('name') as HTMLInputElement)?.value
+                const description = (document.getElementById('description') as HTMLTextAreaElement)?.value
+                if (name && description) {
+                  createCategory({
+                    name: name.trim(),
+                    description: description.trim()
+                  })
+                } else {
+                  toast({
+                    title: "Erro",
+                    description: "Nome e descrição são obrigatórios",
+                    variant: "destructive",
+                  })
+                }
+              }
+            }}>
+              {editingCategory ? 'Atualizar' : 'Criar'} Categoria
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

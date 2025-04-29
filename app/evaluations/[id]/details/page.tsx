@@ -5,6 +5,7 @@ import { useRouter, useParams } from "next/navigation"
 import { ArrowLeft, Download, FileText, Printer, Send, User, Building2, UserCog, Calendar, UserCheck, UserCog2, CheckCircle, AlertCircle } from "lucide-react"
 import html2canvas from "html2canvas"
 import jsPDF from "jspdf"
+import { ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, Legend, Tooltip } from "recharts"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -507,52 +508,205 @@ export default function EvaluationDetailsPage() {
               </TabsList>
               <div id="evaluation-content">
                 <TabsContent value="overview" className="space-y-4">
-                  <div className="flex flex-col gap-4">
-                    <div className="flex items-center gap-4">
-                      <div className="flex items-center gap-2">
-                        <UserCog className="h-4 w-4" />
-                        <span className="text-sm font-medium">Gestor</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <User className="h-4 w-4" />
-                        <span className="text-sm font-medium">Colaborador</span>
-                      </div>
-                    </div>
+                  <div className="grid gap-6">
+                    {/* Primeiro Gráfico de Radar - Comparação de Notas */}
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Comparação de Notas por Categoria</CardTitle>
+                        <CardDescription>Autoavaliação vs Avaliação do Gestor vs Nota Esperada</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="h-[400px] w-full">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <RadarChart
+                              cx="50%"
+                              cy="50%"
+                              outerRadius="80%"
+                              data={Array.from(new Set(evaluation?.evaluationanswer?.map(a => a?.evaluationquestion?.category?.description) || []))
+                                .map(description => {
+                                  const categoryAnswers = evaluation?.evaluationanswer?.filter(
+                                    a => a?.evaluationquestion?.category?.description === description
+                                  ) || [];
+                                  
+                                  // Calcular médias apenas para respostas que têm notas
+                                  const validSelfScores = categoryAnswers.filter(a => a.selfScore !== null).map(a => a.selfScore as number);
+                                  const validManagerScores = categoryAnswers.filter(a => a.managerScore !== null).map(a => a.managerScore as number);
+                                  const validExpectedScores = categoryAnswers.map(a => a.evaluationquestion.expectedScore);
+                                  
+                                  const selfAverage = validSelfScores.length > 0 
+                                    ? Number((validSelfScores.reduce((acc, score) => acc + score, 0) / validSelfScores.length).toFixed(1))
+                                    : 0;
+                                  
+                                  const managerAverage = validManagerScores.length > 0
+                                    ? Number((validManagerScores.reduce((acc, score) => acc + score, 0) / validManagerScores.length).toFixed(1))
+                                    : 0;
+                                  
+                                  const expectedAverage = Number((validExpectedScores.reduce((acc, score) => acc + score, 0) / validExpectedScores.length).toFixed(1));
+                                  
+                                  return {
+                                    category: description,
+                                    autoavaliacao: selfAverage,
+                                    gestor: managerAverage,
+                                    esperada: expectedAverage,
+                                    notas: categoryAnswers.map(answer => ({
+                                      pergunta: answer.evaluationquestion.text,
+                                      autoavaliacao: answer.selfScore,
+                                      gestor: answer.managerScore,
+                                      esperada: answer.evaluationquestion.expectedScore
+                                    }))
+                                  };
+                                })}
+                            >
+                              <PolarGrid stroke="#e5e7eb" />
+                              <PolarAngleAxis 
+                                dataKey="category" 
+                                tick={{ fill: '#374151', fontSize: 12, fontWeight: 500 }}
+                                tickFormatter={(value) => value}
+                              />
+                              <PolarRadiusAxis 
+                                angle={30} 
+                                domain={[0, 10]} 
+                                tick={{ fill: '#374151', fontSize: 12, fontWeight: 500 }}
+                                tickFormatter={(value) => value.toFixed(1)}
+                              />
+                              <Radar
+                                name="Autoavaliação"
+                                dataKey="autoavaliacao"
+                                stroke="#3b82f6"
+                                fill="#3b82f6"
+                                fillOpacity={0.6}
+                              />
+                              <Radar
+                                name="Gestor"
+                                dataKey="gestor"
+                                stroke="#10b981"
+                                fill="#10b981"
+                                fillOpacity={0.6}
+                              />
+                              <Radar
+                                name="Esperada"
+                                dataKey="esperada"
+                                stroke="#f59e0b"
+                                fill="#f59e0b"
+                                fillOpacity={0.6}
+                              />
+                              <Legend 
+                                verticalAlign="bottom"
+                                align="center"
+                                wrapperStyle={{ 
+                                  paddingTop: '20px',
+                                  fontSize: '12px',
+                                  fontWeight: 500
+                                }}
+                              />
+                              <Tooltip 
+                                formatter={(value, name, props) => {
+                                  const notas = props.payload.notas;
+                                  return [
+                                    <div key="main" className="p-2">
+                                      <div className="font-medium">{props.payload.category}</div>
+                                      <div className="mt-1">
+                                        {name}: {value.toFixed(1)}
+                                      </div>
+                                      <div className="mt-2 text-sm">
+                                        <div className="font-medium mb-1">Notas por questão:</div>
+                                        {notas.map((nota: any, index: number) => (
+                                          <div key={index} className="text-xs">
+                                            <div className="font-medium">{nota.pergunta}</div>
+                                            <div className="grid grid-cols-3 gap-1 mt-1">
+                                              <span className="text-blue-600">Auto: {nota.autoavaliacao?.toFixed(1) || '-'}</span>
+                                              <span className="text-green-600">Gestor: {nota.gestor?.toFixed(1) || '-'}</span>
+                                              <span className="text-orange-600">Esperada: {nota.esperada.toFixed(1)}</span>
+                                            </div>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  ];
+                                }}
+                              />
+                            </RadarChart>
+                          </ResponsiveContainer>
+                        </div>
+                      </CardContent>
+                    </Card>
 
-                    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                      {evaluation?.evaluationanswer?.map((answer) => (
-                        <Card key={answer.id}>
-                          <CardHeader>
-                            <CardTitle className="text-base">{answer.evaluationquestion?.text || 'Questão sem título'}</CardTitle>
-                            <CardDescription>{answer.evaluationquestion?.description || ''}</CardDescription>
-                          </CardHeader>
-                          <CardContent className="flex flex-col gap-4">
-                            <div className="flex items-center gap-4">
-                              <div className="flex items-center gap-2">
-                                <Badge variant="outline" className={getScoreClass(answer.managerScore)}>
-                                  {answer.managerScore}
-                                </Badge>
-                                <span className="text-sm font-medium">{getScoreLabel(answer.managerScore)}</span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <Badge variant="outline" className={getScoreClass(answer.selfScore)}>
-                                  {answer.selfScore}
-                                </Badge>
-                                <span className="text-sm font-medium">{getScoreLabel(answer.selfScore)}</span>
-                              </div>
-                            </div>
-                            <div className="flex flex-col gap-2">
-                              <Label>Comentário do Gestor</Label>
-                              <Textarea value={answer.managerComment} readOnly />
-                            </div>
-                            <div className="flex flex-col gap-2">
-                              <Label>Comentário do Colaborador</Label>
-                              <Textarea value={answer.selfComment} readOnly />
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
+                    {/* Segundo Gráfico de Radar - Média Ponderada */}
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Média Ponderada por Categoria</CardTitle>
+                        <CardDescription>40% Autoavaliação + 60% Avaliação do Gestor</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="h-[400px] w-full">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <RadarChart
+                              cx="50%"
+                              cy="50%"
+                              outerRadius="80%"
+                              data={Array.from(new Set(evaluation?.evaluationanswer?.map(a => a?.evaluationquestion?.category?.description) || []))
+                                .map(description => {
+                                  const categoryAnswers = evaluation?.evaluationanswer?.filter(
+                                    a => a?.evaluationquestion?.category?.description === description
+                                  ) || [];
+                                  
+                                  // Calcular médias apenas para respostas que têm notas
+                                  const validSelfScores = categoryAnswers.filter(a => a.selfScore !== null).map(a => a.selfScore as number);
+                                  const validManagerScores = categoryAnswers.filter(a => a.managerScore !== null).map(a => a.managerScore as number);
+                                  const validExpectedScores = categoryAnswers.map(a => a.evaluationquestion.expectedScore);
+                                  
+                                  const selfAverage = validSelfScores.length > 0 
+                                    ? Number((validSelfScores.reduce((acc, score) => acc + score, 0) / validSelfScores.length).toFixed(1))
+                                    : 0;
+                                  
+                                  const managerAverage = validManagerScores.length > 0
+                                    ? Number((validManagerScores.reduce((acc, score) => acc + score, 0) / validManagerScores.length).toFixed(1))
+                                    : 0;
+                                  
+                                  const expectedAverage = Number((validExpectedScores.reduce((acc, score) => acc + score, 0) / validExpectedScores.length).toFixed(1));
+                                  
+                                  return {
+                                    category: description,
+                                    media: Number(((selfAverage * 0.4) + (managerAverage * 0.6)).toFixed(1))
+                                  };
+                                })}
+                            >
+                              <PolarGrid stroke="#e5e7eb" />
+                              <PolarAngleAxis 
+                                dataKey="category" 
+                                tick={{ fill: '#374151', fontSize: 12, fontWeight: 500 }}
+                                tickFormatter={(value) => value}
+                              />
+                              <PolarRadiusAxis 
+                                angle={30} 
+                                domain={[0, 10]} 
+                                tick={{ fill: '#374151', fontSize: 12, fontWeight: 500 }}
+                                tickFormatter={(value) => value.toFixed(1)}
+                              />
+                              <Radar
+                                name="Média Ponderada"
+                                dataKey="media"
+                                stroke="#8b5cf6"
+                                fill="#8b5cf6"
+                                fillOpacity={0.6}
+                              />
+                              <Legend 
+                                verticalAlign="bottom"
+                                align="center"
+                                wrapperStyle={{ 
+                                  paddingTop: '20px',
+                                  fontSize: '12px',
+                                  fontWeight: 500
+                                }}
+                              />
+                              <Tooltip 
+                                formatter={(value) => value.toFixed(1)}
+                              />
+                            </RadarChart>
+                          </ResponsiveContainer>
+                        </div>
+                      </CardContent>
+                    </Card>
                   </div>
                 </TabsContent>
 
@@ -573,20 +727,20 @@ export default function EvaluationDetailsPage() {
 
                   {/* Questões */}
                   <div className="grid gap-1">
-                    {Array.from(new Set(evaluation?.evaluationanswer?.map(answer => answer?.evaluationquestion?.category?.name) || [])).map(category => {
+                    {Array.from(new Set(evaluation?.evaluationanswer?.map(answer => answer?.evaluationquestion?.category?.description) || [])).map(description => {
                       // Calcular a média da categoria
                       const categoryAnswers = evaluation?.evaluationanswer?.filter(
-                        answer => answer?.evaluationquestion?.category?.name === category
+                        answer => answer?.evaluationquestion?.category?.description === description
                       ) || [];
                       const selfAverage = categoryAnswers.reduce((acc, answer) => acc + (answer?.selfScore ?? 0), 0) / (categoryAnswers.length || 1);
                       const managerAverage = categoryAnswers.reduce((acc, answer) => acc + (answer?.managerScore ?? 0), 0) / (categoryAnswers.length || 1);
                       const finalAverage = Number(((selfAverage * 0.4) + (managerAverage * 0.6)).toFixed(1));
                       
                       return (
-                        <Card key={category} className="border border-gray-300 hover:border-gray-400 transition-colors">
+                        <Card key={description} className="border border-gray-300 hover:border-gray-400 transition-colors">
                           <CardHeader className="bg-gray-50 p-2 border-b border-gray-300">
                             <div className="flex items-center justify-between">
-                              <CardTitle className="text-base font-bold">{category}</CardTitle>
+                              <CardTitle className="text-base font-bold">{description}</CardTitle>
                               <div className="flex items-center gap-2">
                                 <div className="flex items-center gap-1">
                                   <Badge variant="secondary" className="bg-blue-100 text-blue-700 hover:bg-blue-100 px-1.5 py-0.5">
@@ -639,7 +793,7 @@ export default function EvaluationDetailsPage() {
                           <CardContent className="p-2">
                             <div className="grid gap-1">
                               {evaluation.evaluationanswer
-                                ?.filter(answer => answer?.evaluationquestion?.category?.name === category)
+                                ?.filter(answer => answer?.evaluationquestion?.category?.description === description)
                                 ?.map((answer) => (
                                   <Card key={answer.id} className="overflow-hidden border border-gray-300 hover:border-gray-400 transition-colors">
                                     <CardHeader className="bg-gray-50 p-2 border-b border-gray-300">
@@ -928,15 +1082,15 @@ export default function EvaluationDetailsPage() {
                   {/* Questões do Template */}
                   {evaluation?.evaluationtemplate && (
                     <div className="space-y-6">
-                      {Array.from(new Set(evaluation?.evaluationtemplate?.questions?.map(q => q?.category?.name) || [])).map(category => (
-                        <Card key={category}>
+                      {Array.from(new Set(evaluation?.evaluationtemplate?.questions?.map(q => q?.category?.description) || [])).map(description => (
+                        <Card key={description}>
                           <CardHeader>
-                            <CardTitle>{category}</CardTitle>
+                            <CardTitle>{description}</CardTitle>
                           </CardHeader>
                           <CardContent>
                             <div className="space-y-4">
                               {evaluation.evaluationanswer
-                                ?.filter(answer => answer?.evaluationquestion?.category?.name === category)
+                                ?.filter(answer => answer?.evaluationquestion?.category?.description === description)
                                 ?.map((answer) => (
                                   <div key={answer.id} className="space-y-2">
                                     <div className="flex items-start justify-between">
