@@ -128,11 +128,25 @@ export function EvaluationsDialog({
     }
   }
 
-  const calculateFinalScore = (averageScore: number) => {
-    // Cálculo da nota final usando proporção 40/60
-    const technicalScore = averageScore * 0.4
-    const behavioralScore = averageScore * 0.6
-    return (technicalScore + behavioralScore).toFixed(1)
+  const calculateFinalScore = (evaluation: Evaluation) => {
+    if (!evaluation.answers || evaluation.answers.length === 0) {
+      return null
+    }
+
+    // Calcular médias apenas para respostas que têm notas
+    const validSelfScores = evaluation.answers.filter(a => a.selfScore !== null).map(a => a.selfScore as number)
+    const validManagerScores = evaluation.answers.filter(a => a.managerScore !== null).map(a => a.managerScore as number)
+
+    if (validSelfScores.length === 0 || validManagerScores.length === 0) {
+      return null
+    }
+
+    const selfAverage = Number((validSelfScores.reduce((acc, score) => acc + score, 0) / validSelfScores.length).toFixed(1))
+    const managerAverage = Number((validManagerScores.reduce((acc, score) => acc + score, 0) / validManagerScores.length).toFixed(1))
+
+    // Calcular a média ponderada usando 40% da autoavaliação e 60% da avaliação do gestor
+    const weightedScore = (selfAverage * 0.4) + (managerAverage * 0.6)
+    return Number(weightedScore.toFixed(1))
   }
 
   return (
@@ -165,7 +179,9 @@ export function EvaluationsDialog({
                   <TableCell>
                     {new Date(evaluation.date).toLocaleDateString('pt-BR')}
                   </TableCell>
-                  <TableCell>{evaluation.finalScore?.toFixed(1) || '-'}</TableCell>
+                  <TableCell>
+                    {calculateFinalScore(evaluation)?.toFixed(1) || '-'}
+                  </TableCell>
                   <TableCell>
                     <Badge className={getStatusColor(evaluation.status)}>
                       {evaluation.status}

@@ -23,10 +23,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
   const navigation = [
     { name: "Dashboard", href: "/", icon: LayoutDashboard },
-    { name: "Formulários", href: "/forms", icon: ClipboardList },
+    { name: "Cadastros", href: "/forms", icon: ClipboardList },
     { name: "Avaliações", href: "/evaluations", icon: Star },
     { name: "Treinamentos", href: "/trainings", icon: GraduationCap },
-    { name: "Licenças Médicas", href: "/medical-leaves", icon: Stethoscope },
+    { name: "Afastamentos", href: "/medical-leaves", icon: Stethoscope },
     { name: "Uploads", href: "/bulk-import", icon: FileUp },
   ]
 

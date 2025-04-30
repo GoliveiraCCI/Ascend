@@ -12,57 +12,71 @@ export async function GET(request: Request) {
     startDate.setDate(startDate.getDate() - parseInt(timeRange))
 
     // Buscar dados básicos
-    const [totalEmployees, activeEmployees, pendingEvaluations, activeMedicalLeaves, completedTrainings] = await Promise.all([
-      prisma.employee.count(),
-      prisma.employee.count({ where: { active: true } }),
-      prisma.evaluation.count({ where: { status: "Pendente" } }),
-      prisma.medicalleave.count({ where: { status: "AFASTADO" } }),
-      prisma.training.count({ where: { status: "Concluído" } })
-    ])
+    const totalEmployees = await prisma.employee.count()
+    const activeEmployees = await prisma.employee.count({
+      where: { active: true }
+    })
+    const pendingEvaluations = await prisma.evaluation.count({
+      where: { status: "PENDENTE" }
+    })
+    const activeMedicalLeaves = await prisma.medicalleave.count({
+      where: { status: "ATIVO" }
+    })
+    const completedTrainings = await prisma.training.count({
+      where: { status: "CONCLUIDO" }
+    })
 
-    // Buscar estatísticas por departamento
+    // Buscar departamentos
     const departments = await prisma.department.findMany({
       include: {
         employee: {
           include: {
-            evaluation: true,
-            medicalleave: true
-          }
-        },
-        training: true
-      }
-    })
-
-    const departmentStats = departments.map(dept => ({
-      name: dept.name,
-      employees: dept.employee?.length || 0,
-      evaluations: dept.employee?.reduce((acc, emp) => acc + (emp.evaluation?.length || 0), 0) || 0,
-      leaves: dept.employee?.reduce((acc, emp) => acc + (emp.medicalleave?.length || 0), 0) || 0,
-      trainings: dept.training?.length || 0
-    }))
-
-    // Buscar médias de pontuação por departamento
-    const evaluations = await prisma.evaluation.findMany({
-      where: {
-        finalScore: { not: null }
-      },
-      include: {
-        employee: {
-          include: {
-            department: true
+            evaluation: {
+              include: {
+                evaluationanswer: true
+              }
+            },
+            medicalleave: true,
+            trainingparticipant: true
           }
         }
       }
     })
 
+    // Calcular estatísticas por departamento
+    const departmentStats = departments.map(dept => ({
+      name: dept.name,
+      employees: dept.employee.length,
+      evaluations: dept.employee.reduce((acc, emp) => acc + emp.evaluation.length, 0),
+      leaves: dept.employee.reduce((acc, emp) => acc + emp.medicalleave.length, 0),
+      trainings: dept.employee.reduce((acc, emp) => acc + emp.trainingparticipant.length, 0)
+    }))
+
+    // Calcular pontuação média por departamento
     const evaluationScores = departments.map(dept => {
-      const deptEvaluations = evaluations.filter(evaluation => evaluation.employee?.departmentId === dept.id)
-      const averageScore = deptEvaluations.length > 0
-        ? deptEvaluations.reduce((acc, evaluation) => acc + (evaluation.finalScore || 0), 0) / deptEvaluations.length
+      const deptEvaluations = dept.employee.flatMap(emp => emp.evaluation)
+      const validEvaluations = deptEvaluations.filter(evaluation => {
+        const validAnswers = evaluation.evaluationanswer.filter(answer => 
+          answer.selfScore !== null && answer.managerScore !== null
+        )
+        return validAnswers.length > 0
+      })
+
+      const averageScore = validEvaluations.length > 0
+        ? validEvaluations.reduce((acc, evaluation) => {
+            const validAnswers = evaluation.evaluationanswer.filter(answer => 
+              answer.selfScore !== null && answer.managerScore !== null
+            )
+            const selfAverage = validAnswers.reduce((sum, answer) => sum + (answer.selfScore || 0), 0) / validAnswers.length
+            const managerAverage = validAnswers.reduce((sum, answer) => sum + (answer.managerScore || 0), 0) / validAnswers.length
+            const weightedScore = (selfAverage * 0.4) + (managerAverage * 0.6)
+            return acc + weightedScore
+          }, 0) / validEvaluations.length
         : 0
+
       return {
         department: dept.name,
-        averageScore
+        averageScore: Number(averageScore.toFixed(1))
       }
     })
 
@@ -89,15 +103,9 @@ export async function GET(request: Request) {
     }))
 
     // Buscar top performers
-    const topPerformers = await prisma.evaluation.findMany({
-      where: {
-        finalScore: { not: null }
-      },
-      orderBy: {
-        finalScore: "desc"
-      },
-      take: 10,
+    const evaluations = await prisma.evaluation.findMany({
       include: {
+        evaluationanswer: true,
         employee: {
           include: {
             department: true
@@ -106,12 +114,28 @@ export async function GET(request: Request) {
       }
     })
 
-    const formattedTopPerformers = topPerformers.map(evaluation => ({
-      id: evaluation.employee?.id || "unknown",
-      name: evaluation.employee?.name || "Desconhecido",
-      department: evaluation.employee?.department?.name || "Sem departamento",
-      score: evaluation.finalScore || 0
-    }))
+    const topPerformers = evaluations
+      .map(evaluation => {
+        const validAnswers = evaluation.evaluationanswer.filter(answer => 
+          answer.selfScore !== null && answer.managerScore !== null
+        )
+        
+        if (validAnswers.length === 0) return null
+
+        const selfAverage = validAnswers.reduce((sum, answer) => sum + (answer.selfScore || 0), 0) / validAnswers.length
+        const managerAverage = validAnswers.reduce((sum, answer) => sum + (answer.managerScore || 0), 0) / validAnswers.length
+        const weightedScore = (selfAverage * 0.4) + (managerAverage * 0.6)
+
+        return {
+          id: evaluation.employee?.id || "unknown",
+          name: evaluation.employee?.name || "Desconhecido",
+          department: evaluation.employee?.department?.name || "Sem departamento",
+          score: Number(weightedScore.toFixed(1))
+        }
+      })
+      .filter((evaluation): evaluation is NonNullable<typeof evaluation> => evaluation !== null)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 10)
 
     // Buscar métricas de desempenho
     const performanceMetrics = [
@@ -132,7 +156,7 @@ export async function GET(request: Request) {
       evaluationScores,
       trainingStats,
       leaveReasons,
-      topPerformers: formattedTopPerformers,
+      topPerformers,
       performanceMetrics
     })
   } catch (error) {

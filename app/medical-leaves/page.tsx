@@ -126,7 +126,7 @@ interface MedicalLeaveCategory {
   description: string
 }
 
-// Dados de exemplo para atestados médicos
+// Dados de exemplo para Afastamentos
 const medicalLeaves = [
   {
     id: "ML001",
@@ -312,6 +312,7 @@ export default function MedicalLeavesPage() {
   const [medicalLeaveCategories, setMedicalLeaveCategories] = useState<MedicalLeaveCategory[]>([])
   const [isNewCategoryOpen, setIsNewCategoryOpen] = useState(false)
   const [editingCategory, setEditingCategory] = useState<MedicalLeaveCategory | null>(null)
+  const [categoryStats, setCategoryStats] = useState<any[]>([])
 
   // Estados para novo atestado
   const [newLeaveEmployee, setNewLeaveEmployee] = useState("")
@@ -333,6 +334,7 @@ export default function MedicalLeavesPage() {
     fetchMedicalLeaves()
     fetchEmployees()
     fetchMedicalLeaveCategories()
+    fetchCategoryStats()
   }, [departmentFilter, statusFilter, searchTerm])
 
   const fetchMedicalLeaveCategories = async () => {
@@ -346,6 +348,22 @@ export default function MedicalLeavesPage() {
       toast({
         title: "Erro",
         description: "Erro ao carregar categorias de afastamento",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const fetchCategoryStats = async () => {
+    try {
+      const response = await fetch('/api/medical-leaves/categories/stats')
+      if (!response.ok) throw new Error('Erro ao buscar estatísticas das categorias')
+      const data = await response.json()
+      setCategoryStats(data)
+    } catch (error) {
+      console.error('Erro ao buscar estatísticas das categorias:', error)
+      toast({
+        title: "Erro",
+        description: "Erro ao carregar estatísticas das categorias",
         variant: "destructive",
       })
     }
@@ -810,8 +828,8 @@ export default function MedicalLeavesPage() {
   return (
     <div className="animate-in flex flex-col gap-8 p-4 md:p-8">
       <div className="flex flex-col gap-2">
-        <h1 className="font-heading text-3xl">Atestados Médicos</h1>
-        <p className="text-muted-foreground">Gerenciar e acompanhar atestados médicos dos funcionários</p>
+        <h1 className="font-heading text-3xl">Afastamentos</h1>
+        <p className="text-muted-foreground">Gerenciar e acompanhar Afastamentos dos funcionários</p>
       </div>
 
       <Tabs defaultValue="list" value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -1029,8 +1047,8 @@ export default function MedicalLeavesPage() {
             <Dialog open={isEditLeaveOpen} onOpenChange={setIsEditLeaveOpen}>
               <DialogContent className="sm:max-w-[600px]">
                 <DialogHeader>
-                  <DialogTitle>Editar Atestado Médico</DialogTitle>
-                  <DialogDescription>Atualize as informações do atestado médico</DialogDescription>
+                  <DialogTitle>Editar afastamento</DialogTitle>
+                  <DialogDescription>Atualize as informações do afastamento</DialogDescription>
                 </DialogHeader>
                 {editingLeave && (
                   <div className="grid gap-4 py-4">
@@ -1280,7 +1298,7 @@ export default function MedicalLeavesPage() {
           <div className="mt-4 grid gap-4 md:grid-cols-3">
             <Card className="animate-scale">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total de Atestados</CardTitle>
+                <CardTitle className="text-sm font-medium">Afastamentos</CardTitle>
                 <AlertTriangle className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
@@ -1290,7 +1308,7 @@ export default function MedicalLeavesPage() {
             </Card>
             <Card className="animate-scale [animation-delay:100ms]">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Atestados Ativos</CardTitle>
+                <CardTitle className="text-sm font-medium">Afastamentos Ativos</CardTitle>
                 <Calendar className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
@@ -1312,8 +1330,8 @@ export default function MedicalLeavesPage() {
 
           <Card className="mt-4">
             <CardHeader>
-              <CardTitle>Lista de Atestados Médicos</CardTitle>
-              <CardDescription>Visualizar e gerenciar todos os atestados médicos</CardDescription>
+              <CardTitle>Lista de Afastamentos</CardTitle>
+              <CardDescription>Visualizar e gerenciar todos os Afastamentos</CardDescription>
             </CardHeader>
             <CardContent>
               <Table>
@@ -1413,8 +1431,8 @@ export default function MedicalLeavesPage() {
           <div className="grid gap-4">
             <Card>
               <CardHeader>
-                <CardTitle>Dias de Atestado por Mês</CardTitle>
-                <CardDescription>Distribuição de dias de atestado ao longo do tempo</CardDescription>
+                <CardTitle>Dias perdidos de afastamento por Mês</CardTitle>
+                <CardDescription>Distribuição de dias de afastamento ao longo do tempo</CardDescription>
               </CardHeader>
               <CardContent className="px-2">
                 <div className="h-[250px] w-full">
@@ -1443,7 +1461,7 @@ export default function MedicalLeavesPage() {
             <Card>
               <CardHeader>
                 <CardTitle>Distribuição por Departamento</CardTitle>
-                <CardDescription>Total de dias de atestado por departamento</CardDescription>
+                <CardDescription>Total de dias de afastamento por departamento</CardDescription>
               </CardHeader>
               <CardContent className="px-2">
                 <div className="h-[250px] w-full">
@@ -1500,14 +1518,14 @@ export default function MedicalLeavesPage() {
 
             <Card>
               <CardHeader>
-                <CardTitle>Atestados por Categoria</CardTitle>
-                <CardDescription>Distribuição de atestados por categoria de licença</CardDescription>
+                <CardTitle>Afastamento por Categoria</CardTitle>
+                <CardDescription>Distribuição de Afastamento por categoria de licença</CardDescription>
               </CardHeader>
               <CardContent className="px-2">
                 <div className="h-[400px] w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart
-                      data={categoryData}
+                      data={categoryStats}
                       layout="vertical"
                       margin={{
                         top: 20,
@@ -1526,8 +1544,8 @@ export default function MedicalLeavesPage() {
                       />
                       <RechartsTooltip contentStyle={{ fontSize: 12 }} />
                       <Legend wrapperStyle={{ fontSize: 12 }} />
-                      <Bar dataKey="quantidade" name="Quantidade" fill={MODERN_COLORS[2]} />
-                      <Bar dataKey="dias" name="Dias" fill={MODERN_COLORS[3]} />
+                      <Bar dataKey="total" name="Quantidade" fill={MODERN_COLORS[2]} />
+                      <Bar dataKey="days" name="Dias" fill={MODERN_COLORS[3]} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -1577,8 +1595,8 @@ export default function MedicalLeavesPage() {
 
             <Card>
               <CardHeader>
-                <CardTitle>Análise de Atestados por Turno</CardTitle>
-                <CardDescription>Distribuição de atestados por turno de trabalho</CardDescription>
+                <CardTitle>Análise de afastamento por Turno</CardTitle>
+                <CardDescription>Distribuição de afastamento por turno de trabalho</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">

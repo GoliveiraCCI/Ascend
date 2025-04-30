@@ -35,7 +35,7 @@ export function ImportExportModal({ type, entityType, trigger }: ImportExportMod
     employees: "Funcionários",
     evaluations: "Avaliações",
     trainings: "Treinamentos",
-    "medical-leaves": "Atestados Médicos",
+    "medical-leaves": "Afastamentos",
     departments: "Departamentos",
   }
 

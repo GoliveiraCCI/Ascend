@@ -78,10 +78,11 @@ export async function PUT(
         employeeId: data.employeeId,
         evaluatorId: data.evaluatorId,
         templateId: data.templateId,
-        status: data.status,
+        // Atualizar o status para CONCLUIDA quando houver respostas
+        status: data.evaluationanswer.some(a => a.selfScore !== null || a.managerScore !== null) ? "CONCLUIDA" : "Pendente",
         // Atualizar os status baseado nas respostas
-        selfEvaluationStatus: data.evaluationanswer.some(a => a.selfScore !== null) ? "Concluída" : "Pendente",
-        managerEvaluationStatus: data.evaluationanswer.some(a => a.managerScore !== null) ? "Concluída" : "Pendente",
+        selfEvaluationStatus: data.evaluationanswer.some(a => a.selfScore !== null) ? "CONCLUIDA" : "Pendente",
+        managerEvaluationStatus: data.evaluationanswer.some(a => a.managerScore !== null) ? "CONCLUIDA" : "Pendente",
         selfStrengths: data.selfStrengths || "",
         selfImprovements: data.selfImprovements || "",
         selfGoals: data.selfGoals || "",
@@ -106,7 +107,6 @@ export async function PUT(
             managerScore: answer.managerScore || 0,
             selfComment: answer.selfComment || "",
             managerComment: answer.managerComment || "",
-            expectedScore: answer.expectedScore || 0,
           },
         })
       }

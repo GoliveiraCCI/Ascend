@@ -208,7 +208,7 @@ export default function DashboardPage() {
         <TabsList>
           <TabsTrigger value="overview">Avaliações</TabsTrigger>
           <TabsTrigger value="training">Treinamentos</TabsTrigger>
-          <TabsTrigger value="leaves">Atestados</TabsTrigger>
+          <TabsTrigger value="leaves">Afastamentos</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
@@ -237,7 +237,7 @@ export default function DashboardPage() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Atestados Ativos</CardTitle>
+            <CardTitle className="text-sm font-medium">Afastamentos</CardTitle>
           </CardHeader>
           <CardContent>
                 <div className="text-2xl font-bold">{dashboardData.activeMedicalLeaves}</div>
@@ -300,14 +300,19 @@ export default function DashboardPage() {
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis 
                       dataKey="month" 
-                      tick={{ fontSize: 12, angle: -45, textAnchor: 'end' }}
+                      tick={{ fontSize: 12 }}
+                      angle={-45}
+                      textAnchor="end"
                       height={60}
                     />
                     <YAxis 
                       tick={{ fontSize: 12 }}
                       domain={[0, 5]}
                     />
-                    <Tooltip />
+                    <Tooltip 
+                      formatter={(value) => [`${Number(value).toFixed(1)}`, "Nota Média"]}
+                      labelFormatter={(label) => `Mês: ${label}`}
+                    />
                     <Line
                       type="monotone"
                       dataKey="averageScore"
@@ -612,8 +617,8 @@ export default function DashboardPage() {
           <div className="grid gap-4">
           <Card>
             <CardHeader>
-                <CardTitle>Dias de Atestado por Mês</CardTitle>
-                <CardDescription>Distribuição de dias de atestado ao longo do tempo</CardDescription>
+                <CardTitle>Dias perdidos por mês</CardTitle>
+                <CardDescription>Distribuição de dias perdidos por afastamentos ao longo do tempo</CardDescription>
             </CardHeader>
               <CardContent className="px-2">
                 <div className="h-[250px] w-full">
@@ -642,7 +647,7 @@ export default function DashboardPage() {
           <Card>
             <CardHeader>
                 <CardTitle>Distribuição por Departamento</CardTitle>
-                <CardDescription>Total de dias de atestado por departamento</CardDescription>
+                <CardDescription>Total de dias de afastamentos por departamento</CardDescription>
               </CardHeader>
               <CardContent className="px-2">
                 <div className="h-[250px] w-full">
@@ -699,14 +704,17 @@ export default function DashboardPage() {
 
             <Card>
               <CardHeader>
-                <CardTitle>Atestados por Categoria</CardTitle>
-                <CardDescription>Distribuição de atestados por categoria de licença</CardDescription>
+                <CardTitle>Afastamento por Categoria</CardTitle>
+                <CardDescription>Distribuição de Afastamento por categoria de licença</CardDescription>
               </CardHeader>
               <CardContent className="px-2">
                 <div className="h-[400px] w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart
-                      data={dashboardData.medicalLeaves.byReason}
+                      data={dashboardData.medicalLeaves.byReason.map(item => ({
+                        ...item,
+                        name: item.reason
+                      }))}
                       layout="vertical"
                       margin={{
                         top: 20,
@@ -719,7 +727,7 @@ export default function DashboardPage() {
                       <XAxis type="number" tick={{ fontSize: 12 }} />
                       <YAxis 
                         type="category" 
-                        dataKey="reason"
+                        dataKey="name"
                         width={120}
                         tick={{ fontSize: 11 }}
                       />

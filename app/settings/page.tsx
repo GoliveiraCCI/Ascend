@@ -202,7 +202,7 @@ export default function SettingsPage() {
                       <Switch id="email-training" defaultChecked />
                     </div>
                     <div className="flex items-center justify-between">
-                      <Label htmlFor="email-leave">Atestados Médicos</Label>
+                      <Label htmlFor="email-leave">Afastamentos</Label>
                       <Switch id="email-leave" defaultChecked />
                     </div>
                     <div className="flex items-center justify-between">
@@ -232,7 +232,7 @@ export default function SettingsPage() {
                       <Switch id="push-training" defaultChecked />
                     </div>
                     <div className="flex items-center justify-between">
-                      <Label htmlFor="push-leave">Atestados Médicos</Label>
+                      <Label htmlFor="push-leave">Afastamentos</Label>
                       <Switch id="push-leave" defaultChecked />
                     </div>
                     <div className="flex items-center justify-between">

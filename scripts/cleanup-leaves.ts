@@ -6,7 +6,7 @@ async function cleanupLeaves() {
   try {
     // Primeiro, contar quantos atestados existem
     const totalLeaves = await prisma.medicalleave.count()
-    console.log(`Total de atestados: ${totalLeaves}`)
+    console.log(`Afastamentos: ${totalLeaves}`)
 
     if (totalLeaves <= 5) {
       console.log("Já existem 5 ou menos atestados. Nenhuma ação necessária.")

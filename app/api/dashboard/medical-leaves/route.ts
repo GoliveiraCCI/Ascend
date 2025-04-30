@@ -13,6 +13,12 @@ export async function GET() {
         endDate: true,
         days: true,
         reason: true,
+        medicalleavecategory: {
+          select: {
+            name: true,
+            description: true
+          }
+        },
         employee: {
           select: {
             department: {
@@ -49,17 +55,17 @@ export async function GET() {
       return acc
     }, {} as Record<string, { total: number; days: number; employees: Set<string> }>)
 
-    // Agrupar por motivo (CID)
+    // Agrupar por categoria
     const leavesByReason = medicalLeaves.reduce((acc, leave) => {
-      const reason = leave.reason || "Não informado"
-      if (!acc[reason]) {
-        acc[reason] = {
+      const categoryName = leave.medicalleavecategory?.name || leave.reason
+      if (!acc[categoryName]) {
+        acc[categoryName] = {
           total: 0,
           days: 0
         }
       }
-      acc[reason].total++
-      acc[reason].days += leave.days
+      acc[categoryName].total++
+      acc[categoryName].days += leave.days
       return acc
     }, {} as Record<string, { total: number; days: number }>)
 
@@ -77,6 +83,15 @@ export async function GET() {
       return acc
     }, {} as Record<string, { total: number; days: number }>)
 
+    // Converter para array e ordenar
+    const byReason = Object.entries(leavesByReason)
+      .map(([reason, stats]) => ({
+        reason,
+        total: stats.total,
+        days: stats.days
+      }))
+      .sort((a, b) => b.total - a.total)
+
     // Formatar dados para o frontend
     const analytics = {
       totalLeaves,
@@ -88,11 +103,7 @@ export async function GET() {
         days: data.days,
         employees: data.employees.size
       })),
-      byReason: Object.entries(leavesByReason).map(([reason, data]) => ({
-        reason,
-        total: data.total,
-        days: data.days
-      })),
+      byReason,
       byMonth: Object.entries(leavesByMonth).map(([month, data]) => ({
         month,
         total: data.total,

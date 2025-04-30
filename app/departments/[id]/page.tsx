@@ -761,7 +761,7 @@ export default function DepartmentDetailsPage({ params }: { params: Promise<{ id
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             <Card className="lg:col-span-2">
               <CardHeader>
-                <CardTitle>Tendência de Atestados Médicos</CardTitle>
+                <CardTitle>Tendência de Afastamentos</CardTitle>
                 <CardDescription>Dias de atestado médico ao longo do tempo</CardDescription>
               </CardHeader>
               <CardContent className="px-2">
@@ -862,8 +862,8 @@ export default function DepartmentDetailsPage({ params }: { params: Promise<{ id
           <div className="mt-4">
             <Card>
               <CardHeader>
-                <CardTitle>Atestados Médicos Recentes</CardTitle>
-                <CardDescription>Registros recentes de atestados médicos</CardDescription>
+                <CardTitle>Afastamentos Recentes</CardTitle>
+                <CardDescription>Registros recentes de Afastamentos</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">

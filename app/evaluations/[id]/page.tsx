@@ -332,6 +332,7 @@ export default function EvaluationPage({ params }: EvaluationPageProps) {
     switch (status) {
       case "Finalizado":
       case "Concluída":
+      case "CONCLUIDA":
         return "success"
       case "Pendente":
         return "destructive"
@@ -344,6 +345,7 @@ export default function EvaluationPage({ params }: EvaluationPageProps) {
     switch (status) {
       case "Finalizado":
       case "Concluída":
+      case "CONCLUIDA":
         return <CheckCircle className="h-4 w-4" />
       case "Pendente":
         return <Clock className="h-4 w-4" />

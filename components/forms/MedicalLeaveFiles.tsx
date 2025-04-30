@@ -30,7 +30,7 @@ interface MedicalLeaveFilesProps {
 
 export function MedicalLeaveFiles({
   medicalLeaveId,
-  files,
+  files = [],
   onFilesChange,
 }: MedicalLeaveFilesProps) {
   const { toast } = useToast()

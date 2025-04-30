@@ -74,7 +74,7 @@ export const templates: Record<string, Template> = {
       "Status",
       "Categoria"
     ],
-    description: "Modelo para importação de atestados médicos",
+    description: "Modelo para importação de Afastamentos",
     exampleData: [
       {
         "CPF do Funcionario": "123.456.789-01",

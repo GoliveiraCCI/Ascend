@@ -47,9 +47,10 @@ interface MedicalLeaveDetails {
   hospital: string | null
   status: "FINALIZADO" | "AFASTADO"
   notes: string | null
-  category?: {
+  medicalleavecategory?: {
     id: string
     name: string
+    description: string
   }
   files: {
     id: string
@@ -141,19 +142,19 @@ export default function MedicalLeaveDetailsPage() {
   return (
     <div className="container mx-auto py-8 space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">Detalhes do Afastamento Médico</h1>
+        <h1 className="text-3xl font-bold">Detalhes do Afastamento</h1>
         <div className="flex gap-2">
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button variant="destructive">
-                Excluir Atestado
+                Excluir afastamento
               </Button>
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
-                <AlertDialogTitle>Excluir Atestado Médico</AlertDialogTitle>
+                <AlertDialogTitle>Excluir Afastamento</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Tem certeza que deseja excluir este atestado médico? Esta ação não pode ser desfeita.
+                  Tem certeza que deseja excluir este afastamento? Esta ação não pode ser desfeita.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
@@ -205,7 +206,7 @@ export default function MedicalLeaveDetailsPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Informações do Atestado</CardTitle>
+            <CardTitle>Informações do afastamento</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
@@ -225,6 +226,18 @@ export default function MedicalLeaveDetailsPage() {
                 <span className="font-semibold">Motivo:</span>{" "}
                 {medicalLeave.reason}
               </p>
+              {medicalLeave.medicalleavecategory && (
+                <>
+                  <p>
+                    <span className="font-semibold">Categoria:</span>{" "}
+                    {medicalLeave.medicalleavecategory.name}
+                  </p>
+                  <p>
+                    <span className="font-semibold">Descrição da Categoria:</span>{" "}
+                    {medicalLeave.medicalleavecategory.description}
+                  </p>
+                </>
+              )}
               {medicalLeave.doctor && (
                 <p>
                   <span className="font-semibold">Médico:</span>{" "}

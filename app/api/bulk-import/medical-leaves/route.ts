@@ -88,7 +88,7 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error('Erro ao processar importação:', error);
     return NextResponse.json(
-      { error: 'Erro ao processar importação de atestados médicos' },
+      { error: 'Erro ao processar importação de Afastamentos' },
       { status: 500 }
     );
   }

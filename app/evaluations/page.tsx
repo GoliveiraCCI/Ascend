@@ -222,7 +222,7 @@ const getScoreLabel = (score: number | null) => {
 // Função para determinar a variante do Badge com base no status
 const getStatusBadgeVariant = (status: string | null | undefined) => {
   if (!status) return "destructive";
-  return status === "Concluída" ? "success" : "destructive";
+  return status === "Concluída" || status === "CONCLUIDA" ? "success" : "destructive";
 };
 
 // Função para obter o ícone com base no status
@@ -422,7 +422,38 @@ export default function EvaluationsPage() {
       const data = await response.json()
       
       if (response.ok) {
-        setEvaluations(data)
+        // Calcular as médias das notas para cada avaliação
+        const evaluationsWithScores = data.map((evaluation: any) => {
+          // Calcular média da autoavaliação
+          const selfScores = evaluation.answers
+            .filter((answer: any) => answer.selfScore !== null)
+            .map((answer: any) => answer.selfScore)
+          const selfAverage = selfScores.length > 0 
+            ? selfScores.reduce((sum: number, score: number) => sum + score, 0) / selfScores.length 
+            : null
+
+          // Calcular média da avaliação do gestor
+          const managerScores = evaluation.answers
+            .filter((answer: any) => answer.managerScore !== null)
+            .map((answer: any) => answer.managerScore)
+          const managerAverage = managerScores.length > 0 
+            ? managerScores.reduce((sum: number, score: number) => sum + score, 0) / managerScores.length 
+            : null
+
+          // Calcular nota final usando média ponderada (40% autoavaliação, 60% avaliação do gestor)
+          const finalScore = selfAverage !== null && managerAverage !== null
+            ? (selfAverage * 0.4) + (managerAverage * 0.6)
+            : null
+
+          return {
+            ...evaluation,
+            selfScore: selfAverage,
+            managerScore: managerAverage,
+            finalScore: finalScore
+          }
+        })
+
+        setEvaluations(evaluationsWithScores)
       } else {
         console.error('Erro ao buscar avaliações:', data.error)
         toast({

@@ -19,7 +19,14 @@ async function getEmployeeStatus(employee: any) {
   }
 
   // Se tiver atestado médico ativo, está afastado
-  if (employee.medicalleave && employee.medicalleave.length > 0) {
+  const today = new Date()
+  const hasActiveMedicalLeave = employee.medicalleave?.some(leave => {
+    const startDate = new Date(leave.startDate)
+    const endDate = leave.endDate ? new Date(leave.endDate) : null
+    return startDate <= today && (!endDate || endDate >= today)
+  })
+
+  if (hasActiveMedicalLeave) {
     return "AFASTADO"
   }
 
@@ -43,7 +50,8 @@ export async function GET(request: Request) {
         position: true,
         positionlevel: true,
         shift: true,
-        user: true
+        user: true,
+        medicalleave: true
       },
       orderBy: {
         name: 'asc'
