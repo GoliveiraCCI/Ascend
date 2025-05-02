@@ -2,7 +2,7 @@
 
 import "./globals.css"
 import { Inter } from "next/font/google"
-import { usePathname } from "next/navigation"
+import { usePathname, redirect } from "next/navigation"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
 import { Toaster } from "@/components/ui/toaster"
@@ -15,11 +15,24 @@ import {
   Trophy,
   FileUp,
 } from "lucide-react"
+import { useEffect } from "react"
+import Head from "next/head"
 
 const inter = Inter({ subsets: ["latin"] })
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
+  const isLoginPage = pathname === "/login"
+
+  useEffect(() => {
+    // Verifica se o usuário está autenticado
+    const isAuthenticated = localStorage.getItem("isAuthenticated")
+    
+    // Se não estiver na página de login e não estiver autenticado, redireciona para login
+    if (!isLoginPage && !isAuthenticated) {
+      window.location.href = "/login"
+    }
+  }, [pathname, isLoginPage])
 
   const navigation = [
     { name: "Dashboard", href: "/", icon: LayoutDashboard },
@@ -32,9 +45,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
   return (
     <html lang="pt-BR">
+      <head>
+        <link rel="icon" href="/favicon.ico" sizes="any" />
+      </head>
       <body className={inter.className}>
         <div className="flex h-screen">
-          {/* Sidebar */}
+          {/* Sidebar - oculto na página de login */}
+          {!isLoginPage && (
           <div className="hidden md:flex w-64 flex-col fixed inset-y-0">
             <div className="flex-1 flex flex-col min-h-0 border-r bg-background">
               <div className="flex-shrink-0 px-4 py-4 border-b">
@@ -66,9 +83,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               </div>
             </div>
           </div>
+          )}
 
           {/* Main content */}
-          <div className="md:pl-64 flex flex-col flex-1">
+          <div className={cn("flex flex-col flex-1", !isLoginPage && "md:pl-64")}>
             <main className="flex-1">
               <div className="py-6">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8">

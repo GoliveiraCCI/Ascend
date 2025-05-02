@@ -28,7 +28,7 @@ async function getData() {
           title: true
         }
       },
-      positionLevel: {
+      positionlevel: {
         select: {
           id: true,
           name: true
@@ -87,7 +87,7 @@ async function getData() {
     }
   })
 
-  const positionLevels = await prisma.positionLevel.findMany({
+  const positionLevels = await prisma.positionlevel.findMany({
     select: {
       id: true,
       name: true,

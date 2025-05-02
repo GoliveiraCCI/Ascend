@@ -43,7 +43,7 @@ export async function GET() {
         // Calcula a média ponderada: 40% autoavaliação + 60% avaliação do gestor
         const weightedScore = (selfAverage * 0.4) + (managerAverage * 0.6)
         acc[month].sum += weightedScore
-        acc[month].count += 1
+      acc[month].count += 1
       }
 
       return acc
@@ -54,9 +54,9 @@ export async function GET() {
     // Converte para o formato esperado pelo gráfico
     const trendData = Object.entries(monthlyData)
       .map(([month, data]) => ({
-        month,
+      month,
         averageScore: data.count > 0 ? Number((data.sum / data.count).toFixed(1)) : 0
-      }))
+    }))
       .sort((a, b) => {
         const [monthA, yearA] = a.month.split('/')
         const [monthB, yearB] = b.month.split('/')

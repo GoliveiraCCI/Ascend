@@ -11,16 +11,34 @@ export function middleware(request: NextRequest) {
   response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization')
   response.headers.set('Access-Control-Allow-Credentials', 'true')
 
+  // Verifica se o usuário está autenticado
+  const isAuthenticated = request.cookies.get('isAuthenticated')?.value === 'true'
+
+  // Se a rota for a raiz ("/"), redireciona para "/dashboard" se autenticado, senão para "/login"
+  if (request.nextUrl.pathname === "/") {
+    if (isAuthenticated) {
+      return NextResponse.redirect(new URL("/dashboard", request.url))
+    }
+    return NextResponse.redirect(new URL("/login", request.url))
+  }
+
+  // Se não estiver autenticado e tentar acessar rotas protegidas, redireciona para login
+  if (!isAuthenticated && !request.nextUrl.pathname.startsWith('/login')) {
+    return NextResponse.redirect(new URL("/login", request.url))
+  }
+
   return response
 }
 
 export const config = {
   matcher: [
     "/api/:path*",
+    "/dashboard/:path*",
     "/employees/:path*",
     "/departments/:path*",
     "/positions/:path*",
     "/position-levels/:path*",
-    "/shifts/:path*"
+    "/shifts/:path*",
+    "/"
   ]
 } 

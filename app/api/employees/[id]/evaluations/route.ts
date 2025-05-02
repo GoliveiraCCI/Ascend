@@ -58,51 +58,51 @@ export async function GET(
       }
 
       return {
-        id: evaluation.id,
-        employee: {
-          id: evaluation.employee.id,
-          name: evaluation.employee.name,
-          matricula: evaluation.employee.matricula,
-          department: {
-            id: evaluation.employee.department.id,
-            name: evaluation.employee.department.name
-          }
-        },
-        evaluator: {
-          id: evaluation.user.id,
-          name: evaluation.user.name,
-        },
-        template: {
-          id: evaluation.evaluationtemplate.id,
-          name: evaluation.evaluationtemplate.name,
-          description: evaluation.evaluationtemplate.description,
-        },
-        date: evaluation.date.toISOString(),
-        status: evaluation.status,
-        selfEvaluation: evaluation.selfEvaluation,
-        selfEvaluationStatus: evaluation.selfEvaluationStatus,
-        selfStrengths: evaluation.selfStrengths,
-        selfImprovements: evaluation.selfImprovements,
-        selfGoals: evaluation.selfGoals,
-        selfScore: evaluation.selfScore,
-        managerEvaluation: evaluation.managerEvaluation,
-        managerEvaluationStatus: evaluation.managerEvaluationStatus,
-        managerStrengths: evaluation.managerStrengths,
-        managerImprovements: evaluation.managerImprovements,
-        managerGoals: evaluation.managerGoals,
-        managerScore: evaluation.managerScore,
+      id: evaluation.id,
+      employee: {
+        id: evaluation.employee.id,
+        name: evaluation.employee.name,
+        matricula: evaluation.employee.matricula,
+        department: {
+          id: evaluation.employee.department.id,
+          name: evaluation.employee.department.name
+        }
+      },
+      evaluator: {
+        id: evaluation.user.id,
+        name: evaluation.user.name,
+      },
+      template: {
+        id: evaluation.evaluationtemplate.id,
+        name: evaluation.evaluationtemplate.name,
+        description: evaluation.evaluationtemplate.description,
+      },
+      date: evaluation.date.toISOString(),
+      status: evaluation.status,
+      selfEvaluation: evaluation.selfEvaluation,
+      selfEvaluationStatus: evaluation.selfEvaluationStatus,
+      selfStrengths: evaluation.selfStrengths,
+      selfImprovements: evaluation.selfImprovements,
+      selfGoals: evaluation.selfGoals,
+      selfScore: evaluation.selfScore,
+      managerEvaluation: evaluation.managerEvaluation,
+      managerEvaluationStatus: evaluation.managerEvaluationStatus,
+      managerStrengths: evaluation.managerStrengths,
+      managerImprovements: evaluation.managerImprovements,
+      managerGoals: evaluation.managerGoals,
+      managerScore: evaluation.managerScore,
         finalScore: finalScore,
-        answers: evaluation.evaluationanswer?.map((answer) => ({
-          id: answer.id,
-          question: {
-            id: answer.evaluationquestion.id,
-            text: answer.evaluationquestion.text,
-          },
-          selfScore: answer.selfScore,
-          selfComment: answer.selfComment,
-          managerScore: answer.managerScore,
-          managerComment: answer.managerComment,
-        })) || []
+      answers: evaluation.evaluationanswer?.map((answer) => ({
+        id: answer.id,
+        question: {
+          id: answer.evaluationquestion.id,
+          text: answer.evaluationquestion.text,
+        },
+        selfScore: answer.selfScore,
+        selfComment: answer.selfComment,
+        managerScore: answer.managerScore,
+        managerComment: answer.managerComment,
+      })) || []
       }
     })
 
