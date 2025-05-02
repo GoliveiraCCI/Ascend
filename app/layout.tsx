@@ -26,16 +26,39 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
   useEffect(() => {
     // Verifica se o usuário está autenticado
-    const isAuthenticated = localStorage.getItem("isAuthenticated")
+    const isAuthenticated = localStorage.getItem("isAuthenticated") === "true"
+    const userData = localStorage.getItem("userData")
     
     // Se não estiver na página de login e não estiver autenticado, redireciona para login
-    if (!isLoginPage && !isAuthenticated) {
+    if (!isLoginPage && (!isAuthenticated || !userData)) {
+      // Limpa dados de autenticação inválidos
+      localStorage.removeItem("userData")
+      localStorage.removeItem("isAuthenticated")
       window.location.href = "/login"
+    }
+    
+    // Se estiver na página de login e estiver autenticado, redireciona para dashboard
+    if (isLoginPage && isAuthenticated && userData) {
+      // Verifica se os dados do usuário são válidos
+      try {
+        const parsedUserData = JSON.parse(userData)
+        if (parsedUserData.isAuthenticated) {
+          window.location.href = "/dashboard"
+        } else {
+          // Se os dados não forem válidos, limpa e mantém na página de login
+          localStorage.removeItem("userData")
+          localStorage.removeItem("isAuthenticated")
+        }
+      } catch (error) {
+        // Se houver erro ao parsear os dados, limpa e mantém na página de login
+        localStorage.removeItem("userData")
+        localStorage.removeItem("isAuthenticated")
+      }
     }
   }, [pathname, isLoginPage])
 
   const navigation = [
-    { name: "Dashboard", href: "/", icon: LayoutDashboard },
+    { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
     { name: "Cadastros", href: "/forms", icon: ClipboardList },
     { name: "Avaliações", href: "/evaluations", icon: Star },
     { name: "Treinamentos", href: "/trainings", icon: GraduationCap },
@@ -55,7 +78,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <div className="hidden md:flex w-64 flex-col fixed inset-y-0">
             <div className="flex-1 flex flex-col min-h-0 border-r bg-background">
               <div className="flex-shrink-0 px-4 py-4 border-b">
-                <Link href="/" className="flex items-center group">
+                <Link href="/dashboard" className="flex items-center group">
                   <Trophy className="h-7 w-7 text-blue-600 mr-2 transition-transform duration-300 ease-in-out group-hover:translate-y-[-2px]" />
                   <span className="text-2xl font-bold tracking-wide bg-gradient-to-r from-blue-600 to-blue-500 bg-clip-text text-transparent">
                     ASCEND

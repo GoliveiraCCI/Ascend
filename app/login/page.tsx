@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -14,18 +14,27 @@ export default function LoginPage() {
   const [name, setName] = useState("")
   const [password, setPassword] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+  const [errorMessage, setErrorMessage] = useState("")
   const router = useRouter()
+
+  // Limpa os dados de autenticação ao carregar a página
+  useEffect(() => {
+    localStorage.removeItem("userData")
+    localStorage.removeItem("isAuthenticated")
+    Cookies.remove('isAuthenticated')
+  }, [])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
+    setErrorMessage("") // Limpa mensagem de erro anterior
     
     try {
       // Simulando uma chamada de API
       // Em produção, isso seria substituído por uma chamada real à API
       await new Promise(resolve => setTimeout(resolve, 1000)) // Simula delay da API
       
-      // Simulando validação de credenciais
+      // Validação das credenciais
       if (name === "admin" && password === "123456") {
         // Salva os dados do usuário
         const userData = {
@@ -37,6 +46,7 @@ export default function LoginPage() {
         
         // Salva no localStorage
         localStorage.setItem("userData", JSON.stringify(userData))
+        localStorage.setItem("isAuthenticated", "true")
         
         // Salva o cookie de autenticação
         Cookies.set('isAuthenticated', 'true', { expires: 7 }) // Expira em 7 dias
@@ -46,9 +56,15 @@ export default function LoginPage() {
           description: "Login realizado com sucesso!",
         })
         
-        // Redireciona para o dashboard
-        window.location.href = "/dashboard"
+        // Redireciona para o dashboard usando router.push
+        router.push("/dashboard")
       } else {
+        // Limpa qualquer autenticação existente em caso de credenciais inválidas
+        localStorage.removeItem("userData")
+        localStorage.removeItem("isAuthenticated")
+        Cookies.remove('isAuthenticated')
+        
+        setErrorMessage("Usuário ou senha inválidos")
         throw new Error("Credenciais inválidas")
       }
     } catch (error) {
@@ -112,6 +128,11 @@ export default function LoginPage() {
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? "Entrando..." : "Entrar"}
             </Button>
+            {errorMessage && (
+              <p className="text-sm text-red-500 text-center mt-2">
+                {errorMessage}
+              </p>
+            )}
           </form>
         </div>
       </div>
