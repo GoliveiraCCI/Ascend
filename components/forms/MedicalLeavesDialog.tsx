@@ -77,15 +77,23 @@ export function MedicalLeavesDialog({
 
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
-      case "ativo":
-        return "bg-green-500 hover:bg-green-600"
-      case "encerrado":
-        return "bg-gray-500 hover:bg-gray-600"
-      case "pendente":
-        return "bg-yellow-500 hover:bg-yellow-600"
+      case "afastado":
+        return "bg-red-500 hover:bg-red-600"
+      case "finalizado":
+        return "bg-black hover:bg-black text-white"
       default:
         return "bg-gray-500 hover:bg-gray-600"
     }
+  }
+
+  const getLeaveStatus = (leave: MedicalLeave) => {
+    const today = new Date()
+    const endDate = new Date(leave.endDate)
+    
+    if (endDate < today) {
+      return "FINALIZADO"
+    }
+    return "AFASTADO"
   }
 
   return (
@@ -124,8 +132,8 @@ export function MedicalLeavesDialog({
                   <TableCell>{leave.days}</TableCell>
                   <TableCell>{leave.reason}</TableCell>
                   <TableCell>
-                    <Badge className={getStatusColor(leave.status)}>
-                      {leave.status}
+                    <Badge className={getStatusColor(getLeaveStatus(leave))}>
+                      {getLeaveStatus(leave)}
                     </Badge>
                   </TableCell>
                   <TableCell>

@@ -10,12 +10,11 @@ export function LogoutButton() {
 
   const handleLogout = () => {
     // Limpa os dados de autenticação
-    localStorage.removeItem("userData")
-    localStorage.removeItem("isAuthenticated")
-    Cookies.remove('isAuthenticated')
+    Cookies.remove("userData")
+    Cookies.remove("isAuthenticated")
     
     // Redireciona para a página de login
-    router.push("/login")
+    window.location.href = "/login"
   }
 
   return (

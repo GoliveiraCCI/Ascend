@@ -28,14 +28,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
   useEffect(() => {
     // Verifica se o usuário está autenticado
-    const isAuthenticated = localStorage.getItem("isAuthenticated") === "true"
-    const userData = localStorage.getItem("userData")
+    const isAuthenticated = Cookies.get("isAuthenticated") === "true"
+    const userData = Cookies.get("userData")
     
     // Se não estiver na página de login e não estiver autenticado, redireciona para login
     if (!isLoginPage && (!isAuthenticated || !userData)) {
       // Limpa dados de autenticação inválidos
-      localStorage.removeItem("userData")
-      localStorage.removeItem("isAuthenticated")
+      Cookies.remove("userData")
+      Cookies.remove("isAuthenticated")
       window.location.href = "/login"
     }
     
@@ -47,30 +47,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         if (parsedUserData.isAuthenticated) {
           window.location.href = "/dashboard"
         } else {
-          // Se os dados não forem válidos, limpa e mantém na página de login
-          localStorage.removeItem("userData")
-          localStorage.removeItem("isAuthenticated")
+          Cookies.remove("userData")
+          Cookies.remove("isAuthenticated")
         }
       } catch (error) {
         // Se houver erro ao parsear os dados, limpa e mantém na página de login
-        localStorage.removeItem("userData")
-        localStorage.removeItem("isAuthenticated")
+        Cookies.remove("userData")
+        Cookies.remove("isAuthenticated")
       }
-    }
-
-    // Adiciona listener para quando a janela for fechada
-    const handleBeforeUnload = () => {
-      // Limpa os dados de autenticação
-      localStorage.removeItem("userData")
-      localStorage.removeItem("isAuthenticated")
-      Cookies.remove('isAuthenticated')
-    }
-
-    window.addEventListener('beforeunload', handleBeforeUnload)
-
-    // Limpa o listener quando o componente for desmontado
-    return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload)
     }
   }, [pathname, isLoginPage])
 

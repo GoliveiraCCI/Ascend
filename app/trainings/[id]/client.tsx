@@ -254,9 +254,10 @@ export function TrainingDetailsClient({ id }: TrainingDetailsClientProps) {
         method: "DELETE",
       })
 
+      const data = await response.json()
+
       if (!response.ok) {
-        const data = await response.json()
-        throw new Error(data.error || "Erro ao excluir treinamento")
+        throw new Error(data.error || data.details || "Erro ao excluir treinamento")
       }
 
       toast({

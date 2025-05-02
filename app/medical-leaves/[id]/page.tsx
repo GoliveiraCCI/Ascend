@@ -18,6 +18,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import { ArrowLeft } from "lucide-react"
 
 interface MedicalLeaveDetails {
   id: string
@@ -129,49 +130,40 @@ export default function MedicalLeaveDetailsPage() {
   }
 
   const getStatusColor = (status: string) => {
-    switch (status) {
-      case "FINALIZADO":
-        return "bg-green-500 hover:bg-green-600"
-      case "AFASTADO":
-        return "bg-yellow-500 hover:bg-yellow-600"
+    switch (status.toLowerCase()) {
+      case "afastado":
+        return "bg-red-500 hover:bg-red-600"
+      case "finalizado":
+        return "bg-black hover:bg-black text-white"
       default:
         return "bg-gray-500 hover:bg-gray-600"
     }
   }
 
+  const getLeaveStatus = (leave: MedicalLeaveDetails) => {
+    const today = new Date()
+    const endDate = new Date(leave.endDate)
+    
+    if (endDate < today) {
+      return "FINALIZADO"
+    }
+    return "AFASTADO"
+  }
+
   return (
-    <div className="container mx-auto py-8 space-y-6">
-      <div className="flex justify-between items-center">
+    <div className="container mx-auto py-6">
+      <div className="flex items-center gap-4 mb-6">
+        <Button
+          variant="outline"
+          onClick={() => router.back()}
+        >
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Voltar
+        </Button>
         <h1 className="text-3xl font-bold">Detalhes do Afastamento</h1>
-        <div className="flex gap-2">
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="destructive">
-                Excluir afastamento
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Excluir Afastamento</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Tem certeza que deseja excluir este afastamento? Esta ação não pode ser desfeita.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                <AlertDialogAction onClick={handleDelete} className="bg-red-500 hover:bg-red-600">
-                  Excluir
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-          <Button variant="outline" onClick={() => router.back()}>
-            Voltar
-          </Button>
-        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid gap-6">
         <Card>
           <CardHeader>
             <CardTitle>Informações do Funcionário</CardTitle>
@@ -252,8 +244,8 @@ export default function MedicalLeaveDetailsPage() {
               )}
               <div className="flex items-center gap-2">
                 <span className="font-semibold">Status:</span>
-                <Badge className={getStatusColor(medicalLeave.status)}>
-                  {medicalLeave.status}
+                <Badge className={getStatusColor(getLeaveStatus(medicalLeave))}>
+                  {getLeaveStatus(medicalLeave)}
                 </Badge>
               </div>
             </div>

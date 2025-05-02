@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { createId } from "@paralleldrive/cuid2"
 import { randomUUID } from "crypto"
+import { getLoggedUserId } from "@/lib/utils"
 
 export async function GET(
   request: NextRequest,
@@ -48,9 +49,9 @@ export async function GET(
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
-  const { id } = await params
+  const { id } = params
   try {
     const body = await request.json()
     const {
@@ -60,6 +61,15 @@ export async function POST(
       departmentId,
       shiftId
     } = body
+
+    // Obter o ID do usuário logado
+    const userId = getLoggedUserId()
+    if (!userId) {
+      return NextResponse.json(
+        { error: "Usuário não autenticado" },
+        { status: 401 }
+      )
+    }
 
     // Verificar se o funcionário existe
     const employee = await prisma.employee.findUnique({
@@ -108,7 +118,7 @@ export async function POST(
         endDate: endDate ? new Date(endDate) : null,
         createdAt: new Date(),
         updatedAt: new Date(),
-        userId: "system"
+        userId
       },
       include: {
         department: true,
@@ -123,9 +133,9 @@ export async function POST(
 
     return NextResponse.json(history)
   } catch (error) {
-    console.error("Erro ao criar registro de histórico:", error)
+    console.error("Erro ao criar histórico do funcionário:", error)
     return NextResponse.json(
-      { error: "Erro ao criar registro de histórico" },
+      { error: "Erro ao criar histórico do funcionário" },
       { status: 500 }
     )
   }

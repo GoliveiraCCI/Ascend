@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { randomUUID } from "crypto"
+import { getLoggedUserId } from "@/lib/utils"
 
 export async function GET(request: Request) {
   try {
@@ -17,6 +18,7 @@ export async function GET(request: Request) {
           select: {
             id: true,
             name: true,
+            salary: true,
             positionId: true
           }
         }
@@ -44,8 +46,17 @@ export async function POST(request: Request) {
     // Validar campos obrigatórios
     if (!title || !departmentId) {
       return NextResponse.json(
-        { error: "Título e departamento são obrigatórios" },
+        { error: "Nome e departamento são obrigatórios" },
         { status: 400 }
+      )
+    }
+
+    // Obter o ID do usuário logado
+    const userId = await getLoggedUserId()
+    if (!userId) {
+      return NextResponse.json(
+        { error: "Usuário não autenticado" },
+        { status: 401 }
       )
     }
 
@@ -67,7 +78,7 @@ export async function POST(request: Request) {
     const existingPosition = await prisma.position.findFirst({
       where: {
         title,
-        departmentId,
+        departmentId
       },
     })
 
@@ -87,27 +98,26 @@ export async function POST(request: Request) {
         departmentId,
         createdAt: new Date(),
         updatedAt: new Date(),
-        userId: "system",
+        userId,
         positionlevel: {
-          create: positionLevels.map(level => ({
+          create: positionLevels.map((level: { name: string; salary: number }) => ({
             id: randomUUID(),
             name: level.name,
             salary: level.salary,
             createdAt: new Date(),
             updatedAt: new Date(),
-            userId: "system"
-          })),
-        },
+            userId
+          }))
+        }
       },
       include: {
-        department: true,
-        positionlevel: true,
-      },
+        positionlevel: true
+      }
     })
 
     return NextResponse.json(position)
   } catch (error) {
-    console.error('Erro ao criar cargo:', error)
+    console.error("Erro ao criar cargo:", error)
     return NextResponse.json(
       { error: "Erro ao criar cargo" },
       { status: 500 }

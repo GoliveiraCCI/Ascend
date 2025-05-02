@@ -14,20 +14,17 @@ export async function GET(
           }
         }
       },
-      include: {
-        department: true,
-        trainingparticipant: {
-          where: {
-            employeeId: params.id
-          },
-          include: {
-            employee: true
-          }
-        },
-        trainingevaluation: true,
-        trainingmaterial: true,
-        trainingsession: true,
-        trainingphoto: true
+      select: {
+        id: true,
+        name: true,
+        source: true,
+        startDate: true,
+        endDate: true,
+        hours: true,
+        status: true,
+        category: true,
+        instructor: true,
+        institution: true
       },
       orderBy: {
         startDate: "desc"

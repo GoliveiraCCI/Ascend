@@ -4,6 +4,7 @@ import { Prisma } from "@prisma/client"
 import { getCurrentUser } from "@/lib/auth"
 import { createId } from "@paralleldrive/cuid2"
 import { randomUUID } from "crypto"
+import { getLoggedUserId } from "@/lib/utils"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -94,93 +95,109 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const {
-      name,
-      email,
-      positionId,
-      departmentId,
-      matricula,
-      cpf,
-      birthDate,
-      hireDate,
-      terminationDate,
-      positionLevelId,
-      shiftId,
-      phone,
-      address,
-      active = true
+    const { 
+      name, 
+      matricula, 
+      email, 
+      cpf, 
+      birthDate, 
+      hireDate, 
+      departmentId, 
+      positionId, 
+      positionLevelId, 
+      shiftId, 
+      active, 
+      phone, 
+      address 
     } = body
 
-    // Verificar se a matrícula já existe para um funcionário ativo
-    const existingMatricula = await prisma.employee.findFirst({
-      where: {
-        matricula,
-        active: true
-      }
-    })
-
-    if (existingMatricula) {
+    // Validar campos obrigatórios
+    if (!name || !matricula || !email || !cpf || !birthDate || !hireDate || !departmentId || !positionId || !positionLevelId || !shiftId) {
       return NextResponse.json(
-        { error: "Já existe um funcionário ativo com esta matrícula" },
-        { status: 400, headers: corsHeaders }
+        { error: "Todos os campos são obrigatórios" },
+        { status: 400 }
       )
     }
 
-    // Verificar se o email já existe para um funcionário ativo
+    // Obter o ID do usuário logado
+    const userId = await getLoggedUserId()
+    if (!userId) {
+      return NextResponse.json(
+        { error: "Usuário não autenticado" },
+        { status: 401 }
+      )
+    }
+
+    // Verificar se já existe um funcionário com a mesma matrícula
+    const existingEmployee = await prisma.employee.findFirst({
+      where: {
+        matricula
+      }
+    })
+
+    if (existingEmployee) {
+      return NextResponse.json(
+        { error: "Já existe um funcionário com esta matrícula" },
+        { status: 400 }
+      )
+    }
+
+    // Verificar se já existe um funcionário com o mesmo CPF
+    const existingCPF = await prisma.employee.findFirst({
+      where: {
+        cpf
+      }
+    })
+
+    if (existingCPF) {
+      return NextResponse.json(
+        { error: "Já existe um funcionário com este CPF" },
+        { status: 400 }
+      )
+    }
+
+    // Verificar se já existe um funcionário com o mesmo email
     const existingEmail = await prisma.employee.findFirst({
       where: {
-        email,
-        active: true
+        email
       }
     })
 
     if (existingEmail) {
       return NextResponse.json(
-        { error: "Este email já está cadastrado para outro funcionário" },
-        { status: 400, headers: corsHeaders }
+        { error: "Já existe um funcionário com este email" },
+        { status: 400 }
       )
     }
 
     const employee = await prisma.employee.create({
       data: {
-        id: createId(),
-        name: body.name,
-        matricula: body.matricula,
-        email: body.email,
-        cpf: body.cpf,
-        birthDate: new Date(body.birthDate).toISOString(),
-        hireDate: new Date(body.hireDate).toISOString(),
-        departmentId: body.departmentId,
-        positionId: body.positionId,
-        positionLevelId: body.positionLevelId,
-        shiftId: body.shiftId,
-        active: true,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      }
-    })
-
-    // Criar histórico inicial
-    await prisma.employeehistory.create({
-      data: {
-        id: createId(),
-        employeeId: employee.id,
+        id: randomUUID(),
+        name,
+        matricula,
+        email,
+        cpf,
+        birthDate: new Date(birthDate),
+        hireDate: new Date(hireDate),
         departmentId,
-        positionLevelId: positionLevelId || null,
-        shiftId: shiftId || null,
-        startDate: new Date(body.hireDate).toISOString(),
+        positionId,
+        positionLevelId,
+        shiftId,
+        active: active ?? true,
+        phone,
+        address,
         createdAt: new Date(),
         updatedAt: new Date(),
-        userId: "system"
+        userId: userId.toString()
       }
     })
 
-    return NextResponse.json(employee, { headers: corsHeaders })
+    return NextResponse.json(employee)
   } catch (error) {
     console.error("Erro ao criar funcionário:", error)
     return NextResponse.json(
       { error: "Erro ao criar funcionário" },
-      { status: 500, headers: corsHeaders }
+      { status: 500 }
     )
   }
 }

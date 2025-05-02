@@ -19,6 +19,8 @@ import {
   Trash,
   Check,
   ChevronsUpDown,
+  FileText,
+  TrendingUp,
 } from "lucide-react"
 import {
   Bar,
@@ -825,6 +827,27 @@ export default function MedicalLeavesPage() {
       .slice(0, 5)
   }, [medicalLeaves])
 
+  const getStatusColor = (status: string) => {
+    switch (status.toLowerCase()) {
+      case "afastado":
+        return "bg-red-500 hover:bg-red-600"
+      case "finalizado":
+        return "bg-black hover:bg-black text-white"
+      default:
+        return "bg-gray-500 hover:bg-gray-600"
+    }
+  }
+
+  const getLeaveStatus = (leave: MedicalLeave) => {
+    const today = new Date()
+    const endDate = new Date(leave.endDate)
+    
+    if (endDate < today) {
+      return "FINALIZADO"
+    }
+    return "AFASTADO"
+  }
+
   return (
     <div className="animate-in flex flex-col gap-8 p-4 md:p-8">
       <div className="flex flex-col gap-2">
@@ -1375,15 +1398,8 @@ export default function MedicalLeavesPage() {
                       </TableCell>
                       <TableCell>{leave.days}</TableCell>
                       <TableCell>
-                        <Badge
-                          variant={leave.status === "FINALIZADO" ? "default" : "destructive"}
-                          className={`text-xs ${
-                            leave.status === "FINALIZADO"
-                              ? "bg-black text-white"
-                              : "bg-red-600 text-white"
-                          }`}
-                        >
-                          {leave.status === "FINALIZADO" ? "Finalizado" : "Afastado"}
+                        <Badge className={getStatusColor(getLeaveStatus(leave))}>
+                          {getLeaveStatus(leave)}
                         </Badge>
                       </TableCell>
                       <TableCell>
@@ -1395,14 +1411,8 @@ export default function MedicalLeavesPage() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => viewLeaveDetails(leave.id)}>Ver detalhes</DropdownMenuItem>
                             <DropdownMenuItem onClick={() => editLeave(leave)}>Editar atestado</DropdownMenuItem>
-                            <DropdownMenuItem>Ver funcionário</DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem>
-                              <Download className="mr-2 h-4 w-4" />
-                              Exportar PDF
-                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => viewLeaveDetails(leave.id)}>Ver detalhes</DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>

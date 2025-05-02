@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { getLoggedUserId } from '@/lib/utils'
 
 // GET /api/evaluations/[id] - Buscar avaliação por ID
 export async function GET(
@@ -7,9 +8,10 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
+    const { id } = await params
     const evaluation = await prisma.evaluation.findUnique({
       where: {
-        id: params.id,
+        id,
       },
       include: {
         employee: {
@@ -66,21 +68,33 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
+    const userId = await getLoggedUserId()
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'Usuário não autenticado' },
+        { status: 401 }
+      )
+    }
+
     const data = await request.json()
-    const evaluationId = params.id
+    const { id } = await params
 
     // Atualizar a avaliação
     const evaluation = await prisma.evaluation.update({
       where: {
-        id: evaluationId,
+        id,
       },
       data: {
-        employeeId: data.employeeId,
-        evaluatorId: data.evaluatorId,
-        templateId: data.templateId,
-        // Atualizar o status para CONCLUIDA quando houver respostas
+        employee: {
+          connect: { id: data.employeeId }
+        },
+        user: {
+          connect: { id: userId }
+        },
+        evaluationtemplate: {
+          connect: { id: data.templateId }
+        },
         status: data.evaluationanswer.some(a => a.selfScore !== null || a.managerScore !== null) ? "CONCLUIDA" : "Pendente",
-        // Atualizar os status baseado nas respostas
         selfEvaluationStatus: data.evaluationanswer.some(a => a.selfScore !== null) ? "CONCLUIDA" : "Pendente",
         managerEvaluationStatus: data.evaluationanswer.some(a => a.managerScore !== null) ? "CONCLUIDA" : "Pendente",
         selfStrengths: data.selfStrengths || "",
@@ -115,7 +129,7 @@ export async function PUT(
     // Buscar a avaliação atualizada com todos os relacionamentos
     const updatedEvaluation = await prisma.evaluation.findUnique({
       where: {
-        id: evaluationId,
+        id,
       },
       include: {
         employee: {

@@ -73,7 +73,7 @@ model employeehistory {
   endDate         DateTime?
   createdAt       DateTime       @default(now())
   updatedAt       DateTime
-  userId          String         @default("system") @db.VarChar(255)
+  userId          String         @db.VarChar(255)
   department      department?    @relation(fields: [departmentId], references: [id], map: "EmployeeHistory_departmentId_fkey")
   employee        employee       @relation(fields: [employeeId], references: [id], map: "EmployeeHistory_employeeId_fkey")
   positionlevel   positionlevel? @relation(fields: [positionLevelId], references: [id], map: "EmployeeHistory_positionLevelId_fkey")
@@ -166,7 +166,7 @@ model evaluationquestion {
   createdAt  DateTime            @default(now())
   updatedAt  DateTime
   templateId String?
-  userId     String              @default("system") @db.VarChar(255)
+  userId     String              @db.VarChar(255)
   answers    evaluationanswer[]
   category   evaluationcategory  @relation(fields: [categoryId], references: [id])
   template   evaluationtemplate? @relation("TemplateQuestions", fields: [templateId], references: [id])
@@ -184,7 +184,7 @@ model evaluationtemplate {
   description String?
   createdAt   DateTime             @default(now())
   updatedAt   DateTime
-  userId      String               @default("system") @db.VarChar(255)
+  userId      String               @db.VarChar(255)
   evaluation  evaluation[]
   questions   evaluationquestion[] @relation("TemplateQuestions")
   user        user                 @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
@@ -199,7 +199,7 @@ model file {
   url            String
   medicalLeaveId String
   createdAt      DateTime     @default(now())
-  userId         String       @default("system") @db.VarChar(255)
+  userId         String       @db.VarChar(255)
   medicalleave   medicalleave @relation(fields: [medicalLeaveId], references: [id], map: "File_medicalLeaveId_fkey")
   user           user         @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
@@ -221,7 +221,7 @@ model medicalleave {
   hospital             String?
   notes                String?
   categoryId           String?
-  userId               String                @default("system") @db.VarChar(255)
+  userId               String                @db.VarChar(255)
   file                 file[]
   medicalleavecategory medicalleavecategory? @relation(fields: [categoryId], references: [id], map: "MedicalLeave_categoryId_fkey")
   employee             employee              @relation(fields: [employeeId], references: [id], map: "MedicalLeave_employeeId_fkey")
@@ -238,7 +238,7 @@ model medicalleavecategory {
   description  String
   createdAt    DateTime       @default(now())
   updatedAt    DateTime
-  userId       String         @default("system") @db.VarChar(255)
+  userId       String         @db.VarChar(255)
   medicalleave medicalleave[]
   user         user           @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
@@ -267,7 +267,7 @@ model position {
   createdAt     DateTime        @default(now())
   updatedAt     DateTime
   description   String?
-  userId        String          @default("system") @db.VarChar(255)
+  userId        String          @db.VarChar(255)
   employee      employee[]
   department    department      @relation(fields: [departmentId], references: [id], map: "Position_departmentId_fkey")
   user          user            @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
@@ -284,7 +284,7 @@ model positionlevel {
   positionId      String
   createdAt       DateTime          @default(now())
   updatedAt       DateTime
-  userId          String            @default("system") @db.VarChar(255)
+  userId          String            @db.VarChar(255)
   employee        employee[]
   employeehistory employeehistory[]
   position        position          @relation(fields: [positionId], references: [id], map: "PositionLevel_positionId_fkey")
@@ -300,7 +300,7 @@ model shift {
   description     String?
   createdAt       DateTime          @default(now())
   updatedAt       DateTime
-  userId          String            @default("system") @db.VarChar(255)
+  userId          String            @db.VarChar(255)
   employee        employee[]
   employeehistory employeehistory[]
   user            user              @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
@@ -324,7 +324,7 @@ model training {
   createdAt           DateTime              @default(now())
   updatedAt           DateTime
   departmentId        String?
-  userId              String                @default("system") @db.VarChar(255)
+  userId              String                @db.VarChar(255)
   department          department?           @relation(fields: [departmentId], references: [id], map: "Training_departmentId_fkey")
   user                user                  @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   trainingevaluation  trainingevaluation[]
@@ -346,7 +346,7 @@ model trainingevaluation {
   notes        String?  @db.Text
   createdAt    DateTime @default(now())
   updatedAt    DateTime
-  userId       String   @default("system") @db.VarChar(255)
+  userId       String   @db.VarChar(255)
   training     training @relation(fields: [trainingId], references: [id], map: "TrainingEvaluation_trainingId_fkey")
   user         user     @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
@@ -363,7 +363,7 @@ model trainingmaterial {
   size       Int
   createdAt  DateTime @default(now())
   updatedAt  DateTime
-  userId     String   @default("system") @db.VarChar(255)
+  userId     String   @db.VarChar(255)
   training   training @relation(fields: [trainingId], references: [id], map: "TrainingMaterial_trainingId_fkey")
   user       user     @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
@@ -380,7 +380,7 @@ model trainingparticipant {
   notes      String?  @db.Text
   createdAt  DateTime @default(now())
   updatedAt  DateTime
-  userId     String   @default("system") @db.VarChar(255)
+  userId     String   @db.VarChar(255)
   employee   employee @relation(fields: [employeeId], references: [id], map: "TrainingParticipant_employeeId_fkey")
   training   training @relation(fields: [trainingId], references: [id], map: "TrainingParticipant_trainingId_fkey")
   user       user     @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
@@ -397,7 +397,7 @@ model trainingphoto {
   caption    String?
   createdAt  DateTime @default(now())
   updatedAt  DateTime
-  userId     String   @default("system") @db.VarChar(255)
+  userId     String   @db.VarChar(255)
   training   training @relation(fields: [trainingId], references: [id], map: "TrainingPhoto_trainingId_fkey")
   user       user     @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
@@ -415,7 +415,7 @@ model trainingsession {
   description String?  @db.Text
   createdAt   DateTime @default(now())
   updatedAt   DateTime
-  userId      String   @default("system") @db.VarChar(255)
+  userId      String   @db.VarChar(255)
   training    training @relation(fields: [trainingId], references: [id], map: "TrainingSession_trainingId_fkey")
   user        user     @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 

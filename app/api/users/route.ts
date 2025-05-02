@@ -1,15 +1,25 @@
 import { NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
+import { prisma } from "@/lib/prisma"
 
-const prisma = new PrismaClient()
-
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url)
+    const name = searchParams.get('name')
+
     const users = await prisma.user.findMany({
+      where: name ? {
+        name: {
+          contains: name,
+          mode: 'insensitive'
+        }
+      } : undefined,
       select: {
         id: true,
         name: true,
         email: true,
+        role: true,
+        createdAt: true,
+        updatedAt: true
       },
       orderBy: {
         name: 'asc'
@@ -18,9 +28,12 @@ export async function GET() {
 
     return NextResponse.json(users)
   } catch (error) {
-    console.error('Erro ao buscar usuários:', error)
+    console.error("Erro ao buscar usuários:", error)
     return NextResponse.json(
-      { error: 'Erro ao buscar usuários' },
+      { 
+        error: "Erro ao buscar usuários",
+        details: error instanceof Error ? error.message : "Erro desconhecido"
+      },
       { status: 500 }
     )
   }

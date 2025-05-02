@@ -249,15 +249,27 @@ export default function EvaluationDetailsPage() {
 
   // Exportar para PDF
   const exportToPDF = () => {
-    const evaluationElement = document.getElementById("evaluation-content")
-    if (!evaluationElement) return
+    // Criar uma cópia do elemento para manipulação
+    const elementClone = document.querySelector('.animate-in')?.cloneNode(true) as HTMLElement
+    if (!elementClone) return
+
+    // Remover elementos que não devem aparecer no PDF
+    const elementsToRemove = elementClone.querySelectorAll('button, .no-print')
+    elementsToRemove.forEach(element => element.remove())
+    
+    // Criar um container temporário
+    const tempContainer = document.createElement('div')
+    tempContainer.style.position = 'absolute'
+    tempContainer.style.left = '-9999px'
+    tempContainer.appendChild(elementClone)
+    document.body.appendChild(tempContainer)
 
     const pdf = new jsPDF("p", "mm", "a4")
     const pdfWidth = pdf.internal.pageSize.getWidth()
     const pdfHeight = pdf.internal.pageSize.getHeight()
     const margin = 10
 
-    html2canvas(evaluationElement, {
+    html2canvas(elementClone, {
       scale: 2,
       logging: false,
       useCORS: true,
@@ -287,6 +299,9 @@ export default function EvaluationDetailsPage() {
       }
 
       pdf.save(`avaliacao_${evaluation?.employee.name.replace(/\s+/g, "_")}.pdf`)
+
+      // Remover o container temporário
+      document.body.removeChild(tempContainer)
 
       toast({
         title: "PDF gerado",
@@ -333,7 +348,7 @@ export default function EvaluationDetailsPage() {
           <AlertDescription>{alert.message}</AlertDescription>
         </Alert>
       )}
-      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between no-print">
         <div className="flex items-center gap-2">
           <Button variant="outline" size="icon" onClick={handleGoBack}>
             <ArrowLeft className="h-4 w-4" />
@@ -1272,7 +1287,7 @@ export default function EvaluationDetailsPage() {
                   </Card>
 
                   {/* Botões de Ação */}
-                  <div className="flex justify-end gap-4">
+                  <div className="flex justify-end gap-4 no-print">
                     {isEditing ? (
                       <Button
                         onClick={handleSaveEvaluation}

@@ -16,6 +16,14 @@ export async function POST(request: Request) {
       where: { 
         name,
         password
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        createdAt: true,
+        updatedAt: true
       }
     })
 
@@ -26,7 +34,15 @@ export async function POST(request: Request) {
       )
     }
 
-    return NextResponse.json({ message: "Login bem-sucedido" })
+    // Atualiza o timestamp de atualização
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { 
+        updatedAt: new Date()
+      }
+    })
+
+    return NextResponse.json(user)
   } catch (error) {
     console.error("Erro ao fazer login:", error)
     return NextResponse.json(

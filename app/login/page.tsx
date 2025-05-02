@@ -17,12 +17,13 @@ export default function LoginPage() {
   const [errorMessage, setErrorMessage] = useState("")
   const router = useRouter()
 
-  // Limpa os dados de autenticação ao carregar a página
+  // Verifica se já está autenticado ao carregar a página
   useEffect(() => {
-    localStorage.removeItem("userData")
-    localStorage.removeItem("isAuthenticated")
-    Cookies.remove('isAuthenticated')
-  }, [])
+    const isAuthenticated = localStorage.getItem("isAuthenticated") === "true"
+    if (isAuthenticated) {
+      router.push("/dashboard")
+    }
+  }, [router])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -30,47 +31,51 @@ export default function LoginPage() {
     setErrorMessage("") // Limpa mensagem de erro anterior
     
     try {
-      // Simulando uma chamada de API
-      // Em produção, isso seria substituído por uma chamada real à API
-      await new Promise(resolve => setTimeout(resolve, 1000)) // Simula delay da API
-      
-      // Validação das credenciais
-      if (name === "admin" && password === "123456") {
-        // Salva os dados do usuário
-        const userData = {
-          id: 1,
-          name: "Administrador",
-          role: "admin",
-          isAuthenticated: true
-        }
-        
-        // Salva no localStorage
-        localStorage.setItem("userData", JSON.stringify(userData))
-        localStorage.setItem("isAuthenticated", "true")
-        
-        // Salva o cookie de autenticação
-        Cookies.set('isAuthenticated', 'true', { expires: 7 }) // Expira em 7 dias
-        
-        toast({
-          title: "Sucesso",
-          description: "Login realizado com sucesso!",
-        })
-        
-        // Redireciona para o dashboard usando router.push
-        router.push("/dashboard")
-      } else {
-        // Limpa qualquer autenticação existente em caso de credenciais inválidas
-        localStorage.removeItem("userData")
-        localStorage.removeItem("isAuthenticated")
-        Cookies.remove('isAuthenticated')
-        
-        setErrorMessage("Usuário ou senha inválidos")
-        throw new Error("Credenciais inválidas")
+      // Chamada à API de login
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ name, password }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Erro ao fazer login')
       }
+
+      const userData = await response.json()
+      
+      // Salva os dados do usuário
+      const userDataToStore = {
+        id: userData.id,
+        name: userData.name,
+        role: userData.role,
+        isAuthenticated: true
+      }
+      
+      // Salva no cookie com expiração de 8 horas
+      Cookies.set('userData', JSON.stringify(userDataToStore), { expires: 1/3 }) // 8 horas
+      Cookies.set('isAuthenticated', 'true', { expires: 1/3 }) // 8 horas
+      
+      toast({
+        title: "Login realizado com sucesso!",
+        description: "Redirecionando para o dashboard...",
+      })
+      
+      router.push("/dashboard")
     } catch (error) {
+      // Limpa qualquer autenticação existente em caso de credenciais inválidas
+      localStorage.removeItem("userData")
+      localStorage.removeItem("isAuthenticated")
+      Cookies.remove('userData')
+      Cookies.remove('isAuthenticated')
+      
+      setErrorMessage(error instanceof Error ? error.message : "Usuário ou senha inválidos")
       toast({
         title: "Erro",
-        description: "Usuário ou senha inválidos",
+        description: error instanceof Error ? error.message : "Usuário ou senha inválidos",
         variant: "destructive",
       })
     } finally {

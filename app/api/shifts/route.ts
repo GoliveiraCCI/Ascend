@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { randomUUID } from "crypto"
+import { getLoggedUserId } from "@/lib/utils"
 
 // GET - Listar todos os turnos
 export async function GET() {
@@ -40,22 +41,13 @@ export async function POST(request: Request) {
       )
     }
 
-    // Verificar se o usuário system existe
-    let systemUser = await prisma.user.findUnique({
-      where: { id: "system" }
-    })
-
-    // Se não existir, criar o usuário system
-    if (!systemUser) {
-      systemUser = await prisma.user.create({
-        data: {
-          id: "system",
-          name: "System",
-          email: "system@system.com",
-          role: "SYSTEM",
-          updatedAt: new Date()
-        }
-      })
+    // Obter o ID do usuário logado
+    const userId = await getLoggedUserId()
+    if (!userId) {
+      return NextResponse.json(
+        { error: "Usuário não autenticado" },
+        { status: 401 }
+      )
     }
 
     const shift = await prisma.shift.create({
@@ -65,7 +57,7 @@ export async function POST(request: Request) {
         description,
         createdAt: new Date(),
         updatedAt: new Date(),
-        userId: "system"
+        userId
       }
     })
 

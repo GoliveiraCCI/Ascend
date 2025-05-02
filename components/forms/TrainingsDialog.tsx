@@ -28,6 +28,10 @@ interface Training {
   endDate: string
   hours: number
   status: string
+  category: string
+  source: string
+  instructor: string
+  institution: string
 }
 
 interface TrainingsDialogProps {
@@ -47,45 +51,73 @@ export function TrainingsDialog({
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    if (isOpen) {
+    const fetchTrainings = async () => {
+      try {
+        const response = await fetch(`/api/employees/${employeeId}/trainings`)
+        if (!response.ok) {
+          throw new Error("Erro ao carregar treinamentos")
+        }
+        const data = await response.json()
+        setTrainings(data)
+      } catch (error) {
+        console.error("Erro ao carregar treinamentos:", error)
+        toast({
+          title: "Erro",
+          description: "Não foi possível carregar os treinamentos.",
+          variant: "destructive",
+        })
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    if (isOpen && employeeId) {
       fetchTrainings()
     }
-  }, [isOpen, employeeId])
-
-  const fetchTrainings = async () => {
-    try {
-      const response = await fetch(`/api/employees/${employeeId}/trainings`)
-      if (!response.ok) throw new Error("Erro ao buscar treinamentos")
-      const data = await response.json()
-      setTrainings(data)
-    } catch (error) {
-      console.error("Erro ao buscar treinamentos:", error)
-      toast({
-        title: "Erro",
-        description: "Ocorreu um erro ao carregar o histórico de treinamentos.",
-        variant: "destructive",
-      })
-    } finally {
-      setIsLoading(false)
-    }
-  }
+  }, [employeeId, isOpen, toast])
 
   const handleViewDetails = (trainingId: string) => {
     router.push(`/trainings/${trainingId}`)
+    onClose()
   }
 
   const getStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
-      case "concluído":
+    switch (status) {
+      case "COMPLETED":
         return "bg-green-500 hover:bg-green-600"
-      case "em andamento":
+      case "IN_PROGRESS":
         return "bg-blue-500 hover:bg-blue-600"
-      case "planejado":
+      case "PLANNED":
         return "bg-yellow-500 hover:bg-yellow-600"
-      case "cancelado":
-        return "bg-red-500 hover:bg-red-600"
       default:
         return "bg-gray-500 hover:bg-gray-600"
+    }
+  }
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case "COMPLETED":
+        return "Concluído"
+      case "IN_PROGRESS":
+        return "Em Andamento"
+      case "PLANNED":
+        return "Planejado"
+      default:
+        return status
+    }
+  }
+
+  const getTrainingStatus = (training: Training) => {
+    const today = new Date()
+    const startDate = new Date(training.startDate)
+    const endDate = training.endDate ? new Date(training.endDate) : null
+
+    if (endDate && endDate < today) {
+      return "COMPLETED"
+    } else if (startDate <= today && (!endDate || endDate >= today)) {
+      return "IN_PROGRESS"
+    } else {
+      return "PLANNED"
     }
   }
 
@@ -106,6 +138,7 @@ export function TrainingsDialog({
             <TableHeader>
               <TableRow>
                 <TableHead>Nome do Treinamento</TableHead>
+                <TableHead>Categoria</TableHead>
                 <TableHead>Data Inicial</TableHead>
                 <TableHead>Data Final</TableHead>
                 <TableHead>Horas</TableHead>
@@ -117,6 +150,7 @@ export function TrainingsDialog({
               {trainings.map((training) => (
                 <TableRow key={training.id}>
                   <TableCell>{training.name}</TableCell>
+                  <TableCell>{training.category}</TableCell>
                   <TableCell>
                     {new Date(training.startDate).toLocaleDateString('pt-BR')}
                   </TableCell>
@@ -125,8 +159,8 @@ export function TrainingsDialog({
                   </TableCell>
                   <TableCell>{training.hours}</TableCell>
                   <TableCell>
-                    <Badge className={getStatusColor(training.status)}>
-                      {training.status}
+                    <Badge className={getStatusColor(getTrainingStatus(training))}>
+                      {getStatusLabel(getTrainingStatus(training))}
                     </Badge>
                   </TableCell>
                   <TableCell>

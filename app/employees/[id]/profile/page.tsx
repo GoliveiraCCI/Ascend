@@ -120,6 +120,8 @@ interface Training {
   startDate: string
   endDate: string
   hours: number
+  category: string
+  status: string
 }
 
 interface CareerHistory {
@@ -173,7 +175,7 @@ export default function EmployeeProfilePage() {
         setMedicalLeaves(data)
 
         // Buscar treinamentos
-        const trainingsResponse = await fetch(`/api/trainings/${params.id}?limit=5`)
+        const trainingsResponse = await fetch(`/api/employees/${params.id}/trainings`)
         if (trainingsResponse.ok) {
           const trainingsData = await trainingsResponse.json()
           setTrainings(trainingsData)
@@ -439,6 +441,56 @@ export default function EmployeeProfilePage() {
       fontSize: 12,
     },
   });
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "COMPLETED":
+        return "bg-green-500 hover:bg-green-600"
+      case "IN_PROGRESS":
+        return "bg-blue-500 hover:bg-blue-600"
+      case "PLANNED":
+        return "bg-yellow-500 hover:bg-yellow-600"
+      default:
+        return "bg-gray-500 hover:bg-gray-600"
+    }
+  }
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case "COMPLETED":
+        return "Concluído"
+      case "IN_PROGRESS":
+        return "Em Andamento"
+      case "PLANNED":
+        return "Planejado"
+      default:
+        return status
+    }
+  }
+
+  const getTrainingStatus = (training: Training) => {
+    const today = new Date()
+    const startDate = new Date(training.startDate)
+    const endDate = training.endDate ? new Date(training.endDate) : null
+
+    if (endDate && endDate < today) {
+      return "COMPLETED"
+    } else if (startDate <= today && (!endDate || endDate >= today)) {
+      return "IN_PROGRESS"
+    } else {
+      return "PLANNED"
+    }
+  }
+
+  const getLeaveStatus = (leave: MedicalLeave) => {
+    const today = new Date()
+    const endDate = new Date(leave.endDate)
+    
+    if (endDate < today) {
+      return "FINALIZADO"
+    }
+    return "AFASTADO"
+  }
 
   if (isLoading) {
     return (
@@ -948,6 +1000,7 @@ export default function EmployeeProfilePage() {
                 <TableHead>Data Inicial</TableHead>
                 <TableHead>Data Final</TableHead>
                 <TableHead>Dias</TableHead>
+                <TableHead>Status</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -958,6 +1011,11 @@ export default function EmployeeProfilePage() {
                   <TableCell>{new Date(leave.startDate).toLocaleDateString()}</TableCell>
                   <TableCell>{new Date(leave.endDate).toLocaleDateString()}</TableCell>
                   <TableCell>{leave.days}</TableCell>
+                  <TableCell>
+                    <Badge className={getStatusColor(getLeaveStatus(leave))}>
+                      {getLeaveStatus(leave)}
+                    </Badge>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -975,24 +1033,28 @@ export default function EmployeeProfilePage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Nome</TableHead>
-                <TableHead>Tipo</TableHead>
+                <TableHead>Categoria</TableHead>
                 <TableHead>Data Inicial</TableHead>
                 <TableHead>Data Final</TableHead>
                 <TableHead>Horas</TableHead>
+                <TableHead>Status</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {trainings.map((training) => (
                 <TableRow key={training.id}>
                   <TableCell>{training.name}</TableCell>
+                  <TableCell>{training.category}</TableCell>
+                  <TableCell>{new Date(training.startDate).toLocaleDateString('pt-BR')}</TableCell>
                   <TableCell>
-                    <Badge variant={training.type === "internal" ? "secondary" : "outline"}>
-                      {training.type === "internal" ? "Interno" : "Externo"}
+                    {training.endDate ? new Date(training.endDate).toLocaleDateString('pt-BR') : "-"}
+                  </TableCell>
+                  <TableCell>{training.hours}</TableCell>
+                  <TableCell>
+                    <Badge className={getStatusColor(getTrainingStatus(training))}>
+                      {getStatusLabel(getTrainingStatus(training))}
                     </Badge>
                   </TableCell>
-                  <TableCell>{new Date(training.startDate).toLocaleDateString()}</TableCell>
-                  <TableCell>{new Date(training.endDate).toLocaleDateString()}</TableCell>
-                  <TableCell>{training.hours}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

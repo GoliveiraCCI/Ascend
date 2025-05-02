@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { randomUUID } from "crypto"
+import { getLoggedUserId } from "@/lib/utils"
 
 export async function GET() {
   try {
@@ -23,35 +24,28 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { name, code, description } = body
+    const { name, description, code } = body
 
     // Validar campos obrigatórios
     if (!name || !code) {
       return NextResponse.json(
-        { error: "Nome e código do departamento são obrigatórios" },
+        { error: "Nome e código são obrigatórios" },
         { status: 400 }
       )
     }
 
-    // Verificar se já existe um departamento com o mesmo nome
-    const existingDepartment = await prisma.department.findFirst({
-      where: {
-        name,
-      },
-    })
-
-    if (existingDepartment) {
+    // Obter o ID do usuário logado
+    const userId = getLoggedUserId()
+    if (!userId) {
       return NextResponse.json(
-        { error: "Já existe um departamento com este nome" },
-        { status: 400 }
+        { error: "Usuário não autenticado" },
+        { status: 401 }
       )
     }
 
-    // Verificar se já existe um departamento com o mesmo código
+    // Verificar se o código já existe
     const existingCode = await prisma.department.findUnique({
-      where: {
-        code,
-      },
+      where: { code }
     })
 
     if (existingCode) {
@@ -61,22 +55,21 @@ export async function POST(request: Request) {
       )
     }
 
-    // Criar o departamento
     const department = await prisma.department.create({
       data: {
         id: randomUUID(),
         name,
-        code,
         description,
+        code,
         createdAt: new Date(),
         updatedAt: new Date(),
-        userId: "system" // Usando o valor padrão definido no schema
-      },
+        userId
+      }
     })
 
     return NextResponse.json(department)
   } catch (error) {
-    console.error('Erro ao criar departamento:', error)
+    console.error("Erro ao criar departamento:", error)
     return NextResponse.json(
       { error: "Erro ao criar departamento" },
       { status: 500 }

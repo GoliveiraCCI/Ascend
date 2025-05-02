@@ -42,7 +42,12 @@ interface Position {
     id: string
     name: string
   }
-  positionlevel: PositionLevel[]
+  positionlevel: {
+    id: string
+    name: string
+    salary: number
+    positionId: string
+  }[]
 }
 
 interface PositionLevel {
@@ -88,6 +93,7 @@ export default function PositionsTab() {
       const response = await fetch("/api/positions")
       if (!response.ok) throw new Error("Erro ao buscar cargos")
       const data = await response.json()
+      console.log('Positions data:', data)
       setPositions(data)
     } catch (error) {
       console.error("Erro ao buscar cargos:", error)
@@ -195,6 +201,14 @@ export default function PositionsTab() {
 
       if (!response.ok) {
         const error = await response.json()
+        if (error.error === "Já existe um cargo com este título neste departamento") {
+          toast({
+            variant: "destructive",
+            title: "Cargo já existe",
+            description: "Já existe um cargo com este título no departamento selecionado. Por favor, escolha outro título ou departamento."
+          })
+          return
+        }
         throw new Error(error.error || "Erro ao criar cargo")
       }
 
@@ -498,7 +512,7 @@ export default function PositionsTab() {
                             description: position.description || "",
                             departmentId: position.departmentId,
                           })
-                          setPositionLevels(position.positionLevels)
+                          setPositionLevels(position.positionlevel || [])
                           setEditDialogOpen(true)
                         }}
                       >

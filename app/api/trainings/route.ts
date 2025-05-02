@@ -3,12 +3,22 @@ import { prisma } from "@/lib/prisma"
 import { join } from "path"
 import { existsSync, mkdirSync, writeFileSync } from "fs"
 import { randomUUID } from "crypto"
+import { getLoggedUserId } from "@/lib/utils"
 
 export async function POST(request: Request) {
   try {
     const formData = await request.formData()
     const files = formData.getAll('files') as File[]
     
+    // Obter o ID do usuário logado
+    const userId = await getLoggedUserId()
+    if (!userId) {
+      return NextResponse.json(
+        { error: "Usuário não autenticado" },
+        { status: 401 }
+      )
+    }
+
     // Validações básicas
     const name = formData.get("name") as string
     const category = formData.get("category") as string
@@ -101,13 +111,15 @@ export async function POST(request: Request) {
         description: description || null,
         createdAt: now,
         updatedAt: now,
+        userId,
         trainingparticipant: {
           create: participantIds.map(employeeId => ({
             id: randomUUID(),
             employeeId,
             status: "ENROLLED",
             createdAt: now,
-            updatedAt: now
+            updatedAt: now,
+            userId
           }))
         },
         trainingmaterial: {
@@ -118,7 +130,8 @@ export async function POST(request: Request) {
             url: `/uploads/trainings/${Date.now()}-${file.name}`,
             size: file.size,
             createdAt: now,
-            updatedAt: now
+            updatedAt: now,
+            userId
           }))
         }
       },

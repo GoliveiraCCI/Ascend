@@ -188,13 +188,57 @@ export async function DELETE(
 ) {
   try {
     const resolvedParams = await params
-    await prisma.training.delete({
+
+    // Primeiro, buscar o treinamento e seus relacionamentos
+    const training = await prisma.training.findUnique({
       where: { id: resolvedParams.id },
+      include: {
+        trainingparticipant: true,
+        trainingmaterial: true,
+        trainingphoto: true,
+        trainingevaluation: true
+      }
     })
+
+    if (!training) {
+      return NextResponse.json(
+        { error: "Treinamento não encontrado" },
+        { status: 404 }
+      )
+    }
+
+    // Excluir todos os registros relacionados
+    await prisma.$transaction([
+      // Excluir participantes
+      prisma.trainingparticipant.deleteMany({
+        where: { trainingId: resolvedParams.id }
+      }),
+      // Excluir materiais
+      prisma.trainingmaterial.deleteMany({
+        where: { trainingId: resolvedParams.id }
+      }),
+      // Excluir fotos
+      prisma.trainingphoto.deleteMany({
+        where: { trainingId: resolvedParams.id }
+      }),
+      // Excluir avaliações
+      prisma.trainingevaluation.deleteMany({
+        where: { trainingId: resolvedParams.id }
+      }),
+      // Por fim, excluir o treinamento
+      prisma.training.delete({
+        where: { id: resolvedParams.id }
+      })
+    ])
+
     return NextResponse.json({ message: "Treinamento excluído com sucesso" })
   } catch (error) {
+    console.error("Erro ao excluir treinamento:", error)
     return NextResponse.json(
-      { error: "Erro ao excluir treinamento" },
+      { 
+        error: "Erro ao excluir treinamento",
+        details: error instanceof Error ? error.message : "Erro desconhecido"
+      },
       { status: 500 }
     )
   }
