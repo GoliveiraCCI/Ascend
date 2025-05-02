@@ -17,6 +17,8 @@ import {
 } from "lucide-react"
 import { useEffect } from "react"
 import Head from "next/head"
+import { LogoutButton } from "./components/logout-button"
+import Cookies from 'js-cookie'
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -54,6 +56,21 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         localStorage.removeItem("userData")
         localStorage.removeItem("isAuthenticated")
       }
+    }
+
+    // Adiciona listener para quando a janela for fechada
+    const handleBeforeUnload = () => {
+      // Limpa os dados de autenticação
+      localStorage.removeItem("userData")
+      localStorage.removeItem("isAuthenticated")
+      Cookies.remove('isAuthenticated')
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+
+    // Limpa o listener quando o componente for desmontado
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload)
     }
   }, [pathname, isLoginPage])
 
@@ -103,6 +120,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                     </Link>
                   ))}
                 </nav>
+                <div className="px-2 py-4 border-t">
+                  <LogoutButton />
+                </div>
               </div>
             </div>
           </div>
